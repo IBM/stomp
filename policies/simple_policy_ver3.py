@@ -19,10 +19,14 @@
 # 
 
 # SCHEDULING POLICY DESCRIPTION:
-#  This scheduling policy tries to schedule the task in the head of the
-#  queue in its best scheduling option (i.e. fastest server). If the best
-#  scheduling option isn't available, the policy will try to schedule the
-#  task in less-optimal server platforms.
+#  This scheduling policy tries to schedule the task at the head of the
+#  queue into the queue that will result in the earliest estimated
+#  completion time for this task (factoring in the given start time
+#  of the task taking into account the current busy status of a server).
+#  This policy effectively attempts to provide the least utilization time 
+#  (overall) for all the servers during the run.  For highly skewed
+#  mean service times, this policy may delay the start time of a task until
+#  a fast server is available.
 
 from stomp import BaseSchedulingPolicy
 import logging
