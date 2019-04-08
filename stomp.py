@@ -93,6 +93,9 @@ class Server:
         mean_service_time                = task.mean_service_time_dict[self.type]
         stdev_service_time               = task.stdev_service_time_dict[self.type]
         service_time                     = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
+        # Ensure that the random service time is a positive value...
+        if (service_time <= 0): 
+            service_time = 1;
         task.total_task_time             = service_time
         
         self.busy                        = True
