@@ -210,7 +210,8 @@ class STOMP:
             with open(in_trace_name, 'r') as input_trace:
                 line_count = 0;
                 for line in input_trace.readlines():
-                    tmp = line.split(',')
+                    sline = line.strip()
+                    tmp = sline.split(',')
                     try:
                         self.arrival_trace.append((int(tmp[0]),tmp[1]));
                     except:
@@ -258,12 +259,12 @@ class STOMP:
         # Select the "type" of task to create
         if (self.arrival_trace):
             tmp = self.arrival_trace.pop(0)
-            task = tmp[1];
+            task = tmp[1].strip();
             logging.debug('[ %10ld ] Setting next task type from TRACE to %s' % (self.sim_time, task))
-
-        #logging.debug("NEW_TASK from %s\n" % list(self.params['simulation']['tasks']))
-        task = numpy.random.choice(list(self.params['simulation']['tasks'])) 
-        #logging.debug("%s\n" % task)
+        else:
+            task = numpy.random.choice(list(self.params['simulation']['tasks'])) 
+            #logging.debug("NEW_TASK from %s\n" % list(self.params['simulation']['tasks']))
+            #logging.debug("%s\n" % task)
         #task = Task(self.sim_time, self.params['simulation']['mean_service_time'], self.params['simulation']['stdev_service_time'])
         #self.tasks.append(task)
         self.tasks.append(Task(self.sim_time, task_num, task, self.params['simulation']['tasks'][task]))
