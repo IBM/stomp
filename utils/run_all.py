@@ -15,6 +15,7 @@ CONF_FILE    = './stomp.json'
 POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3']
 STDEV_FACTOR = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 
+# Simulation directory
 sim_dir = time.strftime("sim_%d%m%Y_%H%M%S")
 if os.path.exists(sim_dir):
     shutil.rmtree(sim_dir)
@@ -28,6 +29,8 @@ start_time = time.time()
 num_executions = 0
 first_time = True
 
+# We open the JSON config file and update the corresponding
+# parameters directly in the stomp_params dicttionary
 with open(CONF_FILE) as conf_file:
     stomp_params = json.load(conf_file)
 
@@ -51,6 +54,7 @@ for policy in POLICY:
         # the specific parameters in the input JSON data
         stomp_params['simulation']['sched_policy_module'] = 'policies.' + policy 
         for task in stomp_params['simulation']['tasks']:
+            # Set the stdev for the service time
             for server, mean_service_time in stomp_params['simulation']['tasks'][task]['mean_service_time'].items():
                 stdev_service_time = int(round(stdev_factor*mean_service_time))
                 stomp_params['simulation']['tasks'][task]['stdev_service_time'][server] = stdev_service_time
@@ -66,7 +70,7 @@ for policy in POLICY:
                   ]
                  
         command_str = ' '.join(command)
-        #print('Running', command_str)
+        print('Running:', command_str)
         sys.stdout.flush()
         output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
         
