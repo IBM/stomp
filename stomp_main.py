@@ -26,7 +26,7 @@ from stomp import STOMP
 
 
 def usage_and_exit(exit_code):
-    print 'usage: stomp_main.py [--help] [--conf-file=<json_config_file>] [--conf-json=<json_string>]'
+    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival_trace=<string>] [--gen_arrival_trace=<string>]'
     sys.exit(exit_code)
 
 
@@ -45,13 +45,17 @@ def main(argv):
 
     try:
         #opts, args = getopt.getopt(argv,"hg:l:c:w:o:j:",["help", "gui=", "log-file=", "conf-file=", "work-dir=", "out-file=", "conf-json="])
-        opts, args = getopt.getopt(argv,"hdc:j:",["help", "conf-file=", "conf-json="])
+        opts, args = getopt.getopt(argv,"hdc:j:a:g:",["help", "conf-file=", "conf-json=", "debug", "arrival_trace", "gen_arrival_trace"])
+        #print('OPTS : %s' % (opts))
     except getopt.GetoptError:
         usage_and_exit(2)
 
     conf_file = "stomp.json"
     conf_json = None
     log_level = None
+    input_trace_file = None
+    output_trace_file = None
+
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             usage_and_exit(0)
@@ -59,6 +63,10 @@ def main(argv):
             conf_file = arg
         elif opt in ("-j", "--conf-json="):
             conf_json = json.loads(arg)
+        elif opt in ("-a", "--arrival_trace="):
+            input_trace_file = arg
+        elif opt in ("-g", "--gen_arrival_trace="):
+            output_trace_file = arg
         elif opt in ("-d", "--debug"):
             log_level = "DEBUG"
 
@@ -74,7 +82,11 @@ def main(argv):
 
     if (log_level):
         stomp_params['general']['logging_level'] = log_level;
-    
+
+    #print('Setting input_arr_tr file to %s and output_tr_file to %s\n' % (input_trace_file, output_trace_file))
+    stomp_params['general']['input_trace_file'] = input_trace_file
+    stomp_params['general']['output_trace_file'] = output_trace_file
+
     # Instantiate and run STOMP, print statistics
     stomp_sim = STOMP(stomp_params, sched_policy_module.SchedulingPolicy())
     stomp_sim.run()

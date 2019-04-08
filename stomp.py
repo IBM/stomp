@@ -35,7 +35,7 @@ import datetime
 ###############################################################################
 class Task:
     
-    def __init__(self, sim_time, type, params):
+    def __init__(self, sim_time, id, type, params):
         
         # Obtain a service time for the new task
         #service_time = numpy.random.normal(loc=mean, scale=stdev, size=1)
@@ -49,11 +49,13 @@ class Task:
         #self.curr_arrival_time      = sim_time
         self.departure_time          = None
         self.total_task_time         = None  # To be set upon scheduling, since it depends on the target server
-        self.trace_id                = None
+        self.trace_id                = id
         #self.run_pos                = 0
         self.wpower                  = None
         self.current_time            = 0
 
+    def __str__(self):
+        return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
 
 ###############################################################################
 # This class represents a 'server' in the system; i.e. an entity that can     #
@@ -157,12 +159,14 @@ class STOMP:
         self.sched_policy = sched_policy
         self.working_dir  = self.params['general']['working_dir']
         self.basename     = self.params['general']['basename']
+        self.num_tasks_generated = 0
 
         logging.basicConfig(level=eval('logging.' + self.params['general']['logging_level']), format="%(message)s")
         
         numpy.random.seed(self.params['general']['random_seed'])
         
         #pprint.pprint(self.params)
+        logging.debug("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         
         self.tasks                            = []   # Main queue
         self.servers                          = []
@@ -191,9 +195,34 @@ class STOMP:
         self.task_trace_file                  = open(self.working_dir + '/' + self.basename + '.global.trace', 'w')
         
         self.task_trace_file.write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        self.task_trace_file.write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         self.task_trace_file.write('Time\tResponse time (avg)\n')
 
         self.init_servers()
+
+        # IF user specified an input trace file then read that in here:
+        self.arrival_trace = []
+        self.input_trace_file = stomp_params['general']['input_trace_file']
+        self.output_trace_file = stomp_params['general']['output_trace_file']
+                                 
+        if (self.input_trace_file):
+            in_trace_name = self.working_dir + '/' + self.input_trace_file
+            with open(in_trace_name, 'r') as input_trace:
+                line_count = 0;
+                for line in input_trace.readlines():
+                    tmp = line.split(',')
+                    try:
+                        self.arrival_trace.append((int(tmp[0]),tmp[1]));
+                    except:
+                        logging.info('Bad line in arrival trace file: %d : %s' % (line_count, tmp))
+                    line_count += 1
+                
+        if (self.output_trace_file):
+            out_trace_name = self.working_dir + '/' + self.output_trace_file
+            logging.info('Generating output trace file to %s' % (out_trace_name))
+            self.output_trace = open(out_trace_name, 'w')
+        
+    
 
 
     def init_servers(self):
@@ -210,7 +239,7 @@ class STOMP:
             #self.supported_servers.append(server_type)
         
 
-    def generate_n_enqueue_new_task(self):
+    def generate_n_enqueue_new_task(self, task_num):
         
         if (len(self.tasks) == self.params['simulation']['max_queue_size']):
             logging.info('[%10ld] Problem with finding an empty queue slot!' % (self.sim_time))
@@ -226,11 +255,23 @@ class STOMP:
         self.last_size_change_time = self.sim_time
 
         # Create and enqueue a new task
-        task = numpy.random.choice(list(self.params['simulation']['tasks']))
+        # Select the "type" of task to create
+        if (self.arrival_trace):
+            tmp = self.arrival_trace.pop(0)
+            task = tmp[1];
+            logging.debug('[ %10ld ] Setting next task type from TRACE to %s' % (self.sim_time, task))
+
+        #logging.debug("NEW_TASK from %s\n" % list(self.params['simulation']['tasks']))
+        task = numpy.random.choice(list(self.params['simulation']['tasks'])) 
+        #logging.debug("%s\n" % task)
         #task = Task(self.sim_time, self.params['simulation']['mean_service_time'], self.params['simulation']['stdev_service_time'])
         #self.tasks.append(task)
-        self.tasks.append(Task(self.sim_time, task, self.params['simulation']['tasks'][task]))
+        self.tasks.append(Task(self.sim_time, task_num, task, self.params['simulation']['tasks'][task]))
         self.stats['Tasks Generated'] += 1
+
+        if (self.output_trace_file):
+            self.output_trace.write('%d,%s\n' % (self.sim_time, task))
+
                 
         if not task in self.stats['Avg Resp Time per Type']:
             self.stats['Avg Resp Time per Type'][task]  = 0
@@ -238,6 +279,7 @@ class STOMP:
             self.task_trace_files[task] = open(self.working_dir + '/' + self.basename + '.' + task + '.' + self.params['simulation']['sched_policy_module'].split('.')[-1] + '.trace', 'w')
             
             self.task_trace_files[task].write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            self.task_trace_files[task].write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
             self.task_trace_files[task].write('Time\tResponse time (avg)\n')
             
         return True
@@ -387,26 +429,38 @@ class STOMP:
             # 2) Handle the event                                                #
             ######################################################################
             if (next_event == STOMP.E_PWR_MGMT):
-        
+                if (self.next_power_mgmt_time < self.sim_time):
+                    logging.info('WARNING: Time Moving Backward: sim_time %ld but smaller next_power_mgmt_time %ld' % (self.sim_time, self.next_power_mgmt_time))
                 # Manage power...
                 self.sim_time = self.next_power_mgmt_time
                 logging.warning('[%10ld] Power management not yet supported...' % (self.sim_time))
         
             elif (next_event == STOMP.E_TASK_ARRIVAL):
+                if (self.next_cust_arrival_time < self.sim_time):
+                    logging.info('WARNING: Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
                 
                 # Customer (task) arrival...
                 self.sim_time = self.next_cust_arrival_time
                 
                 # Add task to queue
-                if (self.generate_n_enqueue_new_task()):
-                    self.next_cust_arrival_time = int(round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time'], size=1)))
-        
-                logging.debug('[%10ld] Task enqueued. Next task will arrive at time %ld' % (self.sim_time, self.next_cust_arrival_time))
-                logging.debug('             Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
+                if (self.generate_n_enqueue_new_task(self.num_tasks_generated)):
+                    self.num_tasks_generated += 1
+                    if (self.arrival_trace):
+                        tmp = self.arrival_trace[0]
+                        self.next_cust_arrival_time = tmp[0]
+                        logging.debug('[ %10ld ] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp[1]))
+                    else:
+                        self.next_cust_arrival_time = int(round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time'], size=1)))
+
+                logging.debug('[ %10ld ] Task enqueued. Next task will arrive at time %ld' % (self.sim_time, self.next_cust_arrival_time))
+                logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
         
                 
             elif (next_event == STOMP.E_SERVER_FINISHES):
-        
+                if (self.next_serv_end_time < self.sim_time):
+                    logging.info('WARNING: Time Moving Backward: sim_time %ld but smaller next_serv_end_time %ld' % (self.sim_time, self.next_serv_end_time))
+                    
+
                 # Service completion (next_cust_arrival_time >= next_serv_end_time)
                 self.sim_time = self.next_serv_end_time
         
@@ -442,11 +496,14 @@ class STOMP:
                 self.stats['Queue Size Histogram'][bin] += time_period
                 self.last_size_change_time = self.sim_time
 
-                logging.debug('[%10ld] Task scheduled in server %d (%s)' % (self.sim_time, server.id, server.type))
-                logging.debug('             Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
-                logging.debug('             %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
+                logging.debug('[ %10ld ] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
+                logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
+                logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
 
 
         # Close task trace files
         for task in self.task_trace_files:
             self.task_trace_files[task].close()
+
+        if (self.output_trace_file):
+            self.output_trace.close()
