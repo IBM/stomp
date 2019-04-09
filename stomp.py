@@ -204,19 +204,32 @@ class STOMP:
         self.arrival_trace = []
         self.input_trace_file = stomp_params['general']['input_trace_file']
         self.output_trace_file = stomp_params['general']['output_trace_file']
-                                 
+
+        self.pre_gen_arrivals = stomp_params['general']['pre_gen_arrivals']
+
+        if (self.input_trace_file and self.pre_gen_arrivals):
+            logging.info('WARNING: both an input task arrival trace file and pre-gen arrivals options specified; using the input trace\n')
+            
         if (self.input_trace_file):
             in_trace_name = self.working_dir + '/' + self.input_trace_file
             with open(in_trace_name, 'r') as input_trace:
                 line_count = 0;
                 for line in input_trace.readlines():
-                    sline = line.strip()
-                    tmp = sline.split(',')
+                    tmp = line.strip().split(',')
                     try:
                         self.arrival_trace.append((int(tmp[0]),tmp[1]));
                     except:
                         logging.info('Bad line in arrival trace file: %d : %s' % (line_count, tmp))
                     line_count += 1
+        elif (self.pre_gen_arrivals):
+            # create an a-priori list of tasks at times...
+            a_task_time = 0;
+            a_task_num = 0;
+            while (a_task_num < self.params['simulation']['max_tasks_simulated']):
+                task = numpy.random.choice(list(self.params['simulation']['tasks'])) 
+                self.arrival_trace.append((a_task_time, task))
+                a_task_time = int(round(a_task_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time'], size=1)))
+                a_task_num = a_task_num + 1;
                 
         if (self.output_trace_file):
             out_trace_name = self.working_dir + '/' + self.output_trace_file
@@ -257,9 +270,10 @@ class STOMP:
 
         # Create and enqueue a new task
         # Select the "type" of task to create
+        # NOTE: self.arrival_trace is used for EITHER an input trace or pre-gen arrival trace behavior
         if (self.arrival_trace):
             tmp = self.arrival_trace.pop(0)
-            task = tmp[1].strip();
+            task = tmp[1];
             logging.debug('[ %10ld ] Setting next task type from TRACE to %s' % (self.sim_time, task))
         else:
             task = numpy.random.choice(list(self.params['simulation']['tasks'])) 

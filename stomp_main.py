@@ -26,7 +26,7 @@ from stomp import STOMP
 
 
 def usage_and_exit(exit_code):
-    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival_trace=<string>] [--gen_arrival_trace=<string>]'
+    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival-trace=<string>] [--gen-arrival-trace=<string>] [--pre-gen-arrivals]'
     sys.exit(exit_code)
 
 
@@ -45,7 +45,7 @@ def main(argv):
 
     try:
         #opts, args = getopt.getopt(argv,"hg:l:c:w:o:j:",["help", "gui=", "log-file=", "conf-file=", "work-dir=", "out-file=", "conf-json="])
-        opts, args = getopt.getopt(argv,"hdc:j:a:g:",["help", "conf-file=", "conf-json=", "debug", "arrival_trace", "gen_arrival_trace"])
+        opts, args = getopt.getopt(argv,"hdpc:j:a:g:",["help", "conf-file=", "conf-json=", "debug", "arrival-trace", "gen-arrival-trace", "pre-gen-arrivals"])
         #print('OPTS : %s' % (opts))
     except getopt.GetoptError:
         usage_and_exit(2)
@@ -55,6 +55,7 @@ def main(argv):
     log_level = None
     input_trace_file = None
     output_trace_file = None
+    pre_gen = False
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
@@ -63,12 +64,14 @@ def main(argv):
             conf_file = arg
         elif opt in ("-j", "--conf-json="):
             conf_json = json.loads(arg)
-        elif opt in ("-a", "--arrival_trace="):
+        elif opt in ("-a", "--arrival-trace="):
             input_trace_file = arg
-        elif opt in ("-g", "--gen_arrival_trace="):
+        elif opt in ("-g", "--gen-arrival-trace="):
             output_trace_file = arg
         elif opt in ("-d", "--debug"):
             log_level = "DEBUG"
+        elif opt in ("-p", "--pre-gen-arrivals"):
+            pre_gen = True
 
     with open(conf_file) as conf_file:
         stomp_params = json.load(conf_file)
@@ -81,8 +84,11 @@ def main(argv):
     sched_policy_module = importlib.import_module(stomp_params['simulation']['sched_policy_module'])
 
     if (log_level):
-        stomp_params['general']['logging_level'] = log_level;
+        stomp_params['general']['logging_level'] = log_level
 
+    if (pre_gen):
+        stomp_params['general']['pre_gen_arrivals'] = True
+        
     #print('Setting input_arr_tr file to %s and output_tr_file to %s\n' % (input_trace_file, output_trace_file))
     stomp_params['general']['input_trace_file'] = input_trace_file
     stomp_params['general']['output_trace_file'] = output_trace_file

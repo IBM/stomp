@@ -1,10 +1,13 @@
 {
 
   "general" : {
-      "logging_level": "INFO",
-      "random_seed":   0,
-      "working_dir":   ".",
-      "basename":      ""
+      "logging_level": 		"INFO",
+      "random_seed":   		0,
+      "working_dir":   		".",
+      "basename":      		"",
+      "pre_gen_arrivals":	false,
+      "input_trace_file":	"",
+      "output_trace_file":	""
   },
   
   "simulation" : {

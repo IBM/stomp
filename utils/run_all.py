@@ -70,7 +70,7 @@ for policy in POLICY:
                   ]
                  
         command_str = ' '.join(command)
-        print('Running:', command_str)
+        #print('Running:', command_str)
         sys.stdout.flush()
         output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
         
