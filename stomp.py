@@ -46,6 +46,7 @@ class Task:
         self.stdev_service_time_dict = params['stdev_service_time']
         self.stdev_service_time_list = sorted(params['stdev_service_time'].items(), key=operator.itemgetter(1))
         self.arrival_time            = sim_time
+        self.service_time            = 0
         #self.curr_arrival_time      = sim_time
         self.departure_time          = None
         self.total_task_time         = None  # To be set upon scheduling, since it depends on the target server
@@ -78,6 +79,7 @@ class Server:
         self.stats['Tasks Serviced per Type'] = {}
         self.stats['Avg Resp Time']           = 0     # Overall for all tasks
         self.stats['Avg Resp Time per Type']  = {}    # Per task type
+        self.stats['Service Time per Type']   = {}    # Per task type
 
         self.reset()
         
@@ -104,6 +106,7 @@ class Server:
         # Ensure that the random service time is a positive value...
         if (service_time <= 0): 
             service_time = 1;
+        task.service_time                = service_time
         task.total_task_time             = service_time
         
         self.busy                        = True
@@ -320,15 +323,18 @@ class STOMP:
         task_type = server.task.type
 
 
-        resp_time                                        = (self.sim_time - server.task.arrival_time)
+        resp_time = (self.sim_time - server.task.arrival_time)
 
         if not task_type in server.stats['Avg Resp Time per Type']:
             server.stats['Avg Resp Time per Type'][task_type]  = 0
             server.stats['Tasks Serviced per Type'][task_type] = 0
+            server.stats['Service Time per Type'][task_type]   = []
+
         server.stats['Avg Resp Time']                      += resp_time
         server.stats['Avg Resp Time per Type'][task_type]  += resp_time
         server.stats['Tasks Serviced']                     += 1
         server.stats['Tasks Serviced per Type'][task_type] += 1
+        server.stats['Service Time per Type'][task_type].append(server.task.service_time)
 
         self.stats['Avg Resp Time']                     += resp_time
         self.stats['Avg Resp Time per Type'][task_type] += resp_time
@@ -438,7 +444,7 @@ class STOMP:
             c_time += count
             c_pct_time += sz
             sbin = str(bin)
-            logging.info('         %4s  %10d     %5.2f  %10d     %5.2f' % (sbin, count, sz, c_time, c_pct_time))
+            logging.info('         %4s  %10d    %6.2f  %10d    %6.2f' % (sbin, count, sz, c_time, c_pct_time))
             idx += 1
             if (idx < (self.num_bins - 1)):
                 bin += self.bin_size
@@ -446,7 +452,58 @@ class STOMP:
                 bin = ">" + str(bin)
         logging.info('')
 
-        
+
+        logging.info(' Task Service Times Analysis:')
+        for server in self.servers:
+            for task in server.stats['Avg Resp Time per Type']:
+                anum = float(0.0)
+                for rt in server.stats['Service Time per Type'][task]: #.append(resp_time)
+                    anum += rt
+                #avg = numpy.around(100 * anum / len(server.stats['Service Time per Type'][task]), decimals=2)
+                avg = anum / len(server.stats['Service Time per Type'][task])
+                num = float(0.0)
+                for rt in server.stats['Service Time per Type'][task]: #.append(resp_time)
+                    num += (rt - avg)*(rt - avg)
+                    #logging.info('STDEV_CMP,Server,%d,task,%s,%d,%d' % (server.id, task, avg, rt))
+                stdv = numpy.sqrt(num / len(server.stats['Service Time per Type'][task]))
+                #logging.info('   Server %3d : %12s : Avg %8.2f vs %8.2f : StDev %8.2f vs %8.2f : over %8d tasks' % (server.id, task,
+                logging.info('   Server %3d : %12s : Avg %8.2f vs %8.3f : StDev %8.2f vs %8.3f : over %8d tasks' % (server.id, task,
+                                                                                                                    avg,  self.params['simulation']['tasks'][task]['mean_service_time'][server.type],
+                                                                                                                    #stdv, (self.params['simulation']['tasks'][task]['stdev_service_time'][server.type] * self.params['simulation']['tasks'][task]['mean_service_time'][server.type]),
+                                                                                                                    stdv, self.params['simulation']['tasks'][task]['stdev_service_time'][server.type],
+                                                                                                                    len(server.stats['Service Time per Type'][task])))
+        logging.info('')
+        logging.info(' Server Type Task Type Service Times Analysis:')
+        for server_type in self.params['simulation']['servers']:
+            for task_type in self.params['simulation']['tasks']:
+                anum = float(0.0)
+                aden = 0
+                avg = 0
+                stdev = 0
+                for server in self.servers:
+                    if (server.type == server_type):
+                        if (task_type in server.stats['Service Time per Type'].keys()):
+                            for rt in server.stats['Service Time per Type'][task_type]:
+                                anum += rt
+                                aden += 1
+                if (aden > 0):
+                    avg = anum / float(aden)
+                    snum = float(0.0)
+                    sden = 0
+                    for server in self.servers:
+                        if (server.type == server_type):
+                            if (task_type in server.stats['Service Time per Type'].keys()):
+                                for rt in server.stats['Service Time per Type'][task_type]:
+                                    snum += (rt - avg)*(rt - avg)
+                                    sden += 1
+                    stdv = numpy.sqrt(snum / float(sden))
+                    logging.info('   %12s : %12s : Avg %8.2f vs %8.3f : StDev %8.2f vs %8.3f : over %8d tasks' % (server_type, task_type,
+                                                                                                                  avg,  self.params['simulation']['tasks'][task_type]['mean_service_time'][server_type],
+                                                                                                                  stdv, self.params['simulation']['tasks'][task_type]['stdev_service_time'][server_type],
+                                                                                                                  sden))
+            #logging.info('')
+
+            
     def run(self):
 
         logging.info('\nRunning STOMP simulation...')
