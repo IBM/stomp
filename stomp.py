@@ -72,7 +72,13 @@ class Server:
         self.num_reqs           = 0
         self.last_stopped_at    = 0
         self.busy_time          = 0
-        
+
+        self.stats                            = {}
+        self.stats['Tasks Serviced']          = 0
+        self.stats['Tasks Serviced per Type'] = {}
+        self.stats['Avg Resp Time']           = 0     # Overall for all tasks
+        self.stats['Avg Resp Time per Type']  = {}    # Per task type
+
         self.reset()
         
         logging.debug('Server %d of type %s created' % (self.id, self.type))
@@ -166,7 +172,7 @@ class STOMP:
         numpy.random.seed(self.params['general']['random_seed'])
         
         #pprint.pprint(self.params)
-        logging.debug("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
+        logging.info("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         
         self.tasks                            = []   # Main queue
         self.servers                          = []
@@ -188,8 +194,10 @@ class STOMP:
         
         # Histograms
         self.bin_size                         = 1
+        self.num_bins                         = 12
         self.last_size_change_time            = self.sim_time
-        self.stats['Queue Size Histogram']    = numpy.zeros(10, dtype=int)  # 10-bin histogram
+        self.stats['Queue Size Histogram']    = numpy.zeros(self.num_bins, dtype=int)  # N-bin histogram
+        self.stats['Max Queue Size']          = 0
         
         self.task_trace_files                 = {}   # Per task type
         self.task_trace_file                  = open(self.working_dir + '/' + self.basename + '.global.trace', 'w')
@@ -263,10 +271,16 @@ class STOMP:
         queue_size  = len(self.tasks)
         bin         = int(queue_size / self.bin_size)        
         time_period = self.sim_time - self.last_size_change_time
+        if (self.stats['Max Queue Size'] < queue_size):
+            self.stats['Max Queue Size'] = queue_size
         if (bin >= len(self.stats['Queue Size Histogram'])):
             bin = len(self.stats['Queue Size Histogram']) - 1
         self.stats['Queue Size Histogram'][bin] += time_period
         self.last_size_change_time = self.sim_time
+
+        #if (self.stats['Queue Size Histogram'][6] > 0):
+        #    logging.info('1> At time %ld have Q_size[%d] = %d' % (self.sim_time, 6, self.stats['Queue Size Histogram'][6]))
+        #    logging.info(' qSize %d  bin  %d  time_period %d' % (queue_size, bin, time_period))
 
         # Create and enqueue a new task
         # Select the "type" of task to create
@@ -305,13 +319,24 @@ class STOMP:
         # Update statistics
         task_type = server.task.type
 
+
         resp_time                                        = (self.sim_time - server.task.arrival_time)
+
+        if not task_type in server.stats['Avg Resp Time per Type']:
+            server.stats['Avg Resp Time per Type'][task_type]  = 0
+            server.stats['Tasks Serviced per Type'][task_type] = 0
+        server.stats['Avg Resp Time']                      += resp_time
+        server.stats['Avg Resp Time per Type'][task_type]  += resp_time
+        server.stats['Tasks Serviced']                     += 1
+        server.stats['Tasks Serviced per Type'][task_type] += 1
+
         self.stats['Avg Resp Time']                     += resp_time
         self.stats['Avg Resp Time per Type'][task_type] += resp_time
         #avg_serv_time       = (avg_serv_time * (num_tasks_serviced - 1) + server_entry['task']['total_task_time']) / num_tasks_serviced
         #int_resp_time  = (int_resp_time*(int_num_tasks_serviced-1) +
         #                 (SIM_TIME-server[SERVER_ID].cust.arrival_time)) / int_num_tasks_serviced
         #int_serv_time = (int_serv_time*(int_num_tasks_serviced-1)+server[SERVER_ID].cust.total_task_time)/int_num_tasks_serviced
+
                 
         self.stats['Tasks Serviced']                     += 1
         self.stats['Tasks Serviced per Type'][task_type] += 1
@@ -353,7 +378,7 @@ class STOMP:
 
         # Normalize histogram
         total_time = numpy.sum(self.stats['Queue Size Histogram'])
-        self.stats['Queue Size Histogram'] = numpy.around(100 * self.stats['Queue Size Histogram'] / total_time, decimals=2)
+        pct_qsize = numpy.around(100 * self.stats['Queue Size Histogram'] / total_time, decimals=2)
         
         
         ##### DUMP STATISTICS TO STDOUT #####
@@ -361,31 +386,64 @@ class STOMP:
         logging.info('\n==================== Simulation Statistics ====================')
         logging.info(' Total simulation time: %ld' % self.sim_time)
         logging.info(' Tasks serviced:        %ld' % self.stats['Tasks Serviced'])
-
         logging.info('')
         
         logging.info(' Response time (avg):')
-        logging.info('   global: %.1f' % self.stats['Avg Resp Time'])
+        logging.info('   %12s : %8.2f over %8d tasks' % ("global", self.stats['Avg Resp Time'], self.stats['Tasks Serviced']))
         for task in self.stats['Avg Resp Time per Type']:
-            logging.info('   %s: %.1f' % (task, self.stats['Avg Resp Time per Type'][task]/self.stats['Tasks Serviced per Type'][task]))
-        
+            if (self.stats['Tasks Serviced per Type'][task] > 0):
+                logging.info('   %12s : %8.2f over %8d tasks' % (task, self.stats['Avg Resp Time per Type'][task]/self.stats['Tasks Serviced per Type'][task], self.stats['Tasks Serviced per Type'][task]))
+            else:
+                logging.info('   %12s : %8,2f over %8d tasks' % (task, 0.0, 0))
         logging.info('')
 
-        logging.info(' Busy time:')
+        logging.info(' Serfver Response time (avg):')
         for server in self.servers:
-            logging.info('   Server %d (%s): %ld' % (server.id, server.type, server.busy_time))
+            if (server.stats['Tasks Serviced'] > 0):
+                server.stats['Avg Resp Time'] = server.stats['Avg Resp Time'] / server.stats['Tasks Serviced']
+                logging.info('   Server %3d : %12s : %8.2f over %8d tasks' % (server.id, "global", server.stats['Avg Resp Time'], server.stats['Tasks Serviced']))
+            else:
+                logging.info('   Server %3d : %12s : %8.2f over %8d tasks' % (server.id, "global", 0.0, 0))
 
         logging.info('')
-
-        logging.info(' Utilization:')
         for server in self.servers:
-            logging.info('   Server %d (%s): %.1f' % (server.id, server.type, 100*server.busy_time/self.sim_time))
-        
+            for task in server.stats['Avg Resp Time per Type']:
+                if (server.stats['Tasks Serviced per Type'][task] > 0):
+                    logging.info('   Server %3d : %12s : %8.2f over %8d tasks' % (server.id, task, server.stats['Avg Resp Time per Type'][task]/server.stats['Tasks Serviced per Type'][task], server.stats['Tasks Serviced per Type'][task]))
+                else:
+                    logging.info('   Server %3d : %12s : %8.2f over %8d tasks' % (server.id, task, 0.0, 0))
         logging.info('')
+
+        logging.info(' Busy time and Utilization:')
+        logging.info('                %12s  : %10s  %5s' % ("Server Type", "Busy Time", "Util."))
+        for server in self.servers:
+            logging.info('   Server %3d ( %12s ): %10ld  %5.2f' % (server.id, server.type, server.busy_time, numpy.around(100 * server.busy_time / total_time, decimals=2)))
+        logging.info('')
+
+        #logging.info(' Utilization:')
+        #for server in self.servers:
+        #    logging.info('   Server %3d ( %12s ): %.1f' % (server.id, server.type, 100*server.busy_time/self.sim_time))
+        #logging.info('')
 
         logging.info(' Histograms:')
-        logging.info('   Queue size (bin size=%d): %s' % (self.bin_size, ', '.join(map(str,self.stats['Queue Size Histogram']))))
-        
+        #logging.info('   Queue size Pct time (bin size=%d): %s' % (self.bin_size, ', '.join(map(str,self.stats['Queue Size Histogram']))))
+        logging.info('   Queue size Pct time: bin size, %d , max In Queue, %d , %s' % (self.bin_size, self.stats['Max Queue Size'],', '.join(map(str,self.stats['Queue Size Histogram']))))
+        idx = 0;
+        bin = 0;
+        logging.info('         %4s  %10s  %8s  %10s  %8s' % ("Bin", "Tot Time", "Pct Time", "Cum Time", "Cum Pct"))
+        c_time = 0
+        c_pct_time = 0
+        for count in self.stats['Queue Size Histogram']:
+            sz = numpy.around(100 * count / total_time, decimals=2)
+            c_time += count
+            c_pct_time += sz
+            sbin = str(bin)
+            logging.info('         %4s  %10d     %5.2f  %10d     %5.2f' % (sbin, count, sz, c_time, c_pct_time))
+            idx += 1
+            if (idx < (self.num_bins - 1)):
+                bin += self.bin_size
+            else:
+                bin = ">" + str(bin)
         logging.info('')
 
         
@@ -432,14 +490,13 @@ class STOMP:
                 next_event = STOMP.E_TASK_ARRIVAL
             
             else:
+                assert (self.next_serv_end_time <= self.next_power_mgmt_time) or not self.params['simulation']['power_mgmt_enabled']
+                assert (self.next_serv_end_time <= self.next_cust_arrival_time) or (self.stats['Tasks Generated'] >= self.params['simulation']['max_tasks_simulated'])
         
-              assert (self.next_serv_end_time <= self.next_power_mgmt_time) or not self.params['simulation']['power_mgmt_enabled']
-              assert (self.next_serv_end_time <= self.next_cust_arrival_time) or (self.stats['Tasks Generated'] >= self.params['simulation']['max_tasks_simulated'])
+                # Next event is a server finishing the execution of its assigned task
+                next_event = STOMP.E_SERVER_FINISHES
         
-              # Next event is a server finishing the execution of its assigned task
-              next_event = STOMP.E_SERVER_FINISHES
-        
-        
+
             ######################################################################
             # 2) Handle the event                                                #
             ######################################################################
@@ -504,6 +561,8 @@ class STOMP:
 
                 # Update histogram
                 queue_size  = len(self.tasks) + 1  # +1 because the task was already removed
+                if (self.stats['Max Queue Size'] < queue_size):
+                    self.stats['Max Queue Size'] = queue_size
                 bin         = int(queue_size / self.bin_size)        
                 time_period = self.sim_time - self.last_size_change_time
                 if (bin >= len(self.stats['Queue Size Histogram'])):
@@ -514,6 +573,7 @@ class STOMP:
                 logging.debug('[ %10ld ] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
                 logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
                 logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
+
 
 
         # Close task trace files

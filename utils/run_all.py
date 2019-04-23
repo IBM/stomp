@@ -108,14 +108,14 @@ for policy in sorted(sim_output.iterkeys()):
     first_time = True
     for stdev_factor in sorted(sim_output[policy].iterkeys()):
         if first_time:
-            # Print hearder
-            fh.write('  Stdev Factor\t')
+            # Print header
+            fh.write('  Stdev_Factor\t')
             for key in sorted(sim_output[policy][stdev_factor]['avg_resp_time'].iterkeys()):
-                fh.write('%s\t' % key)
+                fh.write(',%s\t\t\t' % key)
             fh.write('\n')
             first_time = False
         # Print values
-        fh.write('  %s\t' % str(stdev_factor))
+        fh.write('  %s\t\t\t' % str(stdev_factor))
         for key in sorted(sim_output[policy][stdev_factor]['avg_resp_time'].iterkeys()):
             fh.write('%s\t' % sim_output[policy][stdev_factor]['avg_resp_time'][key])
         fh.write('\n')
