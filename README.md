@@ -22,8 +22,9 @@ STOMP can be configured using the `stomp.json` file. To run it:
 ## Contributors
 
 Augusto Vega (IBM) --  ajvega@us.ibm.com
-
+John-David Wellman (IBM) -- wellman@us.ibm.com
 
 ## Current Maintainers
 
 Augusto Vega (IBM) --  ajvega@us.ibm.com
+John-David Wellman (IBM) -- wellman@us.ibm.com
