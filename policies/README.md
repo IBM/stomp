@@ -61,10 +61,10 @@ STOMP requires:
 
 ## Contributors
 
-Augusto Vega (IBM) --  ajvega@us.ibm.com
-J-D Wellman (IBM) -- wellman@us.ibm.com
+ * Augusto Vega (IBM) --  ajvega@us.ibm.com
+ * J-D Wellman (IBM) -- wellman@us.ibm.com
 
 ## Current Maintainers
 
-Augusto Vega (IBM) --  ajvega@us.ibm.com
-J-D Wellman (IBM) -- wellman@us.ibm.com
+ * Augusto Vega (IBM) --  ajvega@us.ibm.com
+ * J-D Wellman (IBM) -- wellman@us.ibm.com
