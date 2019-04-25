@@ -21,6 +21,18 @@ The run_all.py script supports both command-line options, and script-modificatio
  * -p or --pre-gen-tasks : This instructs STOMP to pre-generate the task information (at the start of the run).  This results in a consistent set of tasks across the runs; it is effectively a "dynamically-generated" trace.
  * -a or --arrival-trace : This will cause the first run of a STOMP simulation to generate a trace, which will then be used as an arrival trace by every succeeding STOMP simulation run.  This guarantees that the task arrival time and task_types are consisten across all the STOMP simulations and provides an exact trace of that first simulation (which can be used in future simulations, etc.).  Note that the trace is used as an "arrival" trace and not an "input" trace because the run_all.py script alters (scales) the standard deviations across runs, and the input trace fixes the task service times (which the arrival trace does not).
 
+### In-Script Options
+
+The run_all.py script specifies the baseline configuration file, and the set of scheduling policies and standard deviation factors to use in the parametric sweep in a few lines near the top of the file (just after the includes):
+```
+CONF_FILE    = './stomp.json'
+POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3']
+STDEV_FACTOR = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
+```
+
+Altering these values, e.g. by adding or removing entries from the STDEV_FACTOR list, will cause the run_all.py script to run a modified parametric sweep, but will still generate all the same data, etc. 
+__NOTE that altering the POLICY list also requires the addition of new policy files in the policies subdirectory of stomp (by the same name)__
+
 ## OUTPUTS
 
 The results of the run are put into an automtically generated directory names sim_<date>_<time>.

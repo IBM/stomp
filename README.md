@@ -9,12 +9,12 @@ STOMP is based on its predecesor C-based <a href="https://ieeexplore.ieee.org/do
 STOMP is invoked using the stomp_main.py which also supports several options:
  * -h or --help : Print the usage information
  * -d or --debug : Output run-time debugging messages
- * -c <S> or --conf-file=<S> : Specifies <S> as a json configuration file for STOMP to use this run
- * -j <S> or --conf-json=<S> : Specifies <S> as a json string that includes the configuration information for STOMP to use this run
+ * -c *S* or --conf-file=*S* : Specifies *S* as a json configuration file for STOMP to use this run
+ * -j *S* or --conf-json=*S* : Specifies *S* as a json string that includes the configuration information for STOMP to use this run
  * -p or --pre-gen-arrivals : Specifies that STOMP should compute all task types/arrival times before starting the simulation
- * -g <S> or --generate-trace=<S> : Specifies <S> as the filename into which STOMP will write (generate) a task trace
- * -i <S> or --input-trace=<S> : Specifies <S> as the filename from which STOMP should read an input task trace
- * -a <S> or --arrival-trace=<S> : Specifies <S> as the filename from which STOMP should read a task arrival trace
+ * -g *S* or --generate-trace=*S* : Specifies *S* as the filename into which STOMP will write (generate) a task trace
+ * -i *S* or --input-trace=*S* : Specifies *S* as the filename from which STOMP should read an input task trace
+ * -a *S* or --arrival-trace=*S* : Specifies *S* as the filename from which STOMP should read a task arrival trace
 
 ## TRACES
 
