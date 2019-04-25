@@ -26,7 +26,7 @@ from stomp import STOMP
 
 
 def usage_and_exit(exit_code):
-    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival-trace=<string>] [--gen-arrival-trace=<string>] [--pre-gen-arrivals]'
+    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival-trace=<string>] [--input-trace=<string>] [--generate-trace=<string>] [--pre-gen-arrivals]'
     sys.exit(exit_code)
 
 
@@ -44,9 +44,7 @@ def update(d, u):
 def main(argv):
 
     try:
-        #opts, args = getopt.getopt(argv,"hg:l:c:w:o:j:",["help", "gui=", "log-file=", "conf-file=", "work-dir=", "out-file=", "conf-json="])
-        opts, args = getopt.getopt(argv,"hdpc:j:a:g:",["help", "conf-file=", "conf-json=", "debug", "arrival-trace", "gen-arrival-trace", "pre-gen-arrivals"])
-        #print('OPTS : %s' % (opts))
+        opts, args = getopt.getopt(argv,"hdpc:j:i:a:g:",["help", "conf-file=", "conf-json=", "debug", "arrival-trace", "input-trace", "generate-trace", "pre-gen-arrivals"])
     except getopt.GetoptError:
         usage_and_exit(2)
 
@@ -65,8 +63,10 @@ def main(argv):
         elif opt in ("-j", "--conf-json="):
             conf_json = json.loads(arg)
         elif opt in ("-a", "--arrival-trace="):
-            input_trace_file = arg
-        elif opt in ("-g", "--gen-arrival-trace="):
+            input_trace_file = (True, arg)
+        elif opt in ("-i", "--input-trace="):
+            input_trace_file = (False, arg)
+        elif opt in ("-g", "--generate-trace="):
             output_trace_file = arg
         elif opt in ("-d", "--debug"):
             log_level = "DEBUG"
