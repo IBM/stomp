@@ -14,7 +14,7 @@ from __builtin__ import str
 
 
 CONF_FILE    = './stomp.json'
-POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3']
+POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4']
 STDEV_FACTOR = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 
 

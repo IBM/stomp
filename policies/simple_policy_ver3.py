@@ -74,16 +74,15 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         server_idx = target_servers.index(min(target_servers))
 
         if (not self.servers[server_idx].busy):
-            
             # Pop task in queue's head and assign it to server
             self.servers[server_idx].assign_task(sim_time, tasks.pop(0))
-            
             return self.servers[server_idx]
-        
         else:
-            
             return None
 
 
     def remove_task_from_server(self, sim_time, server):
+        pass
+
+    def output_final_stats(self, sim_time):
         pass

@@ -108,8 +108,8 @@ class Server:
         service_time                     = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
         #service_time                     = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
         # Ensure that the random service time is a positive value...
-        #if (service_time <= 0): 
-        #    service_time = 1;
+        if (service_time <= 0): 
+            service_time = 1;
         task.task_service_time           = service_time
         
         self.busy                        = True
@@ -122,7 +122,7 @@ class Server:
         self.task                        = task
         
         self.busy_time                   += self.curr_service_time
-    
+        logging.debug("[%10ld] Assigned task %d %s : srv %d st %d end %d est %d" % (sim_time, task.trace_id, task.type, self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
     
     def __str__(self):
         return ('Server ' + str(self.id) + ' (' + self.type + ')\n'
@@ -144,7 +144,10 @@ class BaseSchedulingPolicy:
 
     @abstractmethod
     def remove_task_from_server(self, sim_time, server): pass
-    
+
+    @abstractmethod
+    def output_final_stats(self, sim_time): pass
+
     
 ###############################################################################
 # >>>>>>> THIS IS THE MAIN CLASS THAT IMPLEMENTS THE QUEUE SIMULATOR <<<<<<<< #
@@ -350,7 +353,7 @@ class STOMP:
             tr_entry = self.global_task_trace.pop(0)
             #logging.info('ARR_TR : %s' % tr_entry)
             task = tr_entry[0][1];
-            logging.debug('[ %10ld ] Setting next task type from TRACE to %s' % (self.sim_time, task))
+            logging.debug('[%10ld] Setting next task type from TRACE to %s' % (self.sim_time, task))
         else:
             task = numpy.random.choice(list(self.params['simulation']['tasks'])) 
             #logging.debug("NEW_TASK from %s\n" % list(self.params['simulation']['tasks']))
@@ -495,7 +498,7 @@ class STOMP:
                 logging.info('   %12s : %8,2f over %8d tasks' % (task, 0.0, 0))
         logging.info('')
 
-        logging.info(' Serfver Response time (avg):')
+        logging.info(' Server Response time (avg):')
         for server in self.servers:
             if (server.stats['Tasks Serviced'] > 0):
                 server.stats['Avg Resp Time'] = server.stats['Avg Resp Time'] / server.stats['Tasks Serviced']
@@ -544,6 +547,7 @@ class STOMP:
                 bin = ">" + str(bin)
         logging.info('')
 
+        server = self.sched_policy.output_final_stats(self.sim_time)
 
         logging.info(' Per Server Task Service Times Analysis:')
         for server in self.servers:
@@ -704,14 +708,14 @@ class STOMP:
             ######################################################################
             if (next_event == STOMP.E_PWR_MGMT):
                 if (self.next_power_mgmt_time < self.sim_time):
-                    logging.info('WARNING: Time Moving Backward: sim_time %ld but smaller next_power_mgmt_time %ld' % (self.sim_time, self.next_power_mgmt_time))
+                    logging.info('WARNING: PWR_MGMT Time Moving Backward: sim_time %ld but smaller next_power_mgmt_time %ld' % (self.sim_time, self.next_power_mgmt_time))
                 # Manage power...
                 self.sim_time = self.next_power_mgmt_time
                 logging.warning('[%10ld] Power management not yet supported...' % (self.sim_time))
         
             elif (next_event == STOMP.E_TASK_ARRIVAL):
                 if (self.next_cust_arrival_time < self.sim_time):
-                    logging.info('WARNING: Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
+                    logging.info('WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
                 
                 # Customer (task) arrival...
                 self.sim_time = self.next_cust_arrival_time
@@ -723,17 +727,17 @@ class STOMP:
                         tmp = self.global_task_trace[0]
                         #logging.info('%s' % tmp)
                         self.next_cust_arrival_time = int(tmp[0][0])
-                        logging.debug('[ %10ld ] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp[0][0]))
+                        logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp[0][0]))
                     else:
                         self.next_cust_arrival_time = int(round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time'], size=1)))
 
-                logging.debug('[ %10ld ] Task enqueued. Next task will arrive at time %ld' % (self.sim_time, self.next_cust_arrival_time))
+                logging.debug('[%10ld] Task enqueued. Next task will arrive at time %ld' % (self.sim_time, self.next_cust_arrival_time))
                 logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
         
                 
             elif (next_event == STOMP.E_SERVER_FINISHES):
                 if (self.next_serv_end_time < self.sim_time):
-                    logging.info('WARNING: Time Moving Backward: sim_time %ld but smaller next_serv_end_time %ld' % (self.sim_time, self.next_serv_end_time))
+                    logging.info('WARNING: SERVER_FINISH Time Moving Backward: sim_time %ld but smaller next_serv_end_time %ld' % (self.sim_time, self.next_serv_end_time))
                     
 
                 # Service completion (next_cust_arrival_time >= next_serv_end_time)
@@ -773,7 +777,7 @@ class STOMP:
                 self.stats['Queue Size Histogram'][bin] += time_period
                 self.last_size_change_time = self.sim_time
 
-                logging.debug('[ %10ld ] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
+                logging.debug('[%10ld] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
                 logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
                 logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
 

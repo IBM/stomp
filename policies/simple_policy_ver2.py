@@ -55,7 +55,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
     
                     # Pop task in queue's head and assign it to server
                     server.assign_task(sim_time, tasks.pop(0))
-                    
                     return server
                 
         return None
@@ -63,3 +62,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
     def remove_task_from_server(self, sim_time, server):
         pass
+
+    def output_final_stats(self, sim_time):
+        pass
+    
