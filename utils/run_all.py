@@ -1,4 +1,27 @@
 #!/usr/bin/env python
+# 
+# Copyright 2018 IBM
+# 
+# This is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3, or (at your option)
+# any later version.
+# 
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this software; see the file COPYING.  If not, write to
+# the Free Software Foundation, Inc., 51 Franklin Street,
+# Boston, MA 02110-1301, USA.
+# 
+
+# DESCRIPTION:
+#  This script is used to kick off a run of a large number of tests.
+#  See the assocaited README.md file for more documentation.
+#
 
 from __future__ import print_function
 import os
@@ -19,7 +42,7 @@ STDEV_FACTOR = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  #
 
 
 def usage_and_exit(exit_code):
-    stdout.write('\nusage: run_all.py [--help] [--verbose] [--save_stdout] [--pre-gen-tasks] [--arrival-trace]\n\n')
+    stdout.write('\nusage: run_all.py [--help] [--verbose] [--save-stdout] [--pre-gen-tasks] [--arrival-trace] [--input-trace] [--user-input-trace]\n\n')
     sys.exit(exit_code)
 
 
@@ -27,14 +50,16 @@ def usage_and_exit(exit_code):
 def main(argv):
 
     try:
-        opts, args = getopt.getopt(argv,"hvspa",["help", "verbose", "save-stdout", "pre-gen-tasks", "arrival_trace"])
+        opts, args = getopt.getopt(argv,"hvspaiu",["help", "verbose", "save-stdout", "pre-gen-tasks", "arrival-trace", "input-trace", "user-input-trace"])
     except getopt.GetoptError:
         usage_and_exit(2)
 
-    verbose           = False
-    save_stdout       = False
-    pre_gen_tasks     = False
-    use_arrival_trace = False
+    verbose               = False
+    save_stdout           = False
+    pre_gen_tasks         = False
+    use_arrival_trace     = False
+    use_input_trace       = False
+    use_user_input_trace  = False
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
@@ -47,7 +72,25 @@ def main(argv):
             pre_gen_tasks = True
         elif opt in ("-a", "--arrival-trace"):
             use_arrival_trace = True
+        elif opt in ("-i", "--input-trace"):
+            use_input_trace = True
+        elif opt in ("-u", "--user-input-trace"):
+            use_user_input_trace = True
+        else:
+            stdout.write('\nERROR: Unrecognized input parameter %s\n' % opt)
+            usage_and_exit(3)
+            
+    if (use_arrival_trace and use_input_trace):
+        stdout.write('\nERROR: Cannot specify both arrival-trace and input-trace\n')
+        usage_and_exit(4)
 
+    if (use_arrival_trace and use_user_input_trace):
+        stdout.write('\nERROR: Cannot specify both arrival-trace and user-input-trace\n')
+        usage_and_exit(4)
+
+    if (use_user_input_trace and use_input_trace):
+        stdout.write('\nERROR: Cannot specify both use_user-input-trace and input-trace\n')
+        usage_and_exit(4)
 
     # Simulation directory
     sim_dir = time.strftime("sim_%d%m%Y_%H%M%S")
@@ -99,7 +142,7 @@ def main(argv):
 
             ###########################################################################################
             # Create command and execute the simulation
-            
+
             command = ['./stomp_main.py'                       
                        + ' -j \'' + conf_str + '\''
                        ]
@@ -114,7 +157,16 @@ def main(argv):
                     command_str = command_str + ' -g generated_arrival_trace.trc'
                 else:
                     command_str = command_str + ' -a generated_arrival_trace.trc'
-            
+
+            if (use_input_trace):
+                if (policy == POLICY[0]):
+                    command_str = command_str + ' -g generated_trace_stdf_' + str(stdev_factor) + '.trc'
+                else:
+                    command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
+
+            if (use_user_input_trace):
+                command_str = command_str + ' -i ../user_gen_trace_stdf_' + str(stdev_factor) + '.trc'
+
             if (verbose):
                 print('Running', command_str)
 
@@ -144,6 +196,13 @@ def main(argv):
                     line = output_list[i+1]
                     histogram = line.split(':')[1]
                     sim_output[policy][stdev_factor]['queue_size_hist'] = histogram.strip()
+
+                elif "Total simulation time:" in output_list[i].strip():
+                    elems = output_list[i].split(":")
+                    #stdout.write('HERE: %s : %s : %s\n' % (str(policy), str(stdev_factor), elems[1]))
+                    #stdout.write('%s\n' % (output_list[i].strip()))
+                    #sys.stdout.flush()
+                    sim_output[policy][stdev_factor]['total_sim_time'] = elems[1]
 
             if (save_stdout):
                 fh.close()
@@ -181,6 +240,16 @@ def main(argv):
         fh.write('%s\n' % policy)
         for stdev_factor in sorted(sim_output[policy].iterkeys()):
             fh.write('  %s\t%s\n' % (str(stdev_factor), sim_output[policy][stdev_factor]['queue_size_hist']))
+    fh.write('\n\n')
+    fh.close()
+
+    # Total Simulation Time
+    fh = open(sim_dir + '/total_sim_time.out', 'w')
+    for policy in sorted(sim_output.iterkeys()):
+        fh.write('%s\n' % policy)
+        fh.write('  Stdev_Factor\tTotal_Sim_Time\n')
+        for stdev_factor in sorted(sim_output[policy].iterkeys()):
+            fh.write('  %s\t%s\n' % (str(stdev_factor), sim_output[policy][stdev_factor]['total_sim_time']))
     fh.write('\n\n')
     fh.close()
 

@@ -16,6 +16,7 @@
       "mean_arrival_time":   50,
       "power_mgmt_enabled":  false,
       "max_queue_size":      1000000,
+      "arrival_time_scale":  1.0,
 
       "servers": {
           "cpu_core" : {

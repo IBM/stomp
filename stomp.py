@@ -212,10 +212,15 @@ class STOMP:
         
         self.task_trace_files                 = {}   # Per task type
         self.task_trace_file                  = open(self.working_dir + '/' + self.basename + '.global.trace', 'w')
-        
         self.task_trace_file.write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         self.task_trace_file.write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         self.task_trace_file.write('Time\tResponse time (avg)\n')
+
+        self.task_assign_trace                = open(self.working_dir + '/' + self.basename + '.global.atrace', 'w')
+        self.task_assign_trace.write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        self.task_assign_trace.write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
+        self.task_assign_trace.write('Time\tResponse time (avg)\n')
+        
 
         self.init_servers()
 
@@ -247,7 +252,7 @@ class STOMP:
                             self.intrace_server_order.append(item)
                     else:
                         tr_entry = []
-                        atime = int(tmp.pop(0))
+                        atime = int(tmp.pop(0))*self.params['simulation']['arrival_time_scale']
                         task  = tmp.pop(0)
                         tr_entry.append((atime, task))
                         stimes = []
@@ -296,7 +301,7 @@ class STOMP:
                 tr_entry.append(stimes)
                 self.global_task_trace.append(tr_entry)
                 logging.debug('%s' % tr_entry)
-                a_task_time = int(round(a_task_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time'], size=1)))
+                a_task_time = int(round(a_task_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time']*self.params['simulation']['arrival_time_scale'], size=1)))
                 a_task_num = a_task_num + 1;
         else:
             for server_type in self.params['simulation']['servers']:
@@ -447,7 +452,7 @@ class STOMP:
         self.next_serv_end                                = None
 
         avg_resp_time = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
-        self.task_trace_file.write('%ld\t%.1f\n' % (self.sim_time, avg_resp_time))
+        self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, avg_resp_time, server.task.trace_id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
 
         avg_resp_time = self.stats['Avg Resp Time per Type'][task_type] / self.stats['Tasks Serviced per Type'][task_type]
         self.task_trace_files[task_type].write('%ld\t%.1f\n' % (self.sim_time, avg_resp_time))
@@ -528,7 +533,7 @@ class STOMP:
 
         logging.info(' Histograms:')
         #logging.info('   Queue size Pct time (bin size=%d): %s' % (self.bin_size, ', '.join(map(str,self.stats['Queue Size Histogram']))))
-        logging.info('   Queue size Pct time: bin size, %d , max In Queue, %d , %s' % (self.bin_size, self.stats['Max Queue Size'],', '.join(map(str,self.stats['Queue Size Histogram']))))
+        logging.info('   Queue size Pct time: bin_size, %d , max_In_Queue, %d , %s' % (self.bin_size, self.stats['Max Queue Size'],', '.join(map(str,self.stats['Queue Size Histogram']))))
         idx = 0;
         bin = 0;
         logging.info('         %4s  %10s  %8s  %10s  %8s' % ("Bin", "Tot Time", "Pct Time", "Cum Time", "Cum Pct"))
@@ -729,7 +734,7 @@ class STOMP:
                         self.next_cust_arrival_time = int(tmp[0][0])
                         logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp[0][0]))
                     else:
-                        self.next_cust_arrival_time = int(round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time'], size=1)))
+                        self.next_cust_arrival_time = int(round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time']*self.params['simulation']['arrival_time_scale'], size=1)))
 
                 logging.debug('[%10ld] Task enqueued. Next task will arrive at time %ld' % (self.sim_time, self.next_cust_arrival_time))
                 logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
@@ -766,6 +771,8 @@ class STOMP:
                 self.stats['Busy Servers']                   += 1
                 self.stats['Available Servers'][server.type] -= 1
 
+                self.task_assign_trace.write('%ld,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, server.task.trace_id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
+
                 # Update histogram
                 queue_size  = len(self.tasks) + 1  # +1 because the task was already removed
                 if (self.stats['Max Queue Size'] < queue_size):
@@ -784,6 +791,9 @@ class STOMP:
 
 
         # Close task trace files
+        self.task_trace_file.close()
+        self.task_assign_trace.close()
+
         for task in self.task_trace_files:
             self.task_trace_files[task].close()
 
