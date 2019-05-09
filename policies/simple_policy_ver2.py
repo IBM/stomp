@@ -25,6 +25,9 @@
 #  task in less-optimal server platforms.  This policy tries to clear the
 #  first task by allowing any (eligible) server to execute it even if it is
 #  not the most optimal execution platform.
+#  This is effectively a sorted earliest-out-of-queue approach, where the
+#  task checks the fastest servers, then the next-fastest servers, etc. until
+#  it finds one that is not busy.
 
 from stomp import BaseSchedulingPolicy
 
