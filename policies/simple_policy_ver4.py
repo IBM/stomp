@@ -24,7 +24,9 @@
 #  completion time for this task (factoring in the given start time
 #  of the task taking into account the current busy status of a server).
 #  IF that task does not immeidately "issue" to the selected server
-#   (i.e. that server is "busy") then it considers the next task on the task list.
+#   (i.e. that server is "busy") then it considers the next task on the task list,
+#   and continues to do so until it has checked a number of tasks equal to
+#   the max_task_depth_to_check parm (defined below).
 #  This policy effectively attempts to provide the least utilization time 
 #  (overall) for all the servers during the run.  For highly skewed
 #  mean service times, this policy may delay the start time of a task until
@@ -37,6 +39,8 @@
 from stomp import BaseSchedulingPolicy
 import logging
 import numpy
+
+max_task_depth_to_check = 10
 
 class SchedulingPolicy(BaseSchedulingPolicy):
 
@@ -99,7 +103,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 self.stats['Task Issue Posn'][bin] += 1
                 return self.servers[server_idx]
             tidx += 1  # Increment task idx
-            
+            if (tidx >= max_task_depth_to_check):
+                break
         return None
 
     def remove_task_from_server(self, sim_time, server):
