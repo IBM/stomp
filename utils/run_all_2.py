@@ -48,7 +48,8 @@ POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3'
 #STDEV_FACTOR = [1.0] # [ 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 STDEV_FACTOR = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 #ARRIVE_SCALE = [1.0, 0.1] #[ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]  # percentages
-ARRIVE_SCALE = [ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]  # percentages
+#ARRIVE_SCALE = [ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]  # percentages
+ARRIVE_SCALE = [ 0.15, 0.16 , 0.17, 0.18, 0.9, 2.0, 2.1, 2.2, 2.3, 2.4]  # percentages
 
 
 def usage_and_exit(exit_code):
@@ -209,7 +210,7 @@ def main(argv):
                                 break
                             (key, value) = line.split(':')
                             sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'][key.strip()] = value.strip()
-                            sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
+                            #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
 
 
                     elif output_list[i].strip() == "Histograms:":
