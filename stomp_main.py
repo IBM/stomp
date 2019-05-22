@@ -1,23 +1,24 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright 2018 IBM
-# 
+#
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
+from __future__ import print_function
 import sys, getopt
 import importlib
 import json
@@ -26,7 +27,7 @@ from stomp import STOMP
 
 
 def usage_and_exit(exit_code):
-    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival-trace=<string>] [--input-trace=<string>] [--generate-trace=<string>] [--pre-gen-arrivals]'
+    print('usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival-trace=<string>] [--input-trace=<string>] [--generate-trace=<string>] [--pre-gen-arrivals]')
     sys.exit(exit_code)
 
 
@@ -79,7 +80,7 @@ def main(argv):
         # We update configuration parameters with JSON
         # values received through the command line
         update(stomp_params, conf_json)
-    
+
     # Dinamically import the scheduling policy class
     sched_policy_module = importlib.import_module(stomp_params['simulation']['sched_policy_module'])
 
@@ -88,7 +89,7 @@ def main(argv):
 
     if (pre_gen):
         stomp_params['general']['pre_gen_arrivals'] = True
-        
+
     #print('Setting input_arr_tr file to %s and output_tr_file to %s\n' % (input_trace_file, output_trace_file))
     stomp_params['general']['input_trace_file'] = input_trace_file
     stomp_params['general']['output_trace_file'] = output_trace_file
