@@ -44,7 +44,7 @@ from __builtin__ import str
 
 CONF_FILE    = './stomp.json'
 #POLICY       = ['simple_policy_ver1'] # ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4']
-POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4']
+POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5']
 #STDEV_FACTOR = [1.0] # [ 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 STDEV_FACTOR = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 #ARRIVE_SCALE = [1.0, 0.1] #[ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]  # percentages
@@ -153,7 +153,7 @@ def main(argv):
                 for task in stomp_params['simulation']['tasks']:
                     # Set the stdev for the service time
                     for server, mean_service_time in stomp_params['simulation']['tasks'][task]['mean_service_time'].items():
-                        stdev_service_time = int(round(stdev_factor*mean_service_time))
+                        stdev_service_time = (stdev_factor*mean_service_time)
                         stomp_params['simulation']['tasks'][task]['stdev_service_time'][server] = stdev_service_time
 
                 stomp_params['general']['basename'] = 'policy:' + policy \

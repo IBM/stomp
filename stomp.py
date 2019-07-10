@@ -56,6 +56,7 @@ class Task:
         #self.run_pos                = 0
         self.wpower                  = None
         self.current_time            = 0
+        self.possible_server_idx        = None
 
     def __str__(self):
         return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
@@ -354,6 +355,7 @@ class STOMP:
         # Create and enqueue a new task
         # Select the "type" of task to create
         # NOTE: self.global_task_trace is used for EITHER an input trace or pre-gen arrival trace behavior
+        tr_entry = []
         if (self.global_task_trace):
             tr_entry = self.global_task_trace.pop(0)
             #logging.info('ARR_TR : %s' % tr_entry)
@@ -366,8 +368,8 @@ class STOMP:
         #task = Task(self.sim_time, self.params['simulation']['mean_service_time'], self.params['simulation']['stdev_service_time'])
         #self.tasks.append(task)
         the_task = Task(self.sim_time, task_num, task, self.params['simulation']['tasks'][task])
-        # Set up the per-server-type execution times for this task...
-        if (self.global_task_trace):
+		# Set up the per-server-type execution times for this task...
+        if (self.global_task_trace or tr_entry): ##Trace entries exist or for last entry
             # The service times are given (per-server-type) in the global_task_trace
             stimes = tr_entry[1]
             #logging.info('%s' % stimes)
