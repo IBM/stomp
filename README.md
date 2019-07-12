@@ -18,7 +18,8 @@ STOMP is invoked using the `stomp_main.py` script which supports the following o
  * `-i` *_S_* or `--input-trace=`*_S_* : Specifies *_S_* as the filename from which STOMP should read an input task trace
  * `-a` *_S_* or `--arrival-trace=`*_S_* : Specifies *_S_* as the filename from which STOMP should read a task arrival trace
 
-## TRACES
+
+## Traces
 
 STOMP supports both dynamic (i.e. randomly generated task type, arrival, and service time) and trace-driven operational modes.  The dynamic operation further supports in-situ generation (i.e. each task arrival information is generated only as-needed) and a-priori generation (all task arrival information is generated before simulation begins -- this is the pre-gen-arrivals option).  The use of pre-generated (a-priori) task arrivals provides a much more stable/repeatable task stream (for a given random number seed).  
 STOMP can automatically generate a trace file from a run (usually conducted in one of the dynamic modes) using the generate-trace option.
@@ -27,6 +28,7 @@ Once a trace has been generated, subsequent STOMP runs can use that trace in one
  * **Input-trace mode** : this means that the STOMP simulation will faithfully use the task type, arrival time, and service times from the input trace.  This limits the ability of parameter changes (e.g. alterations in the mean service times, or the standard deviation) to affect the run-time behavior, since the task service times are taken from the input trace.  This does allow one to isolate the impact (in some sense) of the scheduling policy on overall performance.
  
  * **Arrival-trace mode** : this means taht the STOMP simulation will take only the task type and arrival time information from the trace, and will produce new server times for this run (_note that this is done a-priori, i.e. at trace read time__).  This mode allows the STOMP run to faithfully reproduce the stream of incoming tasks (and arrival times) but also to react to new STOMP configuration parameters (e.g. mean service times and/or standard deviations).
+
 
 ## Requirements
 
@@ -42,13 +44,14 @@ STOMP can be configured using the `stomp.json` file. To run it:
 ./stomp_main.py
 ```
 
-## Contributors
+
+## Contributors and Current Maintainers
 
  * Augusto Vega (IBM) --  ajvega@us.ibm.com
  * John-David Wellman (IBM) -- wellman@us.ibm.com
  * Aporva Amarnath (IBM) -- aporva.amarnath@ibm.com
 
-## Current Maintainers
+## Do You Want to Contribute? Contact Us!
 
  * Augusto Vega (IBM) --  ajvega@us.ibm.com
  * John-David Wellman (IBM) -- wellman@us.ibm.com
