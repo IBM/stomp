@@ -1,0 +1,60 @@
+{
+
+  "general" : {
+      "logging_level": 		"INFO",
+      "random_seed":   		0,
+      "working_dir":   		".",
+      "basename":      		"",
+      "pre_gen_arrivals":	false,
+      "input_trace_file":	"",
+      "output_trace_file":	""
+  },
+  
+  "simulation" : {
+      "sched_policy_module": "policies.simple_policy_ver3",
+      "max_tasks_simulated": 10000,
+      "mean_arrival_time":   50,
+      "power_mgmt_enabled":  false,
+      "max_queue_size":      1000000,
+      "arrival_time_scale":  1.0,
+
+      "servers": {
+          "cpu_core" : {
+              "count" : 8
+          },
+          "gpu" : {
+              "count" : 2
+          },
+          "fft_accel" : {
+              "count" : 1
+          }
+      },
+
+      "tasks": {
+          "fft" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 500,
+                  "gpu"       : 100,
+                  "fft_accel" : 10
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 5.0,
+                  "gpu"       : 1.0,
+                  "fft_accel" : 0.1
+              }
+          },
+
+          "decoder" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 200,
+                  "gpu"       : 150
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0,
+                  "gpu"       : 1.5
+              }
+          }
+      }
+  }
+
+}
