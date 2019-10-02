@@ -47,7 +47,7 @@ POLICY       = ['simple_policy_ver4', 'simple_policy_ver5', 'simple_policy_ver7'
 # POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5', 'simple_policy_ver6']
 STDEV_FACTOR = [0.01] #, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 # STDEV_FACTOR = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
-ARRIVE_SCALE = [0.26, 0.28, 0.3, 0.32, 0.34] #, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2]  # percentages
+ARRIVE_SCALE = [0.28] #, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2]  # percentages
 #ARRIVE_SCALE = [ 0.35, 0.36 , 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45 ]  # percentages
 # ARRIVE_SCALE = [ 0.2, 0.22, 0.24 , 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38, 0.4] #, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 2]  # percentages
 # ARRIVE_SCALE = [ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 2]  # percentages
@@ -129,118 +129,123 @@ def main(argv):
     with open(CONF_FILE) as conf_file:
         stomp_params = json.load(conf_file)
 
-    stomp_params['general']['working_dir'] = os.getcwd() + '/' + sim_dir
+    for accel_count in range(1,6):
+        stomp_params['general']['working_dir'] = os.getcwd() + '/' + sim_dir
+        stomp_params['simulation']['servers']['cpu_core']['count'] = 11 - (2*accel_count)
+        stomp_params['simulation']['servers']['fft_accel']['count'] = accel_count
+        stomp_params['simulation']['servers']['gpu']['count'] = accel_count
 
 
-    ###############################################################################################
-    # MAIN LOOP
-    for arr_scale in ARRIVE_SCALE:
+        ###############################################################################################
+        # MAIN LOOP
+        for arr_scale in ARRIVE_SCALE:
 
-        sim_output[arr_scale] = {}
-        stomp_params['simulation']['arrival_time_scale'] = arr_scale
+            sim_output[arr_scale] = {}
+            stomp_params['simulation']['arrival_time_scale'] = arr_scale
 
-        for policy in POLICY:
-            sim_output[arr_scale][policy] = {}
+            for policy in POLICY:
+                sim_output[arr_scale][policy] = {}
 
-            for stdev_factor in STDEV_FACTOR:
-            	stomp_params['simulation']['stdev_factor'] = stdev_factor
+                for stdev_factor in STDEV_FACTOR:
+                    stomp_params['simulation']['stdev_factor'] = stdev_factor
 
-                sim_output[arr_scale][policy][stdev_factor] = {}
-                sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'] = {}
-                sim_output[arr_scale][policy][stdev_factor]['met_deadline'] = {}
+                    sim_output[arr_scale][policy][stdev_factor] = {}
+                    sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'] = {}
+                    sim_output[arr_scale][policy][stdev_factor]['met_deadline'] = {}
 
-                ###########################################################################################
-                # Update the simulation configuration by updating
-                # the specific parameters in the input JSON data
-                stomp_params['simulation']['sched_policy_module'] = 'policies.' + policy 
-                for task in stomp_params['simulation']['tasks']:
-                    # Set the stdev for the service time
-                    for server, mean_service_time in stomp_params['simulation']['tasks'][task]['mean_service_time'].items():
-                        stdev_service_time = (stdev_factor*mean_service_time)
-                        stomp_params['simulation']['tasks'][task]['stdev_service_time'][server] = stdev_service_time
+                    ###########################################################################################
+                    # Update the simulation configuration by updating
+                    # the specific parameters in the input JSON data
+                    stomp_params['simulation']['sched_policy_module'] = 'policies.' + policy
 
-                stomp_params['general']['basename'] = 'policy:' + policy \
-                                                + '__stdev_factor:' + str(stdev_factor)
-                conf_str = json.dumps(stomp_params)
+                    for task in stomp_params['simulation']['tasks']:
+                        # Set the stdev for the service time
+                        for server, mean_service_time in stomp_params['simulation']['tasks'][task]['mean_service_time'].items():
+                            stdev_service_time = (stdev_factor*mean_service_time)
+                            stomp_params['simulation']['tasks'][task]['stdev_service_time'][server] = stdev_service_time
 
-                ###########################################################################################
-                # Create command and execute the simulation
+                    stomp_params['general']['basename'] = 'policy:' + policy \
+                                                    + '__stdev_factor:' + str(stdev_factor)
+                    conf_str = json.dumps(stomp_params)
 
-                command = ['./stomp_main.py'                       
-                           + ' -j \'' + conf_str + '\''
-                           ]
+                    ###########################################################################################
+                    # Create command and execute the simulation
 
-                command_str = ' '.join(command)
+                    command = ['./stomp_main.py'                       
+                               + ' -j \'' + conf_str + '\''
+                               ]
 
-                if (pre_gen_tasks):
-                    command_str = command_str + ' -p'
+                    command_str = ' '.join(command)
 
-                if (use_arrival_trace):
-                    if (policy == POLICY[0]) and (stdev_factor == STDEV_FACTOR[0]):
-                        command_str = command_str + ' -g generated_arrival_trace.trc'
-                    else:
-                        command_str = command_str + ' -a generated_arrival_trace.trc'
+                    if (pre_gen_tasks):
+                        command_str = command_str + ' -p'
 
-                if (use_input_trace):
-                    if (policy == POLICY[0]):
-                        command_str = command_str + ' -g generated_trace_stdf_' + str(stdev_factor) + '.trc'
-                    else:
-                        command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
+                    if (use_arrival_trace):
+                        if (policy == POLICY[0]) and (stdev_factor == STDEV_FACTOR[0]):
+                            command_str = command_str + ' -g generated_arrival_trace.trc'
+                        else:
+                            command_str = command_str + ' -a generated_arrival_trace.trc'
 
-                if (use_user_input_trace):
-                	command_str = command_str + ' -i ../user_traces/user_gen_trace.trc'
+                    if (use_input_trace):
+                        if (policy == POLICY[0]):
+                            command_str = command_str + ' -g generated_trace_stdf_' + str(stdev_factor) + '.trc'
+                        else:
+                            command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
 
-                if (verbose):
-                    print('Running', command_str)
+                    if (use_user_input_trace):
+                        command_str = command_str + ' -i ../user_traces/user_gen_trace.trc'
 
-                sys.stdout.flush()
-                output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
+                    if (verbose):
+                        print('Running', command_str)
 
-                if (save_stdout):
-                    fh = open(sim_dir + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out', 'w')
+                    sys.stdout.flush()
+                    output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
 
-                ###########################################################################################
-                # Parse the output line by line
-                output_list = output.splitlines()
-                i = 0
-                for i in range(len(output_list)):
                     if (save_stdout):
-                        fh.write('%s\n' % (output_list[i]))
-                    if output_list[i].strip() == "Response time (avg):":
-                        for j in range(i+1, len(output_list)):
-                            line = output_list[j]
-                            if not line.strip():
-                                break
-                            (key, value) = line.split(':')
-                            sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'][key.strip()] = value.strip()
-                            #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
+                        fh = open(sim_dir + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '_cpu_' + str(accel_count) + '.out', 'w')
 
-                    elif output_list[i].strip() == "Met Deadline:":
-                        for j in range(i+1, len(output_list)):
-                            line = output_list[j]
-                            if not line.strip():
-                                break
-                            (key, value) = line.split(':')
-                            sim_output[arr_scale][policy][stdev_factor]['met_deadline'][key.strip()] = value.strip()
-                            #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
+                    ###########################################################################################
+                    # Parse the output line by line
+                    output_list = output.splitlines()
+                    i = 0
+                    for i in range(len(output_list)):
+                        if (save_stdout):
+                            fh.write('%s\n' % (output_list[i]))
+                        if output_list[i].strip() == "Response time (avg):":
+                            for j in range(i+1, len(output_list)):
+                                line = output_list[j]
+                                if not line.strip():
+                                    break
+                                (key, value) = line.split(':')
+                                sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'][key.strip()] = value.strip()
+                                #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
+
+                        elif output_list[i].strip() == "Met Deadline:":
+                            for j in range(i+1, len(output_list)):
+                                line = output_list[j]
+                                if not line.strip():
+                                    break
+                                (key, value) = line.split(':')
+                                sim_output[arr_scale][policy][stdev_factor]['met_deadline'][key.strip()] = value.strip()
+                                #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
 
 
-                    elif output_list[i].strip() == "Histograms:":
-                        line = output_list[i+1]
-                        histogram = line.split(':')[1]
-                        sim_output[arr_scale][policy][stdev_factor]['queue_size_hist'] = histogram.strip()
+                        elif output_list[i].strip() == "Histograms:":
+                            line = output_list[i+1]
+                            histogram = line.split(':')[1]
+                            sim_output[arr_scale][policy][stdev_factor]['queue_size_hist'] = histogram.strip()
 
-                    elif "Total simulation time:" in output_list[i].strip():
-                        elems = output_list[i].split(":")
-                        #stdout.write('HERE: %s : %s : %s\n' % (str(policy), str(stdev_factor), elems[1]))
-                        #stdout.write('%s\n' % (output_list[i].strip()))
-                        #sys.stdout.flush()
-                        sim_output[arr_scale][policy][stdev_factor]['total_sim_time'] = elems[1]
+                        elif "Total simulation time:" in output_list[i].strip():
+                            elems = output_list[i].split(":")
+                            #stdout.write('HERE: %s : %s : %s\n' % (str(policy), str(stdev_factor), elems[1]))
+                            #stdout.write('%s\n' % (output_list[i].strip()))
+                            #sys.stdout.flush()
+                            sim_output[arr_scale][policy][stdev_factor]['total_sim_time'] = elems[1]
 
-                if (save_stdout):
-                    fh.close()
-                num_executions += 1
-                time.sleep(1)
+                    if (save_stdout):
+                        fh.close()
+                    num_executions += 1
+                    time.sleep(1)
 
 
     # ###############################################################################################

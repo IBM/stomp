@@ -55,6 +55,10 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             for server in self.servers:
         
                 if (server.type == target_server_type and not server.busy):
+
+                    # for target_server1 in tasks[0].mean_service_time_list:
+                    #     target_server_type = target_server1[0]
+                    #     print(str(target_server_type) + "," + str(tasks[0].per_server_service_dict[target_server_type]))
     
                     # Pop task in queue's head and assign it to server
                     server.assign_task(sim_time, tasks.pop(0))

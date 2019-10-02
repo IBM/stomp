@@ -25,6 +25,7 @@
 #  remains in the queue (i.e. no other less-optimal server platform is
 #  considered).
 
+import logging
 from stomp import BaseSchedulingPolicy
 
 class SchedulingPolicy(BaseSchedulingPolicy):
@@ -45,14 +46,22 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         
         # Determine task's best scheduling option (target server)
         target_server_type = tasks[0].mean_service_time_list[0][0]
-                
+        # logging.info(tasks)
+        # logging.info('POL: %d,%s,%d,%d,%d,%d,%s' % (sim_time, tasks[0].type, tasks[0].dag_id, tasks[0].tid, tasks[0].priority, tasks[0].deadline, ','.join(map(str, tasks[0].per_server_services))))
+        # if(sim_time != tasks[0].arrival_time):
+        #     logging.info("CHECK")     
         # Look for an available server to process the task
         for server in self.servers:
     
             if (server.type == target_server_type and not server.busy):
 
                 # Pop task in queue's head and assign it to server
+                # print('SERVER_ASSIGNED: %d,%s,%d,%s,%d,%d\n' % (sim_time, server.type, server.id, tasks[0].type, tasks[0].dag_id, tasks[0].tid)) #Aporva
+                # for server_stat in self.servers:
+                    # if (server_stat.busy):
+                    #     print('BUSY: %s,%d,%s' % (server_stat.type, server_stat.id, server_stat.busy))
                 server.assign_task(sim_time, tasks.pop(0))
+
                 return server
                 
         return None

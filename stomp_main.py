@@ -22,7 +22,11 @@ import sys, getopt
 import importlib
 import json
 import collections
+
+import threading
+
 from stomp import STOMP
+from meta import META
 
 
 def usage_and_exit(exit_code):
@@ -95,7 +99,19 @@ def main(argv):
 
     # Instantiate and run STOMP, print statistics
     stomp_sim = STOMP(stomp_params, sched_policy_module.SchedulingPolicy())
-    stomp_sim.run()
+    meta_sim = META(stomp_params,stomp_sim)
+
+    thread1 = threading.Thread(target=meta_sim.run)
+    thread2 = threading.Thread(target=stomp_sim.run)
+    # Will execute both in parallel
+    thread1.start()
+    thread2.start()
+
+    thread1.join()
+    thread2.join()
+    # meta_sim.run()
+    # stomp_sim.run()
+    
     stomp_sim.print_stats()
 
 

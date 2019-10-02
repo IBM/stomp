@@ -8,15 +8,17 @@
       "pre_gen_arrivals":	false,
       "input_trace_file":	"",
       "output_trace_file":	""
+
   },
   
   "simulation" : {
       "sched_policy_module": "policies.simple_policy_ver3",
       "max_tasks_simulated": 10000,
-      "mean_arrival_time":   50,
+      "mean_arrival_time":   200,
       "power_mgmt_enabled":  false,
       "max_queue_size":      1000000,
       "arrival_time_scale":  1.0,
+      "stdev_factor":     0.01,
 
       "servers": {
           "cpu_core" : {
@@ -41,9 +43,26 @@
                   "cpu_core"  : 5.0,
                   "gpu"       : 1.0,
                   "fft_accel" : 0.1
-              }
+              },
+              "priority" : 1,
+              "deadline" : 1000
           },
-
+          
+          "cnn" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 200,
+                  "gpu"       : 150,
+                  "fft_accel" : 10
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0,
+                  "gpu"       : 1.5,
+                  "fft_accel" : 0.1
+              },
+              "priority" : 2,
+              "deadline" : 1000
+          },
+      
           "decoder" : {
               "mean_service_time" : {
                   "cpu_core"  : 200,
@@ -52,7 +71,9 @@
               "stdev_service_time" : {
                   "cpu_core"  : 2.0,
                   "gpu"       : 1.5
-              }
+              },
+              "priority" : 3,
+              "deadline" : 1000
           }
       }
   }

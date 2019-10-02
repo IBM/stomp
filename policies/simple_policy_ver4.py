@@ -76,7 +76,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 
                     mean_service_time   = task.mean_service_time_dict[server.type]
                     if (server.busy):
-                        remaining_time  = server.curr_job_end_time_estimated - sim_time
+                        remaining_time  = server.curr_job_end_time - sim_time
                     else:
                         remaining_time  = 0
                     actual_service_time = mean_service_time + remaining_time

@@ -24,14 +24,15 @@
 #  completion time for this task (factoring in the given start time
 #  of the task taking into account the current busy status of a server).
 #  IF that task does not immeidately "issue" to the selected server
-#   (i.e. that server is "busy") then it considers the next task on the task list 
-#   while factoring the remaining time of the preceding tasks in the list,
+#   (i.e. that server is "busy") then it considers the next task on the task list,
 #   and continues to do so until it has checked a number of tasks equal to
 #   the max_task_depth_to_check parm (defined below).
 #  This policy effectively attempts to provide the least utilization time 
 #  (overall) for all the servers during the run.  For highly skewed
 #  mean service times, this policy may delay the start time of a task until
 #  a fast server is available.
+# This is the first example that includes "issue" of tasks other than the
+#  one at the head of the queue...
 #
 
 
@@ -60,10 +61,48 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # There aren't tasks to serve
             return None    
 
+        if (len(tasks) > max_task_depth_to_check):
+            window_len = max_task_depth_to_check
+        else:
+            window_len = len(tasks)
+
+
+        window = tasks[:window_len]
+
+
+
+        for w in window:
+            sum_time = 0
+            num_servers = 0
+            for server in self.servers:
+                if (server.type in w.mean_service_time_dict):
+                    mean_service_time   = w.mean_service_time_dict[server.type]
+                    sum_time += float(mean_service_time)
+                    num_servers += 1
+
+
+            if ((w.deadline -(sim_time-w.arrival_time) - (sum_time/num_servers)) == 0):
+                slack = 1
+            else:
+                if ((w.deadline - (sim_time-w.arrival_time) - (sum_time/num_servers)) < 0):
+                    slack = 1/((sum_time/num_servers) - (w.deadline - (sim_time-w.arrival_time)))
+                else:
+                    slack = 1 + (w.deadline - (sim_time-w.arrival_time) - (sum_time/num_servers))
+            w.rank = int(1000 * ((w.priority)/slack))
+
+
+        window.sort(key=lambda task: task.rank, reverse=True)
+        
+        # out = str(sim_time) + ","
+        # ii = 0
+        # for w in window:
+        #     out += (("%d, atime: %d, dead: %d, rank: %d, priority: %d,") % (ii,w.arrival_time,w.deadline,w.rank,w.priority))
+        #     ii += 1
+        # print(out)
+            
         tidx = 0;
-        for task in tasks:
-            #task = tasks[0]
-            logging.debug('[%10ld] Attempting to scheduling task %2d : %s' % (sim_time, tidx, task.type))
+        for task in window:
+            logging.debug('[%10ld] Attempting to schedule task %2d : %s' % (sim_time, tidx, task.type))
         
             # Compute execution times for each target server, factoring in
             # the remaining execution time of tasks already running.
@@ -76,7 +115,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     mean_service_time   = task.mean_service_time_dict[server.type]
                     if (server.busy):
                         remaining_time  = server.curr_job_end_time - sim_time
-                        for stask in tasks:
+                        for stask in window:
                             if(stask == task):
                                 break
                             if (self.servers.index(server) == stask.possible_server_idx):
@@ -96,7 +135,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
             if (not self.servers[server_idx].busy):
                 # Pop task in queue's head and assign it to server
-                ttask = tasks.pop(tidx);
+                ttask = window.pop(tidx);
+                tasks.remove(ttask)
                 logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, ttask.type, server_idx, self.servers[server_idx].type))
                 
                 self.servers[server_idx].assign_task(sim_time, ttask)
@@ -109,8 +149,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                 task.possible_server_idx = server_idx
             tidx += 1  # Increment task idx
-            if (tidx >= max_task_depth_to_check):
-                break
+            # if (tidx >= max_task_depth_to_check):
+            #     break
         return None
 
     def remove_task_from_server(self, sim_time, server):
