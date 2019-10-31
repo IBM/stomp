@@ -1,0 +1,4 @@
+type,P1,P2,...,Pn
+decoder,137,136,None
+fft,514,125,13
+decoder,44,132,None

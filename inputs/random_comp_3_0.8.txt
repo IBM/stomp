@@ -1,0 +1,4 @@
+type,P1,P2,...,Pn
+decoder,231,244,None
+cnn,472,270,17
+cnn,133,386,2

@@ -1,0 +1,11 @@
+type,P1,P2,...,Pn
+decoder,189,153,None
+cnn,190,148,9
+decoder,196,167,None
+fft,506,101,9
+cnn,192,152,10
+fft,504,102,9
+cnn,194,153,9
+decoder,205,150,None
+cnn,203,141,9
+fft,478,96,9
