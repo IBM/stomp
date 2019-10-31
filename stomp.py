@@ -47,23 +47,26 @@ class Task:
         self.tid                        = tid
         self.priority                   = params['priority']  # Task input priority
         self.deadline                   = params['deadline']  # Task input deadline
-        self.mean_service_time_dict  = params['mean_service_time']
-        self.mean_service_time_list  = sorted(params['mean_service_time'].items(), key=operator.itemgetter(1)) 
-        self.stdev_service_time_dict = params['stdev_service_time']
-        self.stdev_service_time_list = sorted(params['stdev_service_time'].items(), key=operator.itemgetter(1))
-        self.arrival_time            = sim_time
-        #self.curr_arrival_time      = sim_time
-        self.departure_time          = None
-        self.per_server_services     = []    # Holds ordered list of service times
-        self.per_server_service_dict = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
-        self.task_service_time       = None  # To be set upon scheduling, since it depends on the target server
-        self.task_lifetime           = None  # To be set upon finishing; includes time span from arrival to departure
-        self.trace_id                = id
-        #self.run_pos                = 0
-        self.wpower                  = None
-        self.current_time            = 0
+        self.mean_service_time_dict     = params['mean_service_time']
+        self.mean_service_time_list     = sorted(params['mean_service_time'].items(), key=operator.itemgetter(1)) 
+        self.stdev_service_time_dict    = params['stdev_service_time']
+        self.stdev_service_time_list    = sorted(params['stdev_service_time'].items(), key=operator.itemgetter(1))
+        self.arrival_time               = sim_time
+        self.noaffinity_time            = 0
+        #self.curr_arrival_time         = sim_time
+        self.departure_time             = None
+        self.per_server_services        = []    # Holds ordered list of service times
+        self.per_server_service_dict    = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
+        self.task_service_time          = None  # To be set upon scheduling, since it depends on the target server
+        self.task_lifetime              = None  # To be set upon finishing; includes time span from arrival to departure
+        self.trace_id                   = id
+        #self.run_pos                   = 0
+        self.wpower                     = None
+        self.current_time               = 0
         self.possible_server_idx        = None
         self.rank                       = 0
+        self.peid                       = None
+        self.parent_data                = []
 
     def __str__(self):
         return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
@@ -83,6 +86,8 @@ class Server:
         self.num_reqs           = 0
         self.last_stopped_at    = 0
         self.busy_time          = 0
+        self.last_dag_id        = None
+        self.last_task_id       = None
 
         self.stats                            = {}
         self.stats['Tasks Serviced']          = 0
@@ -106,38 +111,61 @@ class Server:
         self.curr_job_start_time    = None
         self.curr_job_end_time      = None
         self.last_usage_started_at  = None
-        self.task                   = None
+        self.task                   = None        
+
         
         
     def assign_task(self, sim_time, task):
         
         # At this moment, we know the target server where the task will run.
         # Therefore, we can compute the task's service time
-        task_dag_id                      = task.dag_id
-        task_tid                         = task.tid
-        task_priority                    = task.priority
-        task_deadline                    = task.deadline
-        mean_service_time                = task.mean_service_time_dict[self.type]
-        stdev_service_time               = task.stdev_service_time_dict[self.type]
-        service_time                     = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
+        task_dag_id                     = task.dag_id
+        task_tid                        = task.tid
+        task_priority                   = task.priority
+        task_deadline                   = task.deadline
+        mean_service_time               = task.mean_service_time_dict[self.type]
+        stdev_service_time              = task.stdev_service_time_dict[self.type]
+        service_time                    = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
+        noaffinity_time                 = 0
         #service_time                     = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
         # Ensure that the random service time is a positive value...
         if (service_time <= 0): 
-            service_time = 1;
-        task.task_service_time           = service_time
+            service_time                    = 1
+            
+        #### AFFINITY ####
+        # Maintain dag_id + task id of last executed task
+        # Calculate execution time based on if parent was last executed on the server
+        ####
+        # if self.last_dag_id != None:
+        #     print("Server id: %d last DAG id and task id: %d,%d" % (self.id, self.last_dag_id, self.last_task_id))
+
+        # print(task.parent_data)
+        for parent in task.parent_data:
+            if parent[1]  == self.id and parent[0] == self.last_task_id and task_dag_id == self.last_dag_id:
+                noaffinity_time             += 0
+            else:
+                noaffinity_time             += 0.25 * task.mean_service_time_dict[self.type]
+                # print("No Affinity for parent %lf" % (noaffinity_time))
+        task.noaffinity_time = int(noaffinity_time)
+
+        task.task_service_time              = service_time + task.noaffinity_time
+        self.busy                           = True
+        self.curr_service_time              = task.task_service_time
+        self.curr_job_start_time            = sim_time
+        self.curr_job_end_time              = self.curr_job_start_time + self.curr_service_time
+        self.curr_job_end_time_estimated    = self.curr_job_start_time + mean_service_time + task.noaffinity_time
+        self.last_usage_started_at          = sim_time
+        self.num_reqs                       += 1
+        self.task                           = task
         
-        self.busy                        = True
-        self.curr_service_time           = task.task_service_time
-        self.curr_job_start_time         = sim_time
-        self.curr_job_end_time           = self.curr_job_start_time + self.curr_service_time
-        self.curr_job_end_time_estimated = self.curr_job_start_time + mean_service_time
-        self.last_usage_started_at       = sim_time
-        self.num_reqs                    += 1
-        self.task                        = task
-        
-        self.busy_time                   += self.curr_service_time
+        self.busy_time                      += self.curr_service_time
+        self.last_dag_id                    = task_dag_id
+        self.last_task_id                   = task_tid
+
         logging.debug("[%10ld] Assigned task %d %s : srv %d st %d end %d est %d" % (sim_time, task.trace_id, task.type, self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
     
+
+
     def __str__(self):
         return ('Server ' + str(self.id) + ' (' + self.type + ')\n'
                 '  Busy:         ' + str(self.busy) + '\n'
@@ -358,6 +386,9 @@ class STOMP:
                     sum_time += float(service_time)
                     num_servers += 1
             #logging.info('   PSD : %s' % the_task.per_server_service_dict)
+
+            parent_data = tr_entry[2]
+            the_task.parent_data = parent_data
        
         #logging.info('%s :: %s' % (the_task.per_server_services, the_task.per_server_service_dict))
             if ((the_task.deadline - (sum_time/num_servers)) == 0):
@@ -397,6 +428,7 @@ class STOMP:
 
         resp_time = (self.sim_time - server.task.arrival_time)
         server.task.task_lifetime = resp_time
+        server.task.peid = server.id
         self.tlock.acquire()
         self.tasks_completed.append(server.task)
         self.task_completed_flag = 1

@@ -67,9 +67,11 @@ def main(argv):
 
             priority_1_slack = {}
             priority_1_met = {}
+            priority_1_noaff_per = {}
 
             priority_2_slack = {}
             priority_2_met = {}
+            priority_2_noaff_per = {}
             
             cnt_1 = {}
             cnt_2 = {}
@@ -81,7 +83,7 @@ def main(argv):
             for stdev_factor in STDEV_FACTOR:
                 out += "," + str(stdev_factor) 
                 for policy in POLICY:
-                    header = header + "," + policy + " Pr1 slack," + policy + " Pr2 slack," + policy + " Pr1 Met," + policy + " Pr2 Met"
+                    header = header + "," + policy + " Pr1 slack," + policy + " Pr2 slack," + policy + " Pr1 Met," + policy + " Pr2 Met," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
                     priority_1_slack[policy] = 0
                     priority_1_met[policy] = 0
                     cnt_1[policy] = 0
@@ -93,7 +95,8 @@ def main(argv):
 
                     flag = 0
                     # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
-                    with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
+                    # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
+                    with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out','r') as fp:
                         line = fp.readline()
                         while(line):
                             line = fp.readline()
@@ -105,7 +108,7 @@ def main(argv):
                                 if(cnt_1[policy] + cnt_2[policy] >= 1000):
                                     break
                                 # print(line)
-                                dropped,tid,priority,dag_type,slack = line.split(',')
+                                dropped,tid,priority,dag_type,slack,resp,noafftime = line.split(',')
                                 if priority == '1':
                                     cnt_1[policy] += 1
                                     if (int(dropped) == 1):
@@ -119,6 +122,7 @@ def main(argv):
                                             priority_1_slack[policy] += float(slack)/deadline_10 
                                             if(float(slack) >= 0):
                                                 priority_1_met[policy] += 1
+                                        priority_1_noaff_per[policy] = float(noafftime)/float(resp)
                                 else:
                                     cnt_2[policy] += 1
                                     if (int(dropped) == 1):
@@ -132,13 +136,14 @@ def main(argv):
                                             priority_2_slack[policy] += float(slack)/deadline_10
                                             if(float(slack) >= 0):
                                                 priority_2_met[policy] += 1
+                                        priority_2_noaff_per[policy] = float(noafftime)/float(resp)
                 
 
                     priority_1_slack[policy] = float(priority_1_slack[policy])/(cnt_1[policy]-cnt_dropped_1[policy])
                     priority_2_slack[policy] = float(priority_2_slack[policy])/(cnt_2[policy]-cnt_dropped_2[policy])
                     priority_1_met[policy] = float(priority_1_met[policy])/cnt_1[policy]
                     priority_2_met[policy] = float(priority_2_met[policy])/cnt_2[policy]             
-                    out += ((",%lf,%lf,%lf,%lf") % (priority_1_slack[policy],priority_2_slack[policy],priority_1_met[policy],priority_2_met[policy]))
+                    out += ((",%lf,%lf,%lf,%lf,%lf,%lf") % (priority_1_slack[policy],priority_2_slack[policy],priority_1_met[policy],priority_2_met[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
                 if(first):
                     print(header)
                     first = 0

@@ -58,18 +58,22 @@ class MetaTask(object):
 			return self.tid <= task.tid
 
 class DAG:
-	def __init__(self, graph, comp, atime, deadline, priority, dag_type):
+	def __init__(self, graph, comp, parent_dict, atime, deadline, priority, dag_type):
 
 
-		self.graph			= graph
-		self.comp 			= comp
-		self.arrival_time 	= atime
-		self.deadline 		= deadline
-		self.slack 			= deadline
-		self.priority		= priority
-		self.ready_time		= atime
-		self.dag_type		= dag_type
-		self.dropped		= 0
+		self.graph				= graph
+		self.comp 				= comp
+		self.parent_dict		= parent_dict
+		self.arrival_time 		= atime
+		self.deadline 			= deadline
+		self.resp_time			= 0
+		self.slack 				= deadline
+		self.priority			= priority
+		self.ready_time			= atime
+		self.dag_type			= dag_type
+		self.dropped			= 0
+		self.completed_peid 	= {}
+		self.noaffinity_time	= 0
 		# logging.info("Created %d,%d" % (self.arrival_time,self.deadline))
 
 
@@ -120,10 +124,21 @@ class META:
 						dag_id = int(tmp.pop(0))
 						dag_type = tmp.pop(0)
 						graph = nx.read_graphml("inputs/random_dag_{0}.graphml".format(dag_type), MetaTask)
+						#### AFFINITY ####
+						# Add matrix to maintain parent node id's
+						####
+						parent_dict = {}
+						for node in graph.nodes():
+							parent_list = []
+							for pred_node in graph.predecessors(node):
+								parent_list.append(pred_node.tid)
+							parent_dict[node.tid] = parent_list
+							# logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
+
 						comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
 						priority = int(tmp.pop(0))
 						deadline = int(tmp.pop(0))
-						the_dag_trace = DAG(graph, comp, atime, deadline, priority,dag_type)
+						the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, priority,dag_type)
 						self.dag_dict[dag_id] = the_dag_trace
 						self.dag_id_list.append(dag_id)
 					line_count += 1
@@ -156,7 +171,16 @@ class META:
 							dag_completed.ready_time = task_completed.arrival_time + task_completed.task_lifetime
 							if (dag_completed.ready_time < dag_completed.arrival_time):
 								logging.info("BAD:" + str(dag_completed.ready_time) + ',' + str(dag_completed.arrival_time) + ',' + str(task_completed.arrival_time) + ',' + str(task_completed.task_lifetime) + str('....................................................................'))
-							dag_completed.slack = dag_completed.deadline - (dag_completed.ready_time - dag_completed.arrival_time)
+							dag_completed.resp_time = dag_completed.ready_time - dag_completed.arrival_time
+							dag_completed.slack = dag_completed.deadline - dag_completed.resp_time
+							#### AFFINITY ####
+							# Add completed id and HW id to a table
+							####
+							dag_completed.completed_peid[task_completed.tid] = task_completed.peid
+							dag_completed.noaffinity_time += task_completed.noaffinity_time
+
+
+							#### DROPPED ####
 							# if(dag_completed.slack < 0 and dag_completed.priority == 1):
 							# 	dag_completed.dropped = 1
 							
@@ -171,13 +195,13 @@ class META:
 						## Calculate stats for the DAG						
 						# logging.info(str(self.params['simulation']['sched_policy_module'].split('.')[-1].split('_')[-1]) + ',' + str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
 						# logging.info(str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
-						end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack)
+						end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
 						end_list.append(end_entry)
 						# Remove DAG from active list
 						self.dag_id_list.remove(dag_id_completed)
 						del self.dag_dict[dag_id_completed]
 					
-					## Dag was dropped ##
+					#### DROPPED ####
 					if(dag_completed.dropped == 1 and dag_id_completed in self.dag_dict):
 						dags_dropped += 1
 						dropped_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack)
@@ -198,14 +222,10 @@ class META:
 							atime = the_dag_sched.arrival_time
 						else:
 							atime = the_dag_sched.ready_time
-						# if(atime <= self.stomp.sim_time):
 						task = the_dag_sched.comp[node.tid][0]
 						priority = the_dag_sched.priority
-						# print(the_dag_sched.comp[node.tid][1])
 						deadline = int(the_dag_sched.slack)
-						# print(self.params['simulation']['sched_policy_module'])
 						if (self.params['simulation']['sched_policy_module'] == "policies.simple_policy_ver6"):
-							# print("hello")
 							deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[node.tid][1]))
 
 						task_entry.append((atime,task,dag_id,node.tid,priority,deadline))
@@ -224,6 +244,15 @@ class META:
 							count += 1
 						
 						task_entry.append(stimes)
+						#### AFFINITY ####
+						# Pass parent id and HW id of parents with task
+						####
+						parent_data = []
+						for parent in the_dag_sched.parent_dict[node.tid]:
+							parent_data.append((parent,the_dag_sched.completed_peid[parent]))
+						task_entry.append(parent_data)
+
+
 						temp_task_trace.append(task_entry)
 						# self.stomp.global_task_trace.append(task_entry)
 						# self.global_task_trace.sort(key=lambda tr_entry: tr_entry[0][0], reverse=False)
@@ -268,8 +297,9 @@ class META:
 		end_list.sort(key=lambda end_entry: end_entry[0], reverse=False)
 		while(len(end_list)):
 			end_entry = end_list.pop(0)
-			print("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]))
-
+			print("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]))
+			# end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
+						
 		dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
 		while(len(dropped_list)):
 			dropped_entry = dropped_list.pop(0)
