@@ -29,7 +29,6 @@ class MetaTask(object):
 
     def __init__(self, tid, comp_cost=[]):
         self.tid = int(tid)# task id - this is unique
-        self.rank = -1 # This is updated during the 'Task Prioritisation' phase 
         self.processor = -1
         self.ast = 0 
         self.aft = 0 

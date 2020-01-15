@@ -44,16 +44,6 @@ from __builtin__ import str
 from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE
 
 
-CONF_FILE    = './stomp.json'
-# POLICY       = ['cpath_ss_flex', 'cpath_2ds_flex', 'cats_ss_flex'] #, 'cats_2ds_flex']
-# STDEV_FACTOR = [0.01]
-# ARRIVE_SCALE = [0.5]
-
-
-
-deadline_5 = 1100
-deadline_10 = 1300
-
 def main(argv):
     sim_dir = argv
     first = 1
