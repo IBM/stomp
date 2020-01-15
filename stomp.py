@@ -19,6 +19,7 @@
 # 
 
 from __future__ import division
+from __future__ import print_function
 from abc import ABCMeta, abstractmethod
 import numpy
 import pprint
@@ -27,6 +28,7 @@ import operator
 import logging
 import datetime
 
+import threading
 
 ###############################################################################
 # This class represents a 'task' that is processed in the queuing system.     #
@@ -35,27 +37,29 @@ import datetime
 ###############################################################################
 class Task:
     
-    def __init__(self, sim_time, id, type, params):
+    def __init__(self, sim_time, dag_id, tid, id, type, params):
         
         # Obtain a service time for the new task
         #service_time = numpy.random.normal(loc=mean, scale=stdev, size=1)
 
-        self.type                    = type  # The task type  
-        self.mean_service_time_dict  = params['mean_service_time']
-        self.mean_service_time_list  = sorted(params['mean_service_time'].items(), key=operator.itemgetter(1)) 
-        self.stdev_service_time_dict = params['stdev_service_time']
-        self.stdev_service_time_list = sorted(params['stdev_service_time'].items(), key=operator.itemgetter(1))
-        self.arrival_time            = sim_time
-        #self.curr_arrival_time      = sim_time
-        self.departure_time          = None
-        self.per_server_services     = []    # Holds ordered list of service times
-        self.per_server_service_dict = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
-        self.task_service_time       = None  # To be set upon scheduling, since it depends on the target server
-        self.task_lifetime           = None  # To be set upon finishing; includes time span from arrival to departure
-        self.trace_id                = id
-        #self.run_pos                = 0
-        self.wpower                  = None
-        self.current_time            = 0
+        self.type                       = type  # The task type  
+        self.dag_id                     = dag_id
+        self.tid                        = tid
+        self.mean_service_time_dict     = params['mean_service_time']
+        self.mean_service_time_list     = sorted(params['mean_service_time'].items(), key=operator.itemgetter(1)) 
+        self.stdev_service_time_dict    = params['stdev_service_time']
+        self.stdev_service_time_list    = sorted(params['stdev_service_time'].items(), key=operator.itemgetter(1))
+        self.arrival_time               = sim_time
+        #self.curr_arrival_time         = sim_time
+        self.departure_time             = None
+        self.per_server_services        = []    # Holds ordered list of service times
+        self.per_server_service_dict    = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
+        self.task_service_time          = None  # To be set upon scheduling, since it depends on the target server
+        self.task_lifetime              = None  # To be set upon finishing; includes time span from arrival to departure
+        self.trace_id                   = id
+        #self.run_pos                   = 0
+        self.wpower                     = None
+        self.current_time               = 0
         self.possible_server_idx        = None
 
     def __str__(self):
@@ -104,25 +108,27 @@ class Server:
         
         # At this moment, we know the target server where the task will run.
         # Therefore, we can compute the task's service time
-        mean_service_time                = task.mean_service_time_dict[self.type]
-        stdev_service_time               = task.stdev_service_time_dict[self.type]
-        service_time                     = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
+        task_dag_id                     = task.dag_id
+        task_tid                        = task.tid
+        mean_service_time               = task.mean_service_time_dict[self.type]
+        stdev_service_time              = task.stdev_service_time_dict[self.type]
+        service_time                    = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
         #service_time                     = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
         # Ensure that the random service time is a positive value...
         if (service_time <= 0): 
-            service_time = 1;
-        task.task_service_time           = service_time
+            service_time                    = 1
+        task.task_service_time              = service_time
+
+        self.busy                           = True
+        self.curr_service_time              = task.task_service_time
+        self.curr_job_start_time            = sim_time
+        self.curr_job_end_time              = self.curr_job_start_time + self.curr_service_time
+        self.curr_job_end_time_estimated    = self.curr_job_start_time + mean_service_time
+        self.last_usage_started_at          = sim_time
+        self.num_reqs                       += 1
+        self.task                           = task
         
-        self.busy                        = True
-        self.curr_service_time           = task.task_service_time
-        self.curr_job_start_time         = sim_time
-        self.curr_job_end_time           = self.curr_job_start_time + self.curr_service_time
-        self.curr_job_end_time_estimated = self.curr_job_start_time + mean_service_time
-        self.last_usage_started_at       = sim_time
-        self.num_reqs                    += 1
-        self.task                        = task
-        
-        self.busy_time                   += self.curr_service_time
+        self.busy_time                      += self.curr_service_time
         logging.debug("[%10ld] Assigned task %d %s : srv %d st %d end %d est %d" % (sim_time, task.trace_id, task.type, self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
     
     def __str__(self):
@@ -168,6 +174,9 @@ class STOMP:
     E_SERVER_FINISHES   = 3
     E_NOTHING           = 4
 
+    E_META_START        = 0
+    E_META_DONE         = 0
+
     
     def __init__(self, stomp_params, sched_policy):
         
@@ -199,6 +208,7 @@ class STOMP:
         self.stats['Busy Servers']            = 0
         self.stats['Available Servers']       = {}
         self.stats['Tasks Generated']         = 0
+        self.stats['Tasks Generated by META'] = 0
         self.stats['Tasks Serviced']          = 0
         self.stats['Tasks Serviced per Type'] = {}
         self.stats['Avg Resp Time']           = 0     # Overall for all tasks
@@ -222,91 +232,22 @@ class STOMP:
         self.task_assign_trace.write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         self.task_assign_trace.write('Time\tResponse time (avg)\n')
         
+        self.tasks_completed                  = []
+        self.next_event                       = STOMP.E_NOTHING
+        self.next_task_event                  = STOMP.E_NOTHING
+        self.next_server_event                = STOMP.E_NOTHING
+
 
         self.init_servers()
 
         # IF user specified an input trace file then read that in here:
         self.global_task_trace = []
-        if (stomp_params['general']['input_trace_file']):
-            self.arrival_trace    = stomp_params['general']['input_trace_file'][0]
-            self.input_trace_file = stomp_params['general']['input_trace_file'][1]
-        else:
-            self.arrival_trace    = None
-            self.input_trace_file = None
+        self.lock = threading.Lock()
+        self.tlock = threading.Lock()
+        self.task_completed_flag = 0
             
         self.output_trace_file = stomp_params['general']['output_trace_file']
 
-        self.pre_gen_arrivals = stomp_params['general']['pre_gen_arrivals']
-
-        if (self.input_trace_file and self.pre_gen_arrivals):
-            logging.info('WARNING: both an input task arrival trace file and pre-gen arrivals options specified; using the input trace\n')
-            
-        if (self.input_trace_file):
-            in_trace_name = self.working_dir + '/' + self.input_trace_file
-            with open(in_trace_name, 'r') as input_trace:
-                line_count = 0;
-                for line in input_trace.readlines():
-                    tmp = line.strip().split(',')
-                    if (line_count < 1):
-                        # First line indicates the order of server_types for future lines
-                        for item in tmp:
-                            self.intrace_server_order.append(item)
-                    else:
-                        tr_entry = []
-                        atime = int(tmp.pop(0))*self.params['simulation']['arrival_time_scale']
-                        task  = tmp.pop(0)
-                        tr_entry.append((atime, task))
-                        stimes = []
-                        if (self.arrival_trace):
-                            # We take the task type and arrival time, but compute (new) service times...
-                            for server_type in self.params['simulation']['servers']:
-                                if (server_type in self.params['simulation']['tasks'][task]['mean_service_time']):
-                                    mean_service_time  = self.params['simulation']['tasks'][task]['mean_service_time'][server_type]
-                                    stdev_service_time = self.params['simulation']['tasks'][task]['stdev_service_time'][server_type]
-                                    service_time = str(int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1))))
-                                    stimes.append((server_type,service_time))
-                                else :
-                                    stimes.append((server_type,str(None)))
-                            tr_entry.append(stimes)
-                            self.global_task_trace.append(tr_entry)
-                        else:
-                            # We take the service times from the input trace
-                            for item, server_type in zip(tmp, self.params['simulation']['servers']):
-                                stimes.append((server_type, item))
-                            tr_entry.append(stimes)
-                            self.global_task_trace.append(tr_entry)
-                    line_count += 1
-        elif (self.pre_gen_arrivals):
-            # create an a-priori list of tasks at times...
-            for server_type in self.params['simulation']['servers']:
-                self.intrace_server_order.append(server_type)
-            a_task_time = 0;
-            a_task_num = 0;
-            while (a_task_num < self.params['simulation']['max_tasks_simulated']):
-                task = numpy.random.choice(list(self.params['simulation']['tasks'])) 
-                tr_entry = []
-                tr_entry.append((int(a_task_time), task))
-                #tr_entry.append((a_task_time, task))
-                stimes = []
-                for server_type in self.params['simulation']['servers']:
-                    #tr_entry.append(server_type)
-                    if (server_type in self.params['simulation']['tasks'][task]['mean_service_time']):
-                        mean_service_time  = self.params['simulation']['tasks'][task]['mean_service_time'][server_type]
-                        stdev_service_time = self.params['simulation']['tasks'][task]['stdev_service_time'][server_type]
-                        service_time = str(int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1))))
-                        #tr_entry.append(service_time)
-                        stimes.append((server_type,service_time))
-                    else :
-                        #tr_entry.append(None)
-                        stimes.append((server_type,str(None)))
-                tr_entry.append(stimes)
-                self.global_task_trace.append(tr_entry)
-                logging.debug('%s' % tr_entry)
-                a_task_time = int(round(a_task_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time']*self.params['simulation']['arrival_time_scale'], size=1)))
-                a_task_num = a_task_num + 1;
-        else:
-            for server_type in self.params['simulation']['servers']:
-                self.intrace_server_order.append(server_type)
 
         if (self.output_trace_file):
             out_trace_name = self.working_dir + '/' + self.output_trace_file
@@ -314,8 +255,6 @@ class STOMP:
             self.output_trace = open(out_trace_name, 'w')
             self.output_trace.write('%s\n' % ','.join(map(str, self.params['simulation']['servers'])))
         
-    
-
 
     def init_servers(self):
         
@@ -357,63 +296,54 @@ class STOMP:
         # NOTE: self.global_task_trace is used for EITHER an input trace or pre-gen arrival trace behavior
         tr_entry = []
         if (self.global_task_trace):
-            tr_entry = self.global_task_trace.pop(0)
-            #logging.info('ARR_TR : %s' % tr_entry)
-            task = tr_entry[0][1];
+            self.lock.acquire()
+            if (len(self.global_task_trace) > 0):
+                tr_entry = self.global_task_trace.pop(0)
+            self.lock.release()
+            # logging.info('ARR_TR : %s' % tr_entry)
+            task_atime = tr_entry[0][0]
+            task = tr_entry[0][1]
+            dag_id = tr_entry[0][2]
+            tid = tr_entry[0][3]
+
             logging.debug('[%10ld] Setting next task type from TRACE to %s' % (self.sim_time, task))
-        else:
-            task = numpy.random.choice(list(self.params['simulation']['tasks'])) 
+ 
+            
             #logging.debug("NEW_TASK from %s\n" % list(self.params['simulation']['tasks']))
             #logging.debug("%s\n" % task)
-        #task = Task(self.sim_time, self.params['simulation']['mean_service_time'], self.params['simulation']['stdev_service_time'])
-        #self.tasks.append(task)
-        the_task = Task(self.sim_time, task_num, task, self.params['simulation']['tasks'][task])
-		# Set up the per-server-type execution times for this task...
-        if (self.global_task_trace or tr_entry): ##Trace entries exist or for last entry
+            #task = Task(self.sim_time, self.params['simulation']['mean_service_time'], self.params['simulation']['stdev_service_time'])
+            #self.tasks.append(task)
+            # logging.info("Generating task at time: " + str(self.sim_time))
+            the_task = Task(task_atime, dag_id, tid, task_num, task, self.params['simulation']['tasks'][task])
+
+            # Set up the per-server-type execution times for this task...
             # The service times are given (per-server-type) in the global_task_trace
             stimes = tr_entry[1]
-            #logging.info('%s' % stimes)
             for time_entry in stimes:
                 #logging.info('   %s %s' % (time_entry[0], time_entry[1]))
                 server_type  = time_entry[0]
                 service_time = time_entry[1]
                 the_task.per_server_services.append(service_time)
                 if (service_time != "None" ):
-                    the_task.per_server_service_dict[server_type] = int(service_time)
+                    the_task.per_server_service_dict[server_type] = round(float(service_time))
             #logging.info('   PSD : %s' % the_task.per_server_service_dict)
-        else:
-            # Compute an a-priori service time per server-type
-            for server_type in self.params['simulation']['servers']:
-                if (server_type in the_task.mean_service_time_dict):
-                    mean_service_time  = the_task.mean_service_time_dict[server_type]
-                    stdev_service_time = the_task.stdev_service_time_dict[server_type]
-                    service_time       = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
-                    # With a large StDev, we can end up with negative service times...
-                    if (service_time <= 0): 
-                        service_time = 1;  # Correct so we get a minmum service time of 1 
-                    the_task.per_server_services.append(service_time)
-                    if (service_time != "None" ):
-                        the_task.per_server_service_dict[server_type] = int(service_time)
-                else:
-                    the_task.per_server_services.append(str(None))
-                    #the_task.per_server_service_dict[server_type] = service_time  # Could add with service time "None"?
 
-        #logging.info('%s :: %s' % (the_task.per_server_services, the_task.per_server_service_dict))
-        self.tasks.append(the_task)
-        self.stats['Tasks Generated'] += 1
+            #logging.info('%s :: %s' % (the_task.per_server_services, the_task.per_server_service_dict))
+            self.tasks.append(the_task)
+            self.stats['Tasks Generated'] += 1
 
-        if (self.output_trace_file):
-            self.output_trace.write('%d,%s,%s\n' % (self.sim_time, task, ','.join(map(str, the_task.per_server_services))))
+            if (self.output_trace_file):
+                self.output_trace.write('%d,%s,%d,%d,%s\n' % (self.sim_time, task, the_task.dag_id, the_task.tid, ','.join(map(str, the_task.per_server_services))))
 
                 
-        if not task in self.stats['Avg Resp Time per Type']:
-            self.stats['Avg Resp Time per Type'][task]  = 0
-            self.stats['Tasks Serviced per Type'][task] = 0
-            self.task_trace_files[task] = open(self.working_dir + '/' + self.basename + '.' + task + '.' + self.params['simulation']['sched_policy_module'].split('.')[-1] + '.trace', 'w')
-            
-            self.task_trace_files[task].write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            self.task_trace_files[task].write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
-            self.task_trace_files[task].write('Time\tResponse time (avg)\n')
+            if not task in self.stats['Avg Resp Time per Type']:
+                self.stats['Avg Resp Time per Type'][task]  = 0
+                self.stats['Tasks Serviced per Type'][task] = 0
+                self.task_trace_files[task] = open(self.working_dir + '/' + self.basename + '.' + task + '.' + self.params['simulation']['sched_policy_module'].split('.')[-1] + '.trace', 'w')
+                
+                self.task_trace_files[task].write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                self.task_trace_files[task].write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
+                self.task_trace_files[task].write('Time\tResponse time (avg)\n')
             
         return True
             
@@ -425,6 +355,11 @@ class STOMP:
 
         resp_time = (self.sim_time - server.task.arrival_time)
         server.task.task_lifetime = resp_time
+        self.tlock.acquire()
+        self.tasks_completed.append(server.task)
+        assert not self.task_completed_flag
+        self.task_completed_flag = 1
+        self.tlock.release()
         
         if not task_type in server.stats['Avg Resp Time per Type']:
             server.stats['Avg Resp Time per Type'][task_type]  = 0
@@ -678,9 +613,13 @@ class STOMP:
         # MAIN SIMULATION: Generate 'max_tasks_simulated' and service them   #
         ######################################################################
         i = 0
-        while ((self.stats['Tasks Generated'] < self.params['simulation']['max_tasks_simulated']) or
-              (len(self.tasks) > 0) or            # There are tasks in the queue, waiting to be served
-              (self.stats['Busy Servers'] > 0)):  # There are tasks being served in the servers
+        while(self.E_META_START == 0):
+            pass
+            # logging.info("Waiting for tasks to be generated")
+        count = 0
+        while ((len(self.tasks) > 0) or             # There are tasks in the queue, waiting to be served
+              (self.stats['Busy Servers'] > 0) or   # There are tasks being served in the servers
+              (self.E_META_DONE == 0)):             # Meta scheduler has pushed all ready tasks
         
             # Main duty loop: handle whichever simulation event occurs
             # earliest, then revert here in next iteration of main loop
@@ -693,62 +632,67 @@ class STOMP:
                (self.next_power_mgmt_time <= self.next_serv_end_time)):
                 
                 # Next event is a power management event
-                next_event = STOMP.E_PWR_MGMT
-            
-            elif ((self.stats['Tasks Generated'] < self.params['simulation']['max_tasks_simulated']) and
-                 ((self.next_cust_arrival_time <= self.next_power_mgmt_time) or not self.params['simulation']['power_mgmt_enabled']) and
-                 ((self.next_cust_arrival_time <= self.next_serv_end_time) or (self.stats['Tasks Generated'] >= self.params['simulation']['max_tasks_simulated']))):
-                
-                # Next event is a task arrival
-                next_event = STOMP.E_TASK_ARRIVAL
+                self.next_event = STOMP.E_PWR_MGMT
             
             else:
-                assert (self.next_serv_end_time <= self.next_power_mgmt_time) or not self.params['simulation']['power_mgmt_enabled']
-                assert (self.next_serv_end_time <= self.next_cust_arrival_time) or (self.stats['Tasks Generated'] >= self.params['simulation']['max_tasks_simulated'])
-        
-                # Next event is a server finishing the execution of its assigned task
-                next_event = STOMP.E_SERVER_FINISHES
-        
-
+                if ((self.stats['Tasks Generated by META']) and
+                     (self.next_cust_arrival_time == self.sim_time)):                
+                    # Next event is a task arrival
+                    self.next_task_event = STOMP.E_TASK_ARRIVAL
+                
+                
+                if ((self.next_serv_end_time == self.sim_time)):
+                    # Next event is a server finishing the execution of its assigned task
+                    self.next_server_event = STOMP.E_SERVER_FINISHES
+            
             ######################################################################
             # 2) Handle the event                                                #
             ######################################################################
-            if (next_event == STOMP.E_PWR_MGMT):
+            if (self.next_event == STOMP.E_PWR_MGMT):
                 if (self.next_power_mgmt_time < self.sim_time):
                     logging.info('WARNING: PWR_MGMT Time Moving Backward: sim_time %ld but smaller next_power_mgmt_time %ld' % (self.sim_time, self.next_power_mgmt_time))
                 # Manage power...
                 self.sim_time = self.next_power_mgmt_time
                 logging.warning('[%10ld] Power management not yet supported...' % (self.sim_time))
         
-            elif (next_event == STOMP.E_TASK_ARRIVAL):
+            if (self.next_task_event == STOMP.E_TASK_ARRIVAL):
                 if (self.next_cust_arrival_time < self.sim_time):
                     logging.info('WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
                 
-                # Customer (task) arrival...
-                self.sim_time = self.next_cust_arrival_time
                 
-                # Add task to queue
-                if (self.generate_n_enqueue_new_task(self.num_tasks_generated)):
-                    self.num_tasks_generated += 1
-                    if (self.global_task_trace):
-                        tmp = self.global_task_trace[0]
-                        #logging.info('%s' % tmp)
-                        self.next_cust_arrival_time = int(tmp[0][0])
-                        logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp[0][0]))
+                # Customer (task) arrival...
+                if (len(self.global_task_trace)):
+
+                    self.lock.acquire()
+                    tmp = self.global_task_trace[0]
+                    self.lock.release()
+                    if (self.sim_time == int(tmp[0][0])):
+                        # Add task to queue
+                        if (self.generate_n_enqueue_new_task(self.num_tasks_generated)):
+                            self.num_tasks_generated += 1
                     else:
-                        self.next_cust_arrival_time = int(round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time']*self.params['simulation']['arrival_time_scale'], size=1)))
+                        if(self.next_cust_arrival_time > int(tmp[0][0])):
+                            self.next_cust_arrival_time = int(tmp[0][0]) - 1
+
+                    logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp[0][0]))
+                    
+                    if (len(self.global_task_trace)):
+                            self.next_cust_arrival_time = int(self.global_task_trace[0][0][0])
+
+                else:
+                    self.next_cust_arrival_time = int(round(self.next_cust_arrival_time + 1))
 
                 logging.debug('[%10ld] Task enqueued. Next task will arrive at time %ld' % (self.sim_time, self.next_cust_arrival_time))
                 logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
         
-                
-            elif (next_event == STOMP.E_SERVER_FINISHES):
+
+            if (self.next_server_event == STOMP.E_SERVER_FINISHES):
                 if (self.next_serv_end_time < self.sim_time):
                     logging.info('WARNING: SERVER_FINISH Time Moving Backward: sim_time %ld but smaller next_serv_end_time %ld' % (self.sim_time, self.next_serv_end_time))
                     
 
                 # Service completion (next_cust_arrival_time >= next_serv_end_time)
-                self.sim_time = self.next_serv_end_time
+                # self.sim_time = self.next_serv_end_time
         
                 assert(not self.next_serv_end is None);
                 self.release_server(self.next_serv_end)
@@ -763,7 +707,6 @@ class STOMP:
             ######################################################################
             
             server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks)
-            #print(server)
             if server is not None:
                 if server.curr_job_end_time < self.next_serv_end_time:
                     self.next_serv_end_time = server.curr_job_end_time
@@ -789,6 +732,20 @@ class STOMP:
                 logging.debug('[%10ld] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
                 logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
                 logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
+            
+            ######################################################################
+            # 4) Update sim time                                                 #
+            ######################################################################
+
+            while(self.task_completed_flag == 1):
+                pass
+            if(self.next_cust_arrival_time > self.sim_time and self.next_serv_end_time > self.sim_time):
+                self.sim_time += 1
+            
+	    self.next_event = STOMP.E_NOTHING
+            self.next_task_event = STOMP.E_NOTHING
+            self.next_server_event = STOMP.E_NOTHING
+            count += 1
 
 
 

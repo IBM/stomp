@@ -43,13 +43,10 @@ from __builtin__ import str
 
 
 CONF_FILE    = './stomp.json'
-#POLICY       = ['simple_policy_ver1'] # ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4']
-POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5']
-#STDEV_FACTOR = [1.0] # [ 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
-STDEV_FACTOR = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
-#ARRIVE_SCALE = [1.0, 0.1] #[ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]  # percentages
-#ARRIVE_SCALE = [ 0.35, 0.36 , 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45 ]  # percentages
-ARRIVE_SCALE = [ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]  # percentages
+#POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5']
+POLICY       = ['simple_policy_ver5']
+STDEV_FACTOR = [ 0.01 ]  # percentages
+ARRIVE_SCALE = [ 0.1 ]  # percentages
 
 
 def usage_and_exit(exit_code):
@@ -141,6 +138,7 @@ def main(argv):
             sim_output[arr_scale][policy] = {}
 
             for stdev_factor in STDEV_FACTOR:
+                stomp_params['simulation']['stdev_factor'] = stdev_factor
 
                 sim_output[arr_scale][policy][stdev_factor] = {}
                 sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'] = {}
@@ -185,7 +183,7 @@ def main(argv):
                         command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
 
                 if (use_user_input_trace):
-                    command_str = command_str + ' -i ../user_traces/user_gen_trace_stdf_' + str(stdev_factor) + '.trc'
+                    command_str = command_str + ' -i ../user_traces/user_gen_trace.trc'
 
                 if (verbose):
                     print('Running', command_str)
@@ -195,6 +193,7 @@ def main(argv):
 
                 if (save_stdout):
                     fh = open(sim_dir + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out', 'w')
+                    os.rename(sim_dir + '/out.csv', sim_dir + '/run_dag_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.csv')
 
                 ###########################################################################################
                 # Parse the output line by line
