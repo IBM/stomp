@@ -413,8 +413,8 @@ class STOMP:
                 self.stats['Tasks Serviced per Type'][task] = 0
                 self.task_trace_files[task] = open(self.working_dir + '/' + self.basename + '.' + task + '.' + self.params['simulation']['sched_policy_module'].split('.')[-1] + '.trace', 'w')
                 
-            	self.task_trace_files[task].write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            	self.task_trace_files[task].write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
+                self.task_trace_files[task].write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                self.task_trace_files[task].write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
                 self.task_trace_files[task].write('Time\tResponse time (avg)\n')
             
         return True

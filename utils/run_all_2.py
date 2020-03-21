@@ -143,7 +143,7 @@ def main(argv):
             sim_output[arr_scale][policy] = {}
 
             for stdev_factor in STDEV_FACTOR:
-            	stomp_params['simulation']['stdev_factor'] = stdev_factor
+                stomp_params['simulation']['stdev_factor'] = stdev_factor
 
                 sim_output[arr_scale][policy][stdev_factor] = {}
                 sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'] = {}
@@ -188,7 +188,7 @@ def main(argv):
                         command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
 
                 if (use_user_input_trace):
-                	command_str = command_str + ' -i ../user_traces/user_gen_trace.trc'
+                    command_str = command_str + ' -i ../user_traces/user_gen_trace.trc'
 
                 if (verbose):
                     print('Running', command_str)
