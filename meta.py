@@ -143,13 +143,14 @@ class META:
                         self.dag_id_list.append(dag_id)
                     line_count += 1
 
-        logging.info("TID,Priority,Type,SLACK")
+        logging.info("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time")
                     
         while(self.dag_id_list):
 
             ## TODO: Need an order to push into ready queue (Task ordering like HEFT)
             temp_task_trace = []
             completed_list = []
+            dropped_dag_id_list = []
 
             self.stomp.tlock.acquire()
             while(len(self.stomp.tasks_completed)):
@@ -169,8 +170,8 @@ class META:
                     for node in dag_completed.graph.nodes():
                         if node.tid == task_completed.tid:
                             dag_completed.ready_time = task_completed.arrival_time + task_completed.task_lifetime
-                            if (dag_completed.ready_time < dag_completed.arrival_time):
-                                logging.info("BAD:" + str(dag_completed.ready_time) + ',' + str(dag_completed.arrival_time) + ',' + str(task_completed.arrival_time) + ',' + str(task_completed.task_lifetime) + str('....................................................................'))
+                            # if (dag_completed.ready_time < dag_completed.arrival_time):
+                            #   logging.info("BAD:" + str(dag_completed.ready_time) + ',' + str(dag_completed.arrival_time) + ',' + str(task_completed.arrival_time) + ',' + str(task_completed.task_lifetime) + str('....................................................................'))
                             dag_completed.resp_time = dag_completed.ready_time - dag_completed.arrival_time
                             dag_completed.slack = dag_completed.deadline - dag_completed.resp_time
                             #### AFFINITY ####
@@ -178,11 +179,6 @@ class META:
                             ####
                             dag_completed.completed_peid[task_completed.tid] = task_completed.peid
                             dag_completed.noaffinity_time += task_completed.noaffinity_time
-
-
-                            #### DROPPED ####
-                            # if(dag_completed.slack < 0 and dag_completed.priority == 1):
-                            #   dag_completed.dropped = 1
                             
                             # print("Completed: %d,%d,%d,%d,%d,%d" % (dag_id_completed,task_completed.tid,dag_completed.slack,dag_completed.deadline,task_completed.arrival_time,task_completed.task_lifetime))
                             dag_completed.graph.remove_node(node)
@@ -201,14 +197,6 @@ class META:
                         self.dag_id_list.remove(dag_id_completed)
                         del self.dag_dict[dag_id_completed]
                     
-                    #### DROPPED ####
-                    if(dag_completed.dropped == 1 and dag_id_completed in self.dag_dict):
-                        dags_dropped += 1
-                        dropped_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack)
-                        dropped_list.append(dropped_entry)
-                        # Remove DAG from active list
-                        self.dag_id_list.remove(dag_id_completed)
-                        del self.dag_dict[dag_id_completed]
 
 
             for dag_id in self.dag_id_list:
@@ -234,16 +222,31 @@ class META:
                         
                         stimes = []
                         count = 0
+                        min_time = 100000
+                        # Iterate over each column of comp entry.
                         for comp_time in the_dag_sched.comp[node.tid]:
+                            # Ignore first two columns.
                             if (count <= 1):
                                 count += 1
                                 continue
                             else:
+                                if (min_time > comp_time):
+                                    min_time = comp_time
                                 stimes.append((self.server_types[count-2],comp_time))
                                 # print(str(self.server_types[count-2])+ "," + str(comp_time))
                             count += 1
                         
                         task_entry.append(stimes)
+                        ##### DROPPED ##########
+                        if(the_dag_sched.slack - min_time < 0 and the_dag_sched.priority == 1):
+                            the_dag_sched.dropped = 1
+                            dags_dropped += 1
+                            dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
+                            dropped_list.append(dropped_entry)
+                            dropped_dag_id_list.append(dag_id)
+                            break
+                        ##### DROPPED ##########
+
                         #### AFFINITY ####
                         # Pass parent id and HW id of parents with task
                         ####
@@ -258,7 +261,15 @@ class META:
                         # self.global_task_trace.sort(key=lambda tr_entry: tr_entry[0][0], reverse=False)
                         node.scheduled = 1
             
+            ##### DROPPED ##########
+            for dag_id_dropped in dropped_dag_id_list:
+                # Remove DAG from active list
+                self.dag_id_list.remove(dag_id_dropped)
+                del self.dag_dict[dag_id_dropped]
+            #########################
+
             self.stomp.lock.acquire()
+            # When pushed into stomp, push in the order of arrival time
             while (len(temp_task_trace)):
                 # logging.info('Inserting : %d,DAG:%d,TID:%d' % (temp_task_trace[0][0][0],temp_task_trace[0][0][2],temp_task_trace[0][0][3]))
                 self.stomp.global_task_trace.append(temp_task_trace.pop(0))
@@ -303,6 +314,6 @@ class META:
         dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
         while(len(dropped_list)):
             dropped_entry = dropped_list.pop(0)
-            print("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]))
+            print("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5]))
 
 

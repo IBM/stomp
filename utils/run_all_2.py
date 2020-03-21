@@ -43,11 +43,11 @@ from __builtin__ import str
 
 
 CONF_FILE    = './stomp.json'
-POLICY       = ['simple_policy_ver4', 'simple_policy_ver5', 'simple_policy_ver7', 'simple_policy_ver8']
+POLICY       = ['simple_policy_ver4', 'simple_policy_ver5', 'simple_policy_ver6', 'simple_policy_ver7', 'simple_policy_ver8']
 # POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5', 'simple_policy_ver6']
 STDEV_FACTOR = [0.01] #, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 # STDEV_FACTOR = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
-ARRIVE_SCALE = [0.26, 0.28, 0.3, 0.32, 0.34] #, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2]  # percentages
+ARRIVE_SCALE = [0.35, 0.4, 0.45, 0.5, 0.55, 0.6] #, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2]  # percentages
 #ARRIVE_SCALE = [ 0.35, 0.36 , 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45 ]  # percentages
 # ARRIVE_SCALE = [ 0.2, 0.22, 0.24 , 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38, 0.4] #, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 2]  # percentages
 # ARRIVE_SCALE = [ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 2]  # percentages

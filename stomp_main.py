@@ -112,7 +112,7 @@ def main(argv):
     # meta_sim.run()
     # stomp_sim.run()
     
-    stomp_sim.print_stats()
+   # stomp_sim.print_stats()
 
 
 if __name__ == "__main__":

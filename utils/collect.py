@@ -41,18 +41,10 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
+from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE
+
 
 CONF_FILE    = './stomp.json'
-CONF_FILE    = './stomp.json'
-POLICY       = ['simple_policy_ver4', 'simple_policy_ver5', 'simple_policy_ver7', 'simple_policy_ver8']
-# POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5', 'simple_policy_ver6']
-STDEV_FACTOR = [0.01] #, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
-# STDEV_FACTOR = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
-ARRIVE_SCALE = [0.26, 0.28, 0.3, 0.32, 0.34] #, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2]  # percentages
-#ARRIVE_SCALE = [ 0.35, 0.36 , 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45 ]  # percentages
-# ARRIVE_SCALE = [ 0.2, 0.22, 0.24 , 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38, 0.4] #, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 2]  # percentages
-# ARRIVE_SCALE = [ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 2]  # percentages
-
 
 
 
@@ -91,16 +83,21 @@ def main(argv):
                     priority_2_met[policy] = 0
                     cnt_2[policy] = 0   
                     cnt_dropped_1[policy] = 0   
-                    cnt_dropped_2[policy] = 0   
+                    cnt_dropped_2[policy] = 0  
+                    priority_1_noaff_per[policy] = 0
+                    priority_2_noaff_per[policy] = 0
 
                     flag = 0
                     # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
                     # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
-                    with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out','r') as fp:
+                    fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'
+                    with open(fname,'r') as fp:
                         line = fp.readline()
                         while(line):
                             line = fp.readline()
-                            if (line == "TID,Priority,Type,SLACK\n"):
+                            if not line:
+                                break
+                            if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time\n"):
                                 flag = 1
                                 continue
 
@@ -122,7 +119,7 @@ def main(argv):
                                             priority_1_slack[policy] += float(slack)/deadline_10 
                                             if(float(slack) >= 0):
                                                 priority_1_met[policy] += 1
-                                        priority_1_noaff_per[policy] = float(noafftime)/float(resp)
+                                        priority_1_noaff_per[policy] += float(noafftime)/float(resp)
                                 else:
                                     cnt_2[policy] += 1
                                     if (int(dropped) == 1):
@@ -136,13 +133,18 @@ def main(argv):
                                             priority_2_slack[policy] += float(slack)/deadline_10
                                             if(float(slack) >= 0):
                                                 priority_2_met[policy] += 1
-                                        priority_2_noaff_per[policy] = float(noafftime)/float(resp)
-                
+                                        priority_2_noaff_per[policy] += float(noafftime)/float(resp)
 
-                    priority_1_slack[policy] = float(priority_1_slack[policy])/(cnt_1[policy]-cnt_dropped_1[policy])
+                    if(cnt_1[policy] != cnt_dropped_1[policy]):
+                        priority_1_slack[policy] = float(priority_1_slack[policy])/(cnt_1[policy]-cnt_dropped_1[policy])
+                        priority_1_noaff_per[policy] = priority_1_noaff_per[policy]/(cnt_1[policy]-cnt_dropped_1[policy])
                     priority_2_slack[policy] = float(priority_2_slack[policy])/(cnt_2[policy]-cnt_dropped_2[policy])
                     priority_1_met[policy] = float(priority_1_met[policy])/cnt_1[policy]
-                    priority_2_met[policy] = float(priority_2_met[policy])/cnt_2[policy]             
+                    priority_2_met[policy] = float(priority_2_met[policy])/cnt_2[policy]  
+
+                    
+                    priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])  
+
                     out += ((",%lf,%lf,%lf,%lf,%lf,%lf") % (priority_1_slack[policy],priority_2_slack[policy],priority_1_met[policy],priority_2_met[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
                 if(first):
                     print(header)
