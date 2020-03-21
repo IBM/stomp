@@ -238,13 +238,14 @@ class META:
                         
                         task_entry.append(stimes)
                         ##### DROPPED ##########
-                        if(the_dag_sched.slack - min_time < 0 and the_dag_sched.priority == 1):
-                            the_dag_sched.dropped = 1
-                            dags_dropped += 1
-                            dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
-                            dropped_list.append(dropped_entry)
-                            dropped_dag_id_list.append(dag_id)
-                            break
+                        if(self.params['simulation']['drop'] == True):
+                            if(the_dag_sched.slack - min_time < 0 and the_dag_sched.priority == 1):
+                                the_dag_sched.dropped = 1
+                                dags_dropped += 1
+                                dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
+                                dropped_list.append(dropped_entry)
+                                dropped_dag_id_list.append(dag_id)
+                                break
                         ##### DROPPED ##########
 
                         #### AFFINITY ####
