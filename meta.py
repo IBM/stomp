@@ -232,8 +232,9 @@ class META:
                                 count += 1
                                 continue
                             else:
-                                if (min_time > comp_time):
-                                    min_time = comp_time
+                                print("Comp_time: " + comp_time)
+                                if (comp_time != "None" and (min_time > round(float(comp_time)))):
+                                    min_time = round(float(comp_time))
                                 stimes.append((self.server_types[count-2],comp_time))
                                 # print(str(self.server_types[count-2])+ "," + str(comp_time))
                             count += 1
