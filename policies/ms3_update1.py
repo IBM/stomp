@@ -67,33 +67,62 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             window_len = len(tasks)
 
 
-        window = tasks[:window_len]
-
-
-
-        for w in window:
-            sum_time = 0
+        for t in tasks:
+            max_time = 0
             num_servers = 0
             for server in self.servers:
-                if (server.type in w.mean_service_time_dict):
-                    mean_service_time   = w.mean_service_time_dict[server.type]
-                    if(sum_time < float(mean_service_time)):
-                        sum_time = float(mean_service_time)
+                if (server.type in t.mean_service_time_dict):
+                    mean_service_time   = t.mean_service_time_dict[server.type]
+                    if(max_time < float(mean_service_time)):
+                        max_time = float(mean_service_time)
                     num_servers += 1
 
 
-            if ((w.deadline -(sim_time-w.arrival_time) - (sum_time)) == 0):
+            if ((t.deadline -(sim_time-t.arrival_time) - (max_time)) == 0):
                 slack = 1
             else:
-                if ((w.deadline - (sim_time-w.arrival_time) - (sum_time)) < 0):
-                    slack = 1/((sum_time) - (w.deadline - (sim_time-w.arrival_time)))
+                if ((t.deadline - (sim_time-t.arrival_time) - (max_time)) < 0):
+                    slack = 1/((max_time) - (t.deadline - (sim_time-t.arrival_time)))
                 else:
-                    slack = 1 + (w.deadline - (sim_time-w.arrival_time) - (sum_time))
-            w.rank = int(1000 * ((w.priority)/slack))
+                    slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))
+            t.rank = int(100000 * ((t.priority)/slack))
 
 
+        tasks.sort(key=lambda task: task.rank, reverse=True)
 
-        window.sort(key=lambda task: task.rank, reverse=True)
+        window = tasks[:window_len]
+
+        ###########################################
+
+        # for t in tasks:
+        #     max_time = 0
+        #     min_time = 100000
+        #     num_servers = 0
+        #     for server in self.servers:
+        #         if (server.type in t.mean_service_time_dict):
+        #             mean_service_time   = t.mean_service_time_dict[server.type]
+        #             if(max_time < float(mean_service_time)):
+        #                 max_time = float(mean_service_time)
+        #             if(min_time > float(mean_service_time)):
+        #                 min_time = float(mean_service_time)
+        #             num_servers += 1
+
+
+        #     if ((t.deadline -(sim_time-t.arrival_time) - (max_time)) <= 0):
+        #         if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
+        #             slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
+        #             t.rank = int((100000 * (t.priority))/slack)
+        #         else:
+        #             t.rank = 0
+        #     else:
+        #         slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))
+        #         t.rank = int((100000 * (t.priority))/slack)
+            
+
+        # tasks.sort(key=lambda task: task.rank, reverse=True)
+        # window = tasks[:window_len]
+
+        ###################################################
         
         # out = str(sim_time) + ","
         # ii = 0

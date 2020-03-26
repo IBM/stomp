@@ -375,6 +375,7 @@ class STOMP:
             # The service times are given (per-server-type) in the global_task_trace
             stimes = tr_entry[1]
             sum_time = 0
+            max_time = 0
             num_servers = 0
             for time_entry in stimes:
                 #logging.info('   %s %s' % (time_entry[0], time_entry[1]))
@@ -384,6 +385,8 @@ class STOMP:
                 if (service_time != "None" ):
                     the_task.per_server_service_dict[server_type] = round(float(service_time))
                     sum_time += float(service_time)
+                    if(max_time < float(service_time)):
+                        max_time = float(service_time)
                     num_servers += 1
             #logging.info('   PSD : %s' % the_task.per_server_service_dict)
 
@@ -398,7 +401,15 @@ class STOMP:
                     slack = 1/((sum_time/num_servers) - the_task.deadline)
                 else:
                     slack = 1 + (the_task.deadline - (sum_time/num_servers))
-            the_task.rank = int(1000 * ((the_task.priority)/slack))
+
+            if ((the_task.deadline - (max_time)) == 0):
+                slack_max = 1
+            else:
+                if ((the_task.deadline - (max_time)) < 0):
+                    slack_max = 1/((max_time) - the_task.deadline)
+                else:
+                    slack_max = 1 + (the_task.deadline - (max_time))
+            the_task.rank = int(100000 * ((the_task.priority)/slack_max))
             # logging.info("Task rank: %d,%d,%d,%d,%d" % (the_task.rank, the_task.priority, the_task.deadline, sum_time, num_servers))
             self.tasks.append(the_task)
             self.stats['Tasks Generated'] += 1

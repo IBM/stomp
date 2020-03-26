@@ -213,8 +213,10 @@ class META:
                         task = the_dag_sched.comp[node.tid][0]
                         priority = the_dag_sched.priority
                         deadline = int(the_dag_sched.slack)
-                        if (self.params['simulation']['sched_policy_module'] == "policies.simple_policy_ver6"):
+                        if (self.params['simulation']['sched_policy_module'].startswith("policies.ms1")):
                             deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[node.tid][1]))
+                        if (self.params['simulation']['sched_policy_module'].startswith("policies.ms3")):
+                            deadline = int(deadline*float(the_dag_sched.comp[node.tid][1]))
 
                         task_entry.append((atime,task,dag_id,node.tid,priority,deadline))
                         # logging.info( "Task arr: %d,%d,%d,%d" % (atime,dag_id,node.tid,deadline)) #Aporva

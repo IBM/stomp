@@ -65,33 +65,10 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             window_len = max_task_depth_to_check
         else:
             window_len = len(tasks)
+            
 
-
+        tasks.sort(key=lambda task: task.rank, reverse=True)
         window = tasks[:window_len]
-
-
-
-        for w in window:
-            sum_time = 0
-            num_servers = 0
-            for server in self.servers:
-                if (server.type in w.mean_service_time_dict):
-                    mean_service_time   = w.mean_service_time_dict[server.type]
-                    sum_time += float(mean_service_time)
-                    num_servers += 1
-
-
-            if ((w.deadline -(sim_time-w.arrival_time) - (sum_time/num_servers)) == 0):
-                slack = 1
-            else:
-                if ((w.deadline - (sim_time-w.arrival_time) - (sum_time/num_servers)) < 0):
-                    slack = 1/((sum_time/num_servers) - (w.deadline - (sim_time-w.arrival_time)))
-                else:
-                    slack = 1 + (w.deadline - (sim_time-w.arrival_time) - (sum_time/num_servers))
-            w.rank = int(1000 * ((w.priority)/slack))
-
-
-        window.sort(key=lambda task: task.rank, reverse=True)
         
         # out = str(sim_time) + ","
         # ii = 0

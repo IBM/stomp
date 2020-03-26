@@ -69,13 +69,14 @@ def main(argv):
             cnt_2 = {}
             cnt_dropped_1 = {}
             cnt_dropped_2 = {}
+            mission_time = {}
 
             header = "ACCEL_COUNT,ARR_SCALE,STDEV_FACTOR"
             out = str(accel_count) + "," + str(arr_scale)
             for stdev_factor in STDEV_FACTOR:
                 out += "," + str(stdev_factor) 
                 for policy in POLICY:
-                    header = header + "," + policy + " Pr1 slack," + policy + " Pr2 slack," + policy + " Pr1 Met," + policy + " Pr2 Met," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
+                    header = header + "," + policy + " Mission time,"+ policy + " Pr1 slack," + policy + " Pr2 slack," + policy + " Pr1 Met," + policy + " Pr2 Met," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
                     priority_1_slack[policy] = 0
                     priority_1_met[policy] = 0
                     cnt_1[policy] = 0
@@ -86,6 +87,7 @@ def main(argv):
                     cnt_dropped_2[policy] = 0  
                     priority_1_noaff_per[policy] = 0
                     priority_2_noaff_per[policy] = 0
+                    mission_time[policy] = 0
 
                     flag = 0
                     # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
@@ -134,6 +136,7 @@ def main(argv):
                                             if(float(slack) >= 0):
                                                 priority_2_met[policy] += 1
                                         priority_2_noaff_per[policy] += float(noafftime)/float(resp)
+                                        mission_time[policy] += float(resp)
 
                     if(cnt_1[policy] != cnt_dropped_1[policy]):
                         priority_1_slack[policy] = float(priority_1_slack[policy])/(cnt_1[policy]-cnt_dropped_1[policy])
@@ -145,7 +148,7 @@ def main(argv):
                     
                     priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])  
 
-                    out += ((",%lf,%lf,%lf,%lf,%lf,%lf") % (priority_1_slack[policy],priority_2_slack[policy],priority_1_met[policy],priority_2_met[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
+                    out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (mission_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_met[policy],priority_2_met[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
                 if(first):
                     print(header)
                     first = 0
