@@ -58,7 +58,7 @@ class MetaTask(object):
             return self.tid <= task.tid
 
 class DAG:
-    def __init__(self, graph, comp, parent_dict, atime, deadline, priority, dag_type):
+    def __init__(self, graph, comp, parent_dict, atime, deadline, dtime, priority, dag_type):
 
 
         self.graph              = graph
@@ -66,6 +66,7 @@ class DAG:
         self.parent_dict        = parent_dict
         self.arrival_time       = atime
         self.deadline           = deadline
+        self.dtime              = dtime
         self.resp_time          = 0
         self.slack              = deadline
         self.priority           = priority
@@ -138,7 +139,8 @@ class META:
                         comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
                         priority = int(tmp.pop(0))
                         deadline = int(tmp.pop(0))
-                        the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, priority,dag_type)
+                        dtime = atime + deadline
+                        the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, dtime, priority,dag_type)
                         self.dag_dict[dag_id] = the_dag_trace
                         self.dag_id_list.append(dag_id)
                     line_count += 1
@@ -216,7 +218,9 @@ class META:
                             deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[node.tid][1]))
                         if (self.params['simulation']['sched_policy_module'].startswith("policies.ms3")):
                             deadline = int(deadline*float(the_dag_sched.comp[node.tid][1]))
-
+                        if (self.params['simulation']['sched_policy_module'].startswith("policies.edf")):
+                            deadline = int(the_dag_sched.dtime)
+                        
                         task_entry.append((atime,task,dag_id,node.tid,priority,deadline))
                         # logging.info( "Task arr: %d,%d,%d,%d" % (atime,dag_id,node.tid,deadline)) #Aporva
                         ## Ready task found, push into task queue

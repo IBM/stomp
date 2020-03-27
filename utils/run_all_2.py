@@ -44,6 +44,7 @@ from __builtin__ import str
 
 CONF_FILE    = './stomp.json'
 POLICY       = ['ms1', 'ms1_update1', 'ms1_update2', 'ms2', 'ms2_update1', 'ms2_update2', 'ms3', 'ms3_update1', 'ms3_update2']
+#POLICY       = ['edf']
 STDEV_FACTOR = [0.01] #, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 ARRIVE_SCALE = [0.35, 0.4, 0.45, 0.5, 0.55, 0.6] #, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2]  # percentages
 DROP         = False
