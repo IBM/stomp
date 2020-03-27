@@ -212,6 +212,8 @@ class STOMP:
     E_META_START        = 0
     E_META_DONE         = 0
 
+    E_TSCHED_DONE       = 0
+
     
     def __init__(self, stomp_params, sched_policy):
         
@@ -875,7 +877,10 @@ class STOMP:
             self.next_server_event = STOMP.E_NOTHING
             count += 1
 
+            # print(("TSCHED Stats: Ready Tasks: %d, Busy Servers: %d, E_META_DONE: %d") % (len(self.tasks), self.stats['Busy Servers'], self.E_META_DONE))
 
+
+        self.E_TSCHED_DONE = 1
 
         # Close task trace files
         self.task_trace_file.close()
@@ -886,3 +891,5 @@ class STOMP:
 
         if (self.output_trace_file):
             self.output_trace.close()
+
+        # print("STOMP Completed")
