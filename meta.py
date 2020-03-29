@@ -6,7 +6,7 @@ import pprint
 import sys
 import operator
 import logging
-import datetime
+from datetime import datetime, timedelta 
 
 import time
 import networkx as nx
@@ -116,6 +116,8 @@ class META:
         in_trace_name = self.working_dir + '/' + self.input_trace_file
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
+
+        ## Read trace file and populate DAG information ##
         with open(in_trace_name, 'r') as input_trace:
                 line_count = 0;
                 for line in input_trace.readlines():
@@ -146,33 +148,36 @@ class META:
                     line_count += 1
 
         logging.info("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time")
+        ctime = timedelta(microseconds = 0)
+        rtime = timedelta(microseconds = 0)
+        
                     
         while(self.dag_id_list or self.stomp.E_TSCHED_DONE == 0):
-            ## TODO: Need an order to push into ready queue (Task ordering like HEFT)
             temp_task_trace = []
             completed_list = []
             dropped_dag_id_list = []
 
+            ## Get Completed Tasks from TSCHED ##
             self.stomp.tlock.acquire()
             while(len(self.stomp.tasks_completed)):
                 completed_list.append(self.stomp.tasks_completed.pop(0))
             self.stomp.tlock.release()
 
-
+            ## Update DAGs and meta info for completed tasks ##
+            start = datetime.now()
             while (len(completed_list)):
                 task_completed = completed_list.pop(0)
                 dag_id_completed = task_completed.dag_id
 
-                ## If the task belongs to a non-dropped DAG
+                ## If the task belongs to a non-dropped DAG ##
                 if dag_id_completed in self.dag_dict:
                     dag_completed = self.dag_dict[dag_id_completed]
                     # logging.info('Task completed : %d,%d,%d' % ((task_completed.arrival_time + task_completed.task_lifetime),dag_id_completed,task_completed.tid))
                     
+                    ## Remove completed task from parent DAG and update meta-info ##
                     for node in dag_completed.graph.nodes():
                         if node.tid == task_completed.tid:
                             dag_completed.ready_time = task_completed.arrival_time + task_completed.task_lifetime
-                            # if (dag_completed.ready_time < dag_completed.arrival_time):
-                            #   logging.info("BAD:" + str(dag_completed.ready_time) + ',' + str(dag_completed.arrival_time) + ',' + str(task_completed.arrival_time) + ',' + str(task_completed.task_lifetime) + str('....................................................................'))
                             dag_completed.resp_time = dag_completed.ready_time - dag_completed.arrival_time
                             dag_completed.slack = dag_completed.deadline - dag_completed.resp_time
                             #### AFFINITY ####
@@ -186,7 +191,7 @@ class META:
                             break;
 
 
-                    ## Dag execution completed ##
+                    ## Update stats if DAG has finished execution ##
                     if (len(dag_completed.graph.nodes()) == 0):
                         dags_completed += 1
                         ## Calculate stats for the DAG                      
@@ -197,13 +202,16 @@ class META:
                         # Remove DAG from active list
                         self.dag_id_list.remove(dag_id_completed)
                         del self.dag_dict[dag_id_completed]
-                    
+            end = datetime.now()
+            ctime += end - start
+ 
 
-
+            ## Check for ready tasks ##
+            start = datetime.now()
             for dag_id in self.dag_id_list:
                 the_dag_sched = self.dag_dict[dag_id]
 
-                ## Push ready tasks into queue
+                ## Push ready tasks into ready queue ##
                 for node,deg in the_dag_sched.graph.in_degree():
                     if deg == 0 and node.scheduled == 0:
                         task_entry = []
@@ -223,7 +231,7 @@ class META:
                         
                         task_entry.append((atime,task,dag_id,node.tid,priority,deadline))
                         # logging.info( "Task arr: %d,%d,%d,%d" % (atime,dag_id,node.tid,deadline)) #Aporva
-                        ## Ready task found, push into task queue
+                        
                         
                         stimes = []
                         count = 0
@@ -261,57 +269,48 @@ class META:
                             parent_data.append((parent,the_dag_sched.completed_peid[parent]))
                         task_entry.append(parent_data)
 
-
+                        ## Ready task found, push into temp ready task queue
                         temp_task_trace.append(task_entry)
-                        # self.stomp.global_task_trace.append(task_entry)
-                        # self.global_task_trace.sort(key=lambda tr_entry: tr_entry[0][0], reverse=False)
                         node.scheduled = 1
             
             ##### DROPPED ##########
+            # Remove Dropped DAGs from active DAG list
             for dag_id_dropped in dropped_dag_id_list:
-                # Remove DAG from active list
                 self.dag_id_list.remove(dag_id_dropped)
+                # TODO: Remove any tasks belonging to a dropped DAG from ready queue
                 del self.dag_dict[dag_id_dropped]
             #########################
 
+            end = datetime.now()
+            rtime += end - start
+            
+
             self.stomp.lock.acquire()
-            # When pushed into stomp, push in the order of arrival time
+            ## Push all ready tasks in the order of their arrival time ##
             while (len(temp_task_trace)):
                 # logging.info('Inserting : %d,DAG:%d,TID:%d' % (temp_task_trace[0][0][0],temp_task_trace[0][0][2],temp_task_trace[0][0][3]))
                 self.stomp.global_task_trace.append(temp_task_trace.pop(0))
                 self.stomp.global_task_trace.sort(key=lambda tr_entry: tr_entry[0][0], reverse=False)
 
-            # logging.info("Ready Task")
-
             if (len(self.stomp.global_task_trace) and (self.stomp.next_cust_arrival_time != self.stomp.global_task_trace[0][0][0])):
                 self.stomp.next_cust_arrival_time = self.stomp.global_task_trace[0][0][0]
-                # print("SA: " + str(self.stomp.next_cust_arrival_time))
             
             self.stomp.tlock.acquire()
             if(self.stomp.task_completed_flag == 1 and (len(self.stomp.tasks_completed) == 0)):
                 self.stomp.task_completed_flag = 0
             self.stomp.tlock.release()
 
-
             self.stomp.lock.release()   
-
-
-
             
+            ## Update META START after first iteration in META. Used to start TSCHED and STOMP processing
             self.stomp.E_META_START = 1
-            # print("Start STOMP")
             self.stomp.stats['Tasks Generated by META'] = 1
-            ## Handle a task being completed: Remove from dag, update ready_time, deadline
 
+
+            ## If all DAGs have completed update META is done
             if(len(self.dag_id_list) == 0):
-                self.stomp.E_META_DONE = 1
-
-
-
-            # logging.info("Completed Task")    
-                
-
-        # logging.info("META completed")
+                self.stomp.E_META_DONE = 1    
+                # logging.info("META completed")
 
         end_list.sort(key=lambda end_entry: end_entry[0], reverse=False)
         while(len(end_list)):
@@ -324,4 +323,6 @@ class META:
             dropped_entry = dropped_list.pop(0)
             print("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5]))
 
+        #(Processing time for completed task, ready task time, task assignment, task ordering)
+        print(("Time: %d, %d, %d, %d")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
 

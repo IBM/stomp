@@ -56,38 +56,46 @@ def main(argv):
     first = 1
     for arr_scale in ARRIVE_SCALE:
         for accel_count in range(5,6):
+            cnt_1                   = {}
+            cnt_dropped_1           = {}
+            priority_1_slack        = {}
+            priority_1_met          = {}
+            priority_1_noaff_per    = {}
 
-            priority_1_slack = {}
-            priority_1_met = {}
-            priority_1_noaff_per = {}
-
-            priority_2_slack = {}
-            priority_2_met = {}
-            priority_2_noaff_per = {}
+            cnt_2                   = {}
+            cnt_dropped_2           = {}
+            priority_2_slack        = {}
+            priority_2_met          = {}
+            priority_2_noaff_per    = {}
             
-            cnt_1 = {}
-            cnt_2 = {}
-            cnt_dropped_1 = {}
-            cnt_dropped_2 = {}
-            mission_time = {}
+            mission_time            = {}
+            ctime                   = {}
+            rtime                   = {}
+            ta_time                 = {}
+            to_time                 = {}
 
             header = "ACCEL_COUNT,ARR_SCALE,STDEV_FACTOR"
             out = str(accel_count) + "," + str(arr_scale)
             for stdev_factor in STDEV_FACTOR:
                 out += "," + str(stdev_factor) 
                 for policy in POLICY:
-                    header = header + "," + policy + " Mission time,"+ policy + " Pr1 slack," + policy + " Pr2 slack," + policy + " Pr1 Met," + policy + " Pr2 Met," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
-                    priority_1_slack[policy] = 0
-                    priority_1_met[policy] = 0
-                    cnt_1[policy] = 0
-                    priority_2_slack[policy] = 0
-                    priority_2_met[policy] = 0
-                    cnt_2[policy] = 0   
-                    cnt_dropped_1[policy] = 0   
-                    cnt_dropped_2[policy] = 0  
-                    priority_1_noaff_per[policy] = 0
-                    priority_2_noaff_per[policy] = 0
-                    mission_time[policy] = 0
+                    header = header + "," + policy + " Mission time,"+ policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 slack," + policy + " Pr2 slack," + policy + " Pr1 Met," + policy + " Pr2 Met," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
+                    priority_1_slack[policy]        = 0
+                    priority_1_met[policy]          = 0
+                    cnt_1[policy]                   = 0
+                    priority_2_slack[policy]        = 0
+                    priority_2_met[policy]          = 0
+                    cnt_2[policy]                   = 0   
+                    cnt_dropped_1[policy]           = 0   
+                    cnt_dropped_2[policy]           = 0  
+                    priority_1_noaff_per[policy]    = 0
+                    priority_2_noaff_per[policy]    = 0
+                    mission_time[policy]            = 0
+
+                    ctime[policy]                   = 0
+                    rtime[policy]                   = 0
+                    ta_time[policy]                 = 0
+                    to_time[policy]                 = 0
 
                     flag = 0
                     # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
@@ -102,6 +110,20 @@ def main(argv):
                             if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time\n"):
                                 flag = 1
                                 continue
+
+                            if (line.startswith("Time")):
+                                flag = 0
+                                #Time: C, R, TA, TO
+                                theader,data = line.split(':')
+                                print(data)
+                                ct, rt, ta_t, to_t = data.split(',')
+
+                                ctime[policy]       = float(ct)
+                                rtime[policy]       = float(rt)
+                                ta_time[policy]     = float(ta_t)
+                                to_time[policy]     = float(to_t)
+                                print(ctime[policy],rtime[policy],ta_time[policy],to_time[policy])
+
 
                             if (flag):
                                 if(cnt_1[policy] + cnt_2[policy] >= 1000):
@@ -148,7 +170,7 @@ def main(argv):
                     
                     priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])  
 
-                    out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (mission_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_met[policy],priority_2_met[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
+                    out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (mission_time[policy],ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_met[policy],priority_2_met[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
                 if(first):
                     print(header)
                     first = 0

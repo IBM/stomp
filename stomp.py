@@ -26,7 +26,8 @@ import pprint
 import sys
 import operator
 import logging
-import datetime
+from datetime import timedelta
+import datetime 
 
 import threading
 
@@ -238,6 +239,8 @@ class STOMP:
         self.intrace_server_order             = []
         
         self.sim_time                         = 0    # Simulation time
+        self.ta_time                          = timedelta(microseconds = 0) 
+        self.to_time                          = timedelta(microseconds = 0)
         
         # Global stats
         self.stats                            = {}
@@ -280,8 +283,8 @@ class STOMP:
 
         # IF user specified an input trace file then read that in here:
         self.global_task_trace = []
-        self.lock = threading.Lock()
-        self.tlock = threading.Lock()
+        self.lock = threading.Lock()        #For safe access of global_task_trace
+        self.tlock = threading.Lock()       #For safe access of tasks_completed and task_completed_flag
         self.task_completed_flag = 0
         self. random = 0
         if (stomp_params['general']['input_trace_file']):
@@ -778,7 +781,6 @@ class STOMP:
                 # Customer (task) arrival...
                 if (len(self.global_task_trace)):
 
-                    # if(self.random == 1):       ## Update sim time if there was no trace previously
                     self.lock.acquire()
                     tmp = self.global_task_trace[0]
                     self.lock.release()
@@ -836,6 +838,9 @@ class STOMP:
             # 3) Make scheduling decisions                                       #
             ######################################################################
             server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks)
+            self.ta_time = self.sched_policy.ta_time
+            self.to_time = self.sched_policy.to_time
+
             #print(server)
             if server is not None:
                 if server.curr_job_end_time < self.next_serv_end_time:
