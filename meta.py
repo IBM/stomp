@@ -104,15 +104,16 @@ class META:
 
         self.dag_dict                       = {}
         self.dag_id_list                    = []
-        self.server_types                   = ["cpu_core", "gpu", "fft_accel"]
+        self.server_types                   = ["cpu_core", "gpu", "loc_accel","det_accel", "tra_accel"]
     def run(self):
 
         ### Read input DAGs ####
         dags_completed = 0
         dags_dropped = 0
+        dags_dropped_per_interval = 0
         end_list = []
         dropped_list = []
-
+	time_interval = 0
         in_trace_name = self.working_dir + '/' + self.input_trace_file
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
@@ -126,7 +127,8 @@ class META:
                         atime = int(int(tmp.pop(0))*self.params['simulation']['arrival_time_scale'])
                         dag_id = int(tmp.pop(0))
                         dag_type = tmp.pop(0)
-                        graph = nx.read_graphml("inputs/random_dag_{0}.graphml".format(dag_type), MetaTask)
+			#graph = nx.read_graphml("inputs/end_to_end/dag{0}.graphml".format(dag_type), MetaTask)                            
+			graph = nx.read_graphml("inputs/mavbench/mapping/dag{0}.graphml".format(dag_type), MetaTask)                            
                         #### AFFINITY ####
                         # Add matrix to maintain parent node id's
                         ####
@@ -138,7 +140,8 @@ class META:
                             parent_dict[node.tid] = parent_list
                             # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
 
-                        comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
+			#comp = read_matrix("inputs/end_to_end/dag_{0}.txt".format(dag_type, self.stdev_factor))
+			comp = read_matrix("inputs/mavbench/mapping/dag_{0}.txt".format(dag_type, self.stdev_factor))
                         priority = int(tmp.pop(0))
                         deadline = int(tmp.pop(0))
                         dtime = atime + deadline
@@ -206,6 +209,17 @@ class META:
             ctime += end - start
  
 
+	    
+	    #time_interval = 0
+            for dag_id in self.dag_id_list:
+                the_dag_sched = self.dag_dict[dag_id]
+
+                ## Push ready tasks into queue
+		
+		#if the_dag_sched.arrival_time > time_interval+50:
+		#	print ("time intrval ",time_interval," dag dropped per interval is ", dags_dropped )
+		#	time_interval = the_dag_sched.arrival_time
+			#dags_dropped_per_interval = 0
             ## Check for ready tasks ##
             start = datetime.now()
             for dag_id in self.dag_id_list:
@@ -219,6 +233,7 @@ class META:
                             atime = the_dag_sched.arrival_time
                         else:
                             atime = the_dag_sched.ready_time
+
                         task = the_dag_sched.comp[node.tid][0]
                         priority = the_dag_sched.priority
                         deadline = int(the_dag_sched.slack)
@@ -250,17 +265,51 @@ class META:
                             count += 1
                         
                         task_entry.append(stimes)
+
+		#	print("task entry is ",task_entry, "slack ",the_dag_sched.slack)
                         ##### DROPPED ##########
+			#print("mintime ",min_time,dag_id)
+			#if the_dag_sched.slack-min_time>0 and the_dag_sched.priority ==1:
+			#	the_dag_sched.priority = 2
+			#	print(dag_id)
+			
+			#print("time ",the_dag_sched.slack - min_time)
+			#print("id ",dag_id)i
+
                         if(self.params['simulation']['drop'] == True):
                             if(the_dag_sched.slack - min_time < 0 and the_dag_sched.priority == 1):
                                 the_dag_sched.dropped = 1
                                 dags_dropped += 1
+				dags_dropped_per_interval +=1
+				#print("insde drop",dag_id)
                                 dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
                                 dropped_list.append(dropped_entry)
                                 dropped_dag_id_list.append(dag_id)
                                 break
+	
+
+			    ####### PROMOTE DAGS ######
+
+			    #This commented code used for promoting based on threshold	
+			    #elif (the_dag_sched.slack - min_time > 0 and the_dag_sched.priority ==1 and dags_dropped > 50):
+			#	the_dag_sched.priority = 2
+			
+			    elif the_dag_sched.arrival_time > time_interval+100:
+			#	print ("time intrval ",time_interval," dag dropped per interval is ", dags_dropped_per_interval )
+			#	time_interval = the_dag_sched.arrival_time
+				if dags_dropped_per_interval >0 and the_dag_sched.priority ==1:
+					the_dag_sched.priority = 2 
+				dags_dropped_per_interval = 0
+			    	
+			time_interval = the_dag_sched.arrival_time
+			 
+
+			    #elif (the_dag_sched.slack - min_time > 0 and the_dag_sched.priority ==1 and dags_dropped > 5):
+			#	the_dag_sched.priority = 2
+				#print("dag_promoted")
                         ##### DROPPED ##########
 
+		#	print("arraival time is ",atime," dag_id ",dag_id," task id ",node.tid, "dag dropped" ,dags_dropped)
                         #### AFFINITY ####
                         # Pass parent id and HW id of parents with task
                         ####
