@@ -188,7 +188,7 @@ def main(argv):
                         command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
 
                 if (use_user_input_trace):
-                    command_str = command_str + ' -i ../user_traces/user_gen_trace1.trc'
+                    command_str = command_str + ' -i ../user_traces/user_gen_trace.trc'
 
                 if (verbose):
                     print('Running', command_str)

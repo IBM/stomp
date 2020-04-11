@@ -115,14 +115,14 @@ def main(argv):
                                 flag = 0
                                 #Time: C, R, TA, TO
                                 theader,data = line.split(':')
-                                print(data)
+                                #print(data)
                                 ct, rt, ta_t, to_t = data.split(',')
 
                                 ctime[policy]       = float(ct)
                                 rtime[policy]       = float(rt)
                                 ta_time[policy]     = float(ta_t)
                                 to_time[policy]     = float(to_t)
-                                print(ctime[policy],rtime[policy],ta_time[policy],to_time[policy])
+                                #print(ctime[policy],rtime[policy],ta_time[policy],to_time[policy])
 
 
                             if (flag):

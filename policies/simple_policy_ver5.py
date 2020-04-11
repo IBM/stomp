@@ -38,6 +38,7 @@
 from stomp import BaseSchedulingPolicy
 import logging
 import numpy
+from datetime import datetime, timedelta 
 
 max_task_depth_to_check = 10
 
@@ -52,6 +53,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.n_servers    = len(servers)
         self.stats                            = {}
         self.stats['Task Issue Posn'] = numpy.zeros(self.num_bins, dtype=int)  # N-bin histogram
+        self.ta_time      = timedelta(microseconds=0)
+        self.to_time      = timedelta(microseconds=0)
 
 
     def assign_task_to_server(self, sim_time, tasks):
