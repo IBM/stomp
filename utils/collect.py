@@ -48,9 +48,9 @@ CONF_FILE    = './stomp.json'
 
 
 
-deadline_5 = 5370
-deadline_7 = 4281
-deadline_10 = 10121
+deadline_5 = 537
+deadline_7 = 428
+deadline_10 = 1012
 stdev_factor = STDEV_FACTOR[0]
 
 def main(argv):
@@ -78,7 +78,7 @@ def main(argv):
 
             header = "ACCEL_COUNT,ARR_SCALE,STDEV_FACTOR"
             out = str(accel_count) + "," + str(arr_scale)
-            for stdev_factor in STDEV_FACTOR:
+            for prob in PROB:
                 out += "," + str(stdev_factor) 
                 for policy in POLICY:
                     header = header + "," + policy + " Mission time,"+ policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Met," + policy + " Pr2 Met," + policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
@@ -102,6 +102,7 @@ def main(argv):
                     flag = 0
                     # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
                     # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
+                    #fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'
                     fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out'
                     with open(fname,'r') as fp:
                         line = fp.readline()

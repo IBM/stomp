@@ -33,11 +33,11 @@ class TRACE:
                 dag_type = numpy.random.choice(['5','7', '10'])
                 priority = numpy.random.choice(['1','3'], p=[1-prob, prob])
                 if dag_type == '5':
-                    deadline = 5370
-                if dag_type == '7':
-                    deadline = 4281
+                    deadline = 537
+                elif dag_type == '7':
+                    deadline = 428
                 else:
-                    deadline = 10121
+                    deadline = 1012
                 # trace_entry = (atime,dag_id,dag_type,priority,deadline)
                 output_trace.write('%d,%d,%s,%s,%d\n' % (atime,dag_id,dag_type,priority,deadline))
 

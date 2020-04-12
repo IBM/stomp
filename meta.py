@@ -113,7 +113,7 @@ class META:
         dags_dropped_per_interval = 0
         end_list = []
         dropped_list = []
-	time_interval = 0
+        time_interval = 0
         in_trace_name = self.working_dir + '/' + self.input_trace_file
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
@@ -141,7 +141,7 @@ class META:
                                 parent_list.append(pred_node.tid)
                             parent_dict[node.tid] = parent_list
                             # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
-			
+            
                         comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
                         priority = int(tmp.pop(0))
                         deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale'])
@@ -210,8 +210,7 @@ class META:
             ctime += end - start
  
 
-	    
-	    #time_interval = 0
+            #time_interval = 0
 
             ## Check for ready tasks ##
             start = datetime.now()
@@ -262,25 +261,25 @@ class META:
                             if(the_dag_sched.slack - min_time < 0 and the_dag_sched.priority == 1):
                                 the_dag_sched.dropped = 1
                                 dags_dropped += 1
-				dags_dropped_per_interval +=1
+                                dags_dropped_per_interval +=1
                                 dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
                                 #print(("Dropping DAG %d") % (dag_id))
                                 self.stomp.dags_dropped.append(dag_id)
                                 dropped_list.append(dropped_entry)
                                 dropped_dag_id_list.append(dag_id)
                                 break
-	
+    
 
-			    ####### PROMOTE DAGS ######
+                        ####### PROMOTE DAGS ######
 
-			
-			    elif the_dag_sched.arrival_time > time_interval+100:
-				if dags_dropped_per_interval >0 and the_dag_sched.priority ==1:
-					the_dag_sched.priority = 2 
-				dags_dropped_per_interval = 0
-			    	
-			time_interval = the_dag_sched.arrival_time
-			 
+            
+                            elif the_dag_sched.arrival_time > time_interval+100:
+                                if dags_dropped_per_interval > 0 and the_dag_sched.priority ==1:
+                                    the_dag_sched.priority = 2 
+                                dags_dropped_per_interval = 0
+                    
+                        time_interval = the_dag_sched.arrival_time
+             
 
                         ##### DROPPED ##########
 
