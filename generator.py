@@ -28,8 +28,25 @@ import collections
 import numpy
 
 import networkx as nx
+from csv import reader
+
 #from graph.graph import random_comp_matrix, random_comm_matrix, random_task_dag
+
 output_file = '/home/aporvaa/research/IBM/inputs/'
+STDEV_FACTOR = [0.01] #, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
+stdev_factor = 0.01
+
+def read_matrix(matrix):
+    lmatrix = []
+    f = open(matrix)
+    next(f)
+    csv_reader = reader(f)
+    for row in csv_reader:
+        # logging.info(row)
+        lmatrix.append(list(map(str,row)))
+    f.close()
+    return lmatrix 
+
 
 class Task(object):
 
@@ -80,7 +97,6 @@ def random_comp_matrix(processors, nodes, lower,upper):
         params = json.load(conf_file)
 
     params['simulation']['servers'] = ["cpu_core","gpu","fft_accel"]
-    STDEV_FACTOR = [0.01] #, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
 
     for stdev_factor in STDEV_FACTOR:
 
@@ -111,9 +127,9 @@ def random_comp_matrix(processors, nodes, lower,upper):
         elif(nodes == 10):
             #tasks = ['cnn', 'fft', 'cnn', 'fft', 'decoder', 'cnn', 'decoder']
             tasks = numpy.random.choice(task_list, 10)
-        print(nodes)
+        #print(nodes)
         print(tasks)
-        print("Done")
+        #print("Done")
 
         for x in range(nodes):
             mat_entry = []
@@ -182,6 +198,10 @@ def random_task_dag(nodes, edges):
     """Generate a random Directed Acyclic Graph (DAG) with a given number of nodes and edges.
     Modified from source: http://ipyparallel.readthedocs.io/en/latest/dag_dependencies.html
     """
+
+    comp = read_matrix((output_file + "random_comp_{0}_{1}.txt").format(nodes, stdev_factor))
+    #print(comp[0])
+    #print(comp[0][1])
     graph = nx.DiGraph()
     count = 0
     parent_nodes = []
@@ -189,7 +209,7 @@ def random_task_dag(nodes, edges):
     if nodes is 1:
         return graph
     for i in range(nodes):
-        graph.add_node(Task(i))
+        graph.add_node(Task(i), p=comp[i][2])
     graph.add_edge(Task(0), Task(1))
     while edges > 0:
         a = Task(random.randint(0,nodes-1))
@@ -313,13 +333,13 @@ if __name__ == '__main__':
     
     random_task_dag(5,5)
     random_task_dag(10,10)
-    #random_task_dag(7,7)
+    random_task_dag(7,7)
 
     graphs.append(output_file + "random_dag_5.graphml")
     graphs.append(output_file + "random_dag_10.graphml")
-    #graphs.append(output_file + "random_dag_7.graphml")
+    graphs.append(output_file + "random_dag_7.graphml")
 
-    generate_cost_matrix(min_comp,max_comp, min_comm,max_comm)
+    #generate_cost_matrix(min_comp,max_comp, min_comm,max_comm)
 
     # G=nx.gnp_random_graph(10,0.5,directed=True)
 

@@ -41,15 +41,17 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE
+from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE, PROB
 
 
 CONF_FILE    = './stomp.json'
 
 
 
-deadline_5 = 1100
-deadline_10 = 1300
+deadline_5 = 5370
+deadline_7 = 4281
+deadline_10 = 10121
+stdev_factor = STDEV_FACTOR[0]
 
 def main(argv):
     sim_dir = argv
@@ -79,7 +81,7 @@ def main(argv):
             for stdev_factor in STDEV_FACTOR:
                 out += "," + str(stdev_factor) 
                 for policy in POLICY:
-                    header = header + "," + policy + " Mission time,"+ policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 slack," + policy + " Pr2 slack," + policy + " Pr1 Met," + policy + " Pr2 Met," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
+                    header = header + "," + policy + " Mission time,"+ policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Met," + policy + " Pr2 Met," + policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
                     priority_1_slack[policy]        = 0
                     priority_1_met[policy]          = 0
                     cnt_1[policy]                   = 0
@@ -100,7 +102,7 @@ def main(argv):
                     flag = 0
                     # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
                     # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
-                    fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'
+                    fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out'
                     with open(fname,'r') as fp:
                         line = fp.readline()
                         while(line):
@@ -140,7 +142,10 @@ def main(argv):
                                             if(float(slack) >= 0):
                                                 priority_1_met[policy] += 1
                                         else:
-                                            priority_1_slack[policy] += float(slack)/deadline_10 
+                                            if dag_type == '7':
+                                                priority_1_slack[policy] += float(slack)/deadline_7 
+                                            else: 
+                                                priority_1_slack[policy] += float(slack)/deadline_10 
                                             if(float(slack) >= 0):
                                                 priority_1_met[policy] += 1
                                         priority_1_noaff_per[policy] += float(noafftime)/float(resp)
@@ -154,7 +159,10 @@ def main(argv):
                                             if(float(slack) >= 0):
                                                 priority_2_met[policy] += 1
                                         else:
-                                            priority_2_slack[policy] += float(slack)/deadline_10
+                                            if dag_type == '7':
+                                                priority_1_slack[policy] += float(slack)/deadline_7 
+                                            else: 
+                                                priority_1_slack[policy] += float(slack)/deadline_10 
                                             if(float(slack) >= 0):
                                                 priority_2_met[policy] += 1
                                         priority_2_noaff_per[policy] += float(noafftime)/float(resp)
@@ -170,6 +178,7 @@ def main(argv):
                     
                     priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])  
 
+                    mission_time[policy] += arr_scale*500*1000
                     out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (mission_time[policy],ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_met[policy],priority_2_met[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
                 if(first):
                     print(header)

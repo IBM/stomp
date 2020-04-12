@@ -128,6 +128,9 @@ class META:
                         dag_id = int(tmp.pop(0))
                         dag_type = tmp.pop(0)
                         graph = nx.read_graphml("inputs/random_dag_{0}.graphml".format(dag_type), MetaTask)
+                        #print(graph.criticalPath.nodes())
+                        #exit
+
                         #### AFFINITY ####
                         # Add matrix to maintain parent node id's
                         ####
@@ -141,7 +144,7 @@ class META:
 			
                         comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
                         priority = int(tmp.pop(0))
-                        deadline = int(tmp.pop(0))
+                        deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale'])
                         dtime = atime + deadline
                         the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, dtime, priority,dag_type)
                         self.dag_dict[dag_id] = the_dag_trace

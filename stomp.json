@@ -15,7 +15,7 @@
       "sched_policy_module": "policies.simple_policy_ver3",
       "drop": false,
       "max_tasks_simulated": 10000,
-      "mean_arrival_time":   200,
+      "mean_arrival_time":   500,
       "power_mgmt_enabled":  false,
       "max_queue_size":      1000000,
       "arrival_time_scale":  1.0,
@@ -34,44 +34,89 @@
       },
 
       "tasks": {
-          "fft" : {
+          "fft_64" : {
               "mean_service_time" : {
-                  "cpu_core"  : 500,
-                  "gpu"       : 100,
-                  "fft_accel" : 10
+                  "cpu_core"  : 92,
+                  "gpu"       : 84,
+                  "fft_accel" : 5
               },
               "stdev_service_time" : {
-                  "cpu_core"  : 5.0,
-                  "gpu"       : 1.0,
-                  "fft_accel" : 0.1
+                  "cpu_core"  : 0.92,
+                  "gpu"       : 0.84,
+                  "fft_accel" : 0.05
               },
               "priority" : 1,
               "deadline" : 1000
           },
-          
-          "cnn" : {
+          "fft_128" : {
               "mean_service_time" : {
-                  "cpu_core"  : 200,
-                  "gpu"       : 150,
-                  "fft_accel" : 10
+                  "cpu_core"  : 832,
+                  "gpu"       : 84,
+                  "fft_accel" : 5
               },
               "stdev_service_time" : {
-                  "cpu_core"  : 2.0,
-                  "gpu"       : 1.5,
-                  "fft_accel" : 0.1
+                  "cpu_core"  : 8.32,
+                  "gpu"       : 0.84,
+                  "fft_accel" : 0.05
+              },
+              "priority" : 1,
+              "deadline" : 1000
+          },
+          "fft_256" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 3193,
+                  "gpu"       : 97,
+                  "fft_accel" : 5
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 31.93,
+                  "gpu"       : 0.97,
+                  "fft_accel" : 0.05
+              },
+              "priority" : 1,
+              "deadline" : 1000
+          },
+
+
+          
+          "cnn_14" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 1620,
+                  "gpu"       : 520,
+                  "fft_accel" : 184
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 16.2,
+                  "gpu"       : 5.2,
+                  "fft_accel" : 18.4
               },
               "priority" : 2,
               "deadline" : 1000
           },
+          "cnn_32" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 583,
+                  "gpu"       : 349,
+                  "fft_accel" : 51
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 5.8,
+                  "gpu"       : 3.5,
+                  "fft_accel" : 0.5
+              },
+              "priority" : 2,
+              "deadline" : 1000
+          },
+ 
       
           "decoder" : {
               "mean_service_time" : {
-                  "cpu_core"  : 200,
-                  "gpu"       : 150
+                  "cpu_core"  : 1000,
+                  "gpu"       : 20
               },
               "stdev_service_time" : {
-                  "cpu_core"  : 2.0,
-                  "gpu"       : 1.5
+                  "cpu_core"  : 10.0,
+                  "gpu"       : 2.0
               },
               "priority" : 3,
               "deadline" : 1000

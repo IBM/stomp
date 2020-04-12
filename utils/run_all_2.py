@@ -46,7 +46,8 @@ CONF_FILE    = './stomp.json'
 POLICY       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2']
 #POLICY       = ['edf']
 STDEV_FACTOR = [0.01] #, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
-ARRIVE_SCALE = [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6] #, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2]  # percentages
+ARRIVE_SCALE = [1.0] #, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6] #, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2]  # percentages
+PROB         = [0.1, 0.2, 0.3, 0.4, 0.5]
 DROP         = False
 
 def usage_and_exit(exit_code):
@@ -137,8 +138,9 @@ def main(argv):
 
         for policy in POLICY:
             sim_output[arr_scale][policy] = {}
-
-            for stdev_factor in STDEV_FACTOR:
+            
+            stdev_factor = STDEV_FACTOR[0]
+            for prob in PROB:
                 stomp_params['simulation']['stdev_factor'] = stdev_factor
                 if DROP:
                     stomp_params['simulation']['drop']         = True
@@ -188,7 +190,7 @@ def main(argv):
                         command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
 
                 if (use_user_input_trace):
-                    command_str = command_str + ' -i ../user_traces/user_gen_trace.trc'
+                    command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc'
 
                 if (verbose):
                     print('Running', command_str)
@@ -197,7 +199,7 @@ def main(argv):
                 output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
 
                 if (save_stdout):
-                    fh = open(sim_dir + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out', 'w')
+                    fh = open(sim_dir + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out', 'w')
 
                 ###########################################################################################
                 # Parse the output line by line
