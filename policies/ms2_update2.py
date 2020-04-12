@@ -58,11 +58,16 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.to_time      = timedelta(microseconds=0)
 
 
-    def assign_task_to_server(self, sim_time, tasks):
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
             return None    
+        
+        for task in tasks:
+            if task.dag_id in dags_dropped:
+                # print("Removing dropped dag")
+                tasks.remove(task)
 
         if (len(tasks) > max_task_depth_to_check):
             window_len = max_task_depth_to_check
@@ -97,7 +102,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                 slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))
                 t.rank = int((100000 * (10*t.priority))/slack)
-    
 
         tasks.sort(key=lambda task: task.rank, reverse=True)
         end = datetime.now()

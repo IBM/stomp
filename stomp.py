@@ -183,7 +183,7 @@ class BaseSchedulingPolicy:
     def init(self, servers, stomp_stats, stomp_params): pass
     
     @abstractmethod
-    def assign_task_to_server(self, sim_time, tasks): pass
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped): pass
 
     @abstractmethod
     def remove_task_from_server(self, sim_time, server): pass
@@ -273,6 +273,7 @@ class STOMP:
         self.task_assign_trace.write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         self.task_assign_trace.write('Time\tResponse time (avg)\n')
         
+        self.dags_dropped                     = []
         self.tasks_completed                  = []
         self.next_event                       = STOMP.E_NOTHING
         self.next_task_event                  = STOMP.E_NOTHING
@@ -837,7 +838,7 @@ class STOMP:
             ######################################################################
             # 3) Make scheduling decisions                                       #
             ######################################################################
-            server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks)
+            server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks, self.dags_dropped)
             self.ta_time = self.sched_policy.ta_time
             self.to_time = self.sched_policy.to_time
 
