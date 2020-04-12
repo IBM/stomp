@@ -1,6 +1,0 @@
-type,P1,P2,...,Pn
-fft,597,219,10
-cnn,66,1,13
-decoder,354,212,None
-cnn,242,274,15
-decoder,7,208,None
