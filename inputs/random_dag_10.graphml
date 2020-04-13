@@ -1,43 +1,43 @@
 <?xml version='1.0' encoding='utf-8'?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
-  <key attr.name="p" attr.type="string" for="node" id="d0" />
+  <key attr.name="t" attr.type="string" for="node" id="d0" />
   <graph edgedefault="directed">
     <node id="0">
-      <data key="d0">10</data>
+      <data key="d0">1</data>
     </node>
     <node id="1">
-      <data key="d0">10</data>
+      <data key="d0">1</data>
     </node>
     <node id="2">
       <data key="d0">2</data>
     </node>
     <node id="3">
-      <data key="d0">52</data>
+      <data key="d0">18</data>
     </node>
     <node id="4">
-      <data key="d0">10</data>
+      <data key="d0">1</data>
     </node>
     <node id="5">
-      <data key="d0">52</data>
+      <data key="d0">18</data>
     </node>
     <node id="6">
       <data key="d0">2</data>
     </node>
     <node id="7">
-      <data key="d0">8</data>
+      <data key="d0">1</data>
     </node>
     <node id="8">
       <data key="d0">2</data>
     </node>
     <node id="9">
-      <data key="d0">35</data>
+      <data key="d0">5</data>
     </node>
     <edge source="0" target="1" />
     <edge source="0" target="2" />
     <edge source="0" target="7" />
     <edge source="0" target="9" />
     <edge source="2" target="3" />
-    <edge source="2" target="4" />
+    <edge source="3" target="4" />
     <edge source="2" target="6" />
     <edge source="3" target="1" />
     <edge source="4" target="8" />

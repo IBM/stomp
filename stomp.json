@@ -15,7 +15,7 @@
       "sched_policy_module": "policies.simple_policy_ver3",
       "drop": false,
       "max_tasks_simulated": 10000,
-      "mean_arrival_time":   20,
+      "mean_arrival_time":   25,
       "power_mgmt_enabled":  false,
       "max_queue_size":      1000000,
       "arrival_time_scale":  1.0,

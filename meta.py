@@ -23,6 +23,28 @@ def read_matrix(matrix):
     f.close()
     return lmatrix 
 
+def max_length(G, node_run):    
+    leaf_nodes = [node for node in G.nodes() if G.out_degree(node)==0] 
+    time_dict = nx.get_node_attributes(G, 't')
+
+    max_path_length = 0
+    num_paths = 0
+
+    for leaf in leaf_nodes:
+        for path in nx.all_simple_paths(G, source=node_run, target=leaf):
+            sum = 0
+            for key in path:
+                sum += int(time_dict[key])
+
+            if (sum > max_path_length):
+                max_path_length = sum
+            num_paths += 1
+    if(num_paths == 0):
+        min_time = int(time_dict[node])
+        return min_time
+		
+    return max_path_length
+
 class MetaTask(object):
 
     def __init__(self, tid, comp_cost=[]):
@@ -258,7 +280,10 @@ class META:
                         task_entry.append(stimes)
                         ##### DROPPED ##########
                         if(self.params['simulation']['drop'] == True):
-                            if(the_dag_sched.slack - min_time < 0 and the_dag_sched.priority == 1):
+                            ex_time = max_length(the_dag_sched.graph, node)
+                            if(the_dag_sched.slack - ex_time < 0 and the_dag_sched.priority == 1):
+                            # if(the_dag_sched.slack - the_dag_sched(G) < 0 and the_dag_sched.priority == 1):
+                                
                                 the_dag_sched.dropped = 1
                                 dags_dropped += 1
                                 dags_dropped_per_interval +=1

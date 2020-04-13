@@ -5,7 +5,7 @@ import json
 import collections
 import numpy
 
-probs = [0.1, 0.2, 0.3, 0.5]
+probs = [0.1, 0.2, 0.3, 0.4, 0.5]
 
 class TRACE:
 
@@ -20,6 +20,8 @@ class TRACE:
     def run(self):
 
         for prob in probs:
+            self.sim_time = 0
+            self.count_dags = 0
             self.output_trace_file = "user_traces/user_gen_trace_prob_" + str(prob) + ".trc"
             if (self.output_trace_file):
                 out_trace_name = self.working_dir + '/' + self.output_trace_file

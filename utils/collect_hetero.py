@@ -41,7 +41,7 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP
+from run_all_hetero import POLICY, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP
 
 extra = False
 
@@ -52,7 +52,6 @@ with open(conf_file) as conf_file:
     stomp_params = json.load(conf_file)
 
 mean_arrival_time = stomp_params['simulation']['mean_arrival_time']
-
 
 deadline_5 = 537
 deadline_7 = 428
@@ -65,7 +64,7 @@ def main(argv):
     for drop in DROP:
         for prob in PROB:
             for arr_scale in ARRIVE_SCALE:
-                for accel_count in range(5,6):
+                for accel_count in range(1,6):
                     cnt_1                   = {}
                     cnt_dropped_1           = {}
                     priority_1_slack        = {}
@@ -114,7 +113,7 @@ def main(argv):
                         # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
                         # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
                         #fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'
-                        fname = str(sim_dir) + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out'
+                        fname = str(sim_dir) + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '_cpu_' + str(accel_count) + '.out'
                         with open(fname,'r') as fp:
                             line = fp.readline()
                             while(line):
