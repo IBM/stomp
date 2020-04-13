@@ -195,6 +195,8 @@ def main(argv):
 
                         mission_time[policy] += arr_scale*mean_arrival_time*1000
                         mission_completed[policy] = float(mission_completed[policy])/cnt_2[policy]
+                        if mission_failed == 0:
+                            mission_completed[policy] = 1.0;
                         out += ((",%lf,%lf,%lf,%lf") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy]))
                         if(extra):
                             out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
