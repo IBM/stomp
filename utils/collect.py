@@ -172,9 +172,9 @@ def main(argv):
                                                     priority_2_met[policy] += 1
                                             else:
                                                 if dag_type == '7':
-                                                    priority_1_slack[policy] += float(slack)/deadline_7 
+                                                    priority_2_slack[policy] += float(slack)/deadline_7 
                                                 else: 
-                                                    priority_1_slack[policy] += float(slack)/deadline_10 
+                                                    priority_2_slack[policy] += float(slack)/deadline_10 
                                                 if(float(slack) >= 0):
                                                     priority_2_met[policy] += 1
                                                 elif(mission_failed != 1):
