@@ -132,7 +132,7 @@ class META:
         ### Read input DAGs ####
         dags_completed = 0
         dags_dropped = 0
-        dags_dropped_per_interval = 0
+        dags_missed_per_interval = 0
         end_list = []
         dropped_list = []
         time_interval = 0
@@ -286,25 +286,24 @@ class META:
                                 
                                 the_dag_sched.dropped = 1
                                 dags_dropped += 1
-                                dags_dropped_per_interval +=1
                                 dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
                                 #print(("Dropping DAG %d") % (dag_id))
                                 self.stomp.dags_dropped.append(dag_id)
                                 dropped_list.append(dropped_entry)
                                 dropped_dag_id_list.append(dag_id)
                                 break
-    
 
-                        ####### PROMOTE DAGS ######
+                        if(self.params['simulation']['promote'] == True):
+                            ex_time = max_length(the_dag_sched.graph, node)
+                            if(the_dag_sched.slack - ex_time < 0 and the_dag_sched.priority == 1):
+                                dags_missed_per_interval += 1
+                            elif the_dag_sched.arrival_time > time_interval + 100:
+                                if dags_missed_per_interval > 0 and the_dag_sched.priority == 1:
+                                    the_dag_sched.priority = 2
+                                dags_missed_per_interval = 0
 
-            
-                            elif the_dag_sched.arrival_time > time_interval+100:
-                                if dags_dropped_per_interval > 0 and the_dag_sched.priority ==1:
-                                    the_dag_sched.priority = 2 
-                                dags_dropped_per_interval = 0
-                    
                         time_interval = the_dag_sched.arrival_time
-             
+            
 
                         ##### DROPPED ##########
 

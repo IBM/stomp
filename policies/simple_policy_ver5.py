@@ -57,15 +57,27 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.to_time      = timedelta(microseconds=0)
 
 
-    def assign_task_to_server(self, sim_time, tasks):
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
             return None    
 
-        tidx = 0;
         for task in tasks:
-            #task = tasks[0]
+            if task.dag_id in dags_dropped:
+                # print("Removing dropped dag")
+                tasks.remove(task)
+
+        if (len(tasks) > max_task_depth_to_check):
+            window_len = max_task_depth_to_check
+        else:
+            window_len = len(tasks)
+            
+        window = tasks[:window_len]
+            
+        tidx = 0;
+
+        for task in window:      
             logging.debug('[%10ld] Attempting to scheduling task %2d : %s' % (sim_time, tidx, task.type))
         
             # Compute execution times for each target server, factoring in

@@ -113,7 +113,7 @@ def main(argv):
                         # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
                         # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
                         #fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'
-                        fname = str(sim_dir) + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '_cpu_' + str(accel_count) + '.out'
+                        fname = str(sim_dir) + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '_accel_' + str(accel_count) + '.out'
                         with open(fname,'r') as fp:
                             line = fp.readline()
                             while(line):
@@ -171,9 +171,9 @@ def main(argv):
                                                     priority_2_met[policy] += 1
                                             else:
                                                 if dag_type == '7':
-                                                    priority_1_slack[policy] += float(slack)/deadline_7 
+                                                    priority_2_slack[policy] += float(slack)/deadline_7 
                                                 else: 
-                                                    priority_1_slack[policy] += float(slack)/deadline_10 
+                                                    priority_2_slack[policy] += float(slack)/deadline_10 
                                                 if(float(slack) >= 0):
                                                     priority_2_met[policy] += 1
                                                 elif(mission_failed != 1):
@@ -194,6 +194,8 @@ def main(argv):
 
                         mission_time[policy] += arr_scale*mean_arrival_time*1000
                         mission_completed[policy] = float(mission_completed[policy])/cnt_2[policy]
+                        if mission_failed == 0:
+                            mission_completed[policy] = 1.0;
                         out += ((",%lf,%lf,%lf,%lf") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy]))
                         if(extra):
                             out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))

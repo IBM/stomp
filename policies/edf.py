@@ -42,7 +42,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.stomp_params = stomp_params
         self.servers      = servers
         self.n_servers    = len(servers)
-
+        self.ta_time      = timedelta(microseconds=0)
+        self.to_time      = timedelta(microseconds=0)
 
     def assign_task_to_server(self, sim_time, tasks, dags_dropped):
 

@@ -14,6 +14,7 @@
   "simulation" : {
       "sched_policy_module": "policies.simple_policy_ver3",
       "drop": false,
+      "promote": true,
       "max_tasks_simulated": 10000,
       "mean_arrival_time":   25,
       "power_mgmt_enabled":  false,
