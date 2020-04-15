@@ -1,0 +1,180 @@
+{	
+
+  "general" : {
+      "logging_level": 		"INFO",
+      "random_seed":   		0,
+      "working_dir":   		".",
+      "basename":      		"",
+      "pre_gen_arrivals":	false,
+      "input_trace_file":	"",
+      "output_trace_file":	""
+
+  },
+  
+  "simulation" : {
+      "sched_policy_module": "policies.simple_policy_ver3",
+      "max_tasks_simulated": 10000,
+      "drop": false,
+      "mean_arrival_time":   200,
+      "power_mgmt_enabled":  false,
+      "max_queue_size":      1000000,
+      "arrival_time_scale":  1.0,
+      "stdev_factor":     0.01,
+
+      "servers": {
+          "cpu_core" : {
+              "count" : 8
+          },
+          "gpu" : {
+              "count" : 2
+          },
+          "loc_accel" : {
+              "count" : 1
+          },
+          "det_accel" : {
+              "count" : 1
+          },
+          "tra_accel" : {
+              "count" : 1
+          }
+      },
+
+      "tasks": {
+          "loc" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 165,
+                  "gpu"       : 95,
+		  "loc_accel"   : 10
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 5.0,
+                  "gpu"       : 1.0,
+                  "loc_accel" : 0.1
+              },
+              "priority" : 1,
+              "deadline" : 1000
+          },
+          
+          "detect" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 3530,
+                  "gpu"       : 156,
+                  "det_accel" : 96
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0,
+                  "gpu"       : 1.5,
+                  "det_accel" : 0.1
+              },
+              "priority" : 2,
+              "deadline" : 1000
+          },
+      
+          "track" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 1820,
+                  "gpu"       : 17,
+		  "tra_accel" : 2
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0,
+                  "gpu"       : 1.5,
+		  "tra_accel" : 0.1
+              },
+              "priority" : 3,
+              "deadline" : 1000
+          },
+
+   	  "fusion" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 1
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0
+              },
+              "priority" : 4,
+              "deadline" : 1000
+          },
+
+          "mission" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 0.0022
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0
+              },
+              "priority" : 5,
+              "deadline" : 1000
+          },
+
+           "motion" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 8
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0
+              },
+              "priority" : 6,
+              "deadline" : 1000
+          },
+
+ "collision" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 8
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 1
+              },
+              "priority" : 7,
+              "deadline" : 1000
+          },
+ "path" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 8
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 1
+              },
+              "priority" : 8,
+              "deadline" : 1000
+          },
+ "Frontier" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 396
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0
+              },
+              "priority" : 9,
+              "deadline" : 1000
+          },
+ "map" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 973,
+                  "gpu"       : 761
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0,
+                  "gpu"       : 1.5
+              },
+              "priority" : 10,
+              "deadline" : 1000
+          },
+ "sp" : {
+              "mean_service_time" : {
+                  "cpu_core"  : 1004,
+                  "gpu"       : 379
+              },
+              "stdev_service_time" : {
+                  "cpu_core"  : 2.0,
+                  "gpu"       : 1.5
+              },
+              "priority" : 11,
+              "deadline" : 1000
+          }
+
+
+      }
+  }
+
+}

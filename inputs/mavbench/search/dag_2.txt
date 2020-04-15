@@ -1,0 +1,6 @@
+type,P1,P2,...,Pn
+loc,0.46,165,95,10,None,None
+map,0.19,973,761,None,None,None
+collision,0.19,1,None,None,None,None
+path,0.19,1,None,None,None,None
+detect,0.1,3530,156,96,None
