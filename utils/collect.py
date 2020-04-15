@@ -151,15 +151,13 @@ def main(argv):
                                         else:
                                             if dag_type == '5':
                                                 priority_1_slack[policy] += float(slack)/deadline_5
-                                                if(float(slack) >= 0):
-                                                    priority_1_met[policy] += 1
                                             else:
                                                 if dag_type == '7':
                                                     priority_1_slack[policy] += float(slack)/deadline_7 
                                                 else: 
                                                     priority_1_slack[policy] += float(slack)/deadline_10 
-                                                if(float(slack) >= 0):
-                                                    priority_1_met[policy] += 1
+                                            if(float(slack) >= 0):
+                                                priority_1_met[policy] += 1
                                             priority_1_noaff_per[policy] += float(noafftime)/float(resp)
                                     else:
                                         cnt_2[policy] += 1
@@ -168,18 +166,16 @@ def main(argv):
                                         else:
                                             if dag_type == '5':
                                                 priority_2_slack[policy] += float(slack)/deadline_5
-                                                if(float(slack) >= 0):
-                                                    priority_2_met[policy] += 1
                                             else:
                                                 if dag_type == '7':
                                                     priority_2_slack[policy] += float(slack)/deadline_7 
                                                 else: 
                                                     priority_2_slack[policy] += float(slack)/deadline_10 
-                                                if(float(slack) >= 0):
-                                                    priority_2_met[policy] += 1
-                                                elif(mission_failed != 1):
-                                                    mission_failed = 1
-                                                    mission_completed[policy] = priority_2_met[policy]
+                                            if(float(slack) >= 0):
+                                                priority_2_met[policy] += 1
+                                            elif(mission_failed != 1):
+                                                mission_failed = 1
+                                                mission_completed[policy] = priority_2_met[policy]
                                             priority_2_noaff_per[policy] += float(noafftime)/float(resp)
                                             mission_time[policy] += float(resp)
 
