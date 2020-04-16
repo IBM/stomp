@@ -41,9 +41,19 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP
+#from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP
 
 extra = False
+#POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2']
+POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2', 'simple_policy_ver5', 'edf', 'edf_ver5', 'ms1_update2', 'ms2_update2', 'ms3_update2'] # This is default
+ARRIVE_SCALE = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2]
+PROB         = [0.5, 0.3, 0.2, 0.1]
+DROP         = [True, False]
+STDEV_FACTOR = [0.01]
+
+
+
+
 
 conf_file    = './stomp.json'
 
@@ -85,10 +95,10 @@ def main(argv):
                     ta_time                 = {}
                     to_time                 = {}
 
-                    header = "ACCEL_COUNT,DROP,PROB,ARR_SCALE"
-                    out = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) 
+                    header1 = "ACCEL_COUNT,DROP,PROB,ARR_SCALE"
+                    out1 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) 
                     for policy in POLICY:
-                        header = header + "," + policy + " Mission time,"+ policy + " Mission Completed,"+ policy + " Pr1 Met," + policy + " Pr2 Met" 
+                        header = header1 + ",Mission time, Mission Completed, Pr1 Met, Pr2 Met, Pr2 Cnt"
                         if (extra):
                             header = header + "," + policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
                         priority_1_slack[policy]        = 0
@@ -115,6 +125,13 @@ def main(argv):
                         # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
                         #fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'
                         fname = str(sim_dir) + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out'
+                        if os.path.exists(fname):
+                            pass
+                        else:
+
+                            out2 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy) 
+                            print(out2 + ",NodataYet")
+                            continue
                         with open(fname,'r') as fp:
                             line = fp.readline()
                             while(line):
@@ -193,13 +210,17 @@ def main(argv):
                         mission_completed[policy] = float(mission_completed[policy])/cnt_2[policy]
                         if mission_failed == 0:
                             mission_completed[policy] = 1.0;
-                        out += ((",%lf,%lf,%lf,%lf") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy]))
+
+                        out = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy) 
+                        out += ((",%lf,%lf,%lf,%lf,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy]))
                         if(extra):
                             out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
-                    if(first):
-                        print(header)
-                        first = 0
-                    print(out)
+
+                        if(first):
+                            print(header)
+                            first = 0
+                        print(out)
+                    #print(out)
 
 
 

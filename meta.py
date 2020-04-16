@@ -284,6 +284,7 @@ class META:
                             if(the_dag_sched.slack - ex_time < 0 and the_dag_sched.priority == 1):
                             # if(the_dag_sched.slack - the_dag_sched(G) < 0 and the_dag_sched.priority == 1):
                                 
+                                dags_missed_per_interval += 1
                                 the_dag_sched.dropped = 1
                                 dags_dropped += 1
                                 dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
