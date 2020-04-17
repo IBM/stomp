@@ -43,6 +43,7 @@ from __builtin__ import str
 
 
 CONF_FILE    = './stomp.json'
+PROMOTE = True
 POLICY       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2']
 STDEV_FACTOR = [0.01] # percentages
 ARRIVE_SCALE = [0.8, 1.0, 1.2, 1.4] # percentages
@@ -153,6 +154,7 @@ def main(argv):
                     stdev_factor = STDEV_FACTOR[0]
                     stomp_params['simulation']['stdev_factor'] = stdev_factor
                     stomp_params['simulation']['drop']         = drop
+                    stomp_params['simulation']['promote']         = PROMOTE
 
                     sim_output[arr_scale][policy][stdev_factor] = {}
                     sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'] = {}

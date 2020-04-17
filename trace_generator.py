@@ -33,7 +33,11 @@ class TRACE:
                 atime = self.sim_time
                 dag_id = self.count_dags
                 dag_type = numpy.random.choice(['5','7', '10'])
-                priority = numpy.random.choice(['1','3'], p=[1-prob, prob])
+                if (dag_id % (int(1/prob)) == 0):
+                    priority = '3'
+                    #priority = numpy.random.choice(['1','3'], p=[1-prob, prob])
+                else:
+                    priority = '1'
                 if dag_type == '5':
                     deadline = 537
                 elif dag_type == '7':
