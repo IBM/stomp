@@ -15,7 +15,7 @@
       "sched_policy_module": "policies.simple_policy_ver3",
       "max_tasks_simulated": 10000,
       "drop": false,
-      "mean_arrival_time":   200,
+      "mean_arrival_time":   50,
       "power_mgmt_enabled":  false,
       "max_queue_size":      1000000,
       "arrival_time_scale":  1.0,
@@ -40,11 +40,16 @@
       },
 
       "tasks": {
-          "loc" : {
-              "mean_service_time" : {
+ "loc" : {
+		 "mean_service_time" : {
                   "cpu_core"  : 165,
                   "gpu"       : 95,
 		  "loc_accel"   : 10
+              },
+              "power" : {
+                  "cpu_core"  : 6.133,
+                  "gpu"       : 4.457,
+		  "loc_accel"   : 0.02197
               },
               "stdev_service_time" : {
                   "cpu_core"  : 5.0,
@@ -53,13 +58,18 @@
               },
               "priority" : 1,
               "deadline" : 1000
-          },
-          
-          "detect" : {
+          },          
+         
+                 "detect" : {
               "mean_service_time" : {
                   "cpu_core"  : 3530,
                   "gpu"       : 156,
                   "det_accel" : 96
+              },
+              "power" : {
+                  "cpu_core"  : 3.654,
+                  "gpu"       : 0.467,
+		  "det_accel"   : 0.0278
               },
               "stdev_service_time" : {
                   "cpu_core"  : 2.0,
@@ -76,6 +86,11 @@
                   "gpu"       : 17,
 		  "tra_accel" : 2
               },
+              "power" : {
+                  "cpu_core"  : 5.6,
+                  "gpu"       : 12.79,
+		  "tra_accel" : 0.59
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 2.0,
                   "gpu"       : 1.5,
@@ -89,6 +104,9 @@
               "mean_service_time" : {
                   "cpu_core"  : 1
               },
+              "power" : {
+                  "cpu_core"  : 0
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 2.0
               },
@@ -99,6 +117,9 @@
           "mission" : {
               "mean_service_time" : {
                   "cpu_core"  : 0.0022
+              },
+              "power" : {
+                  "cpu_core"  : 3.534
               },
               "stdev_service_time" : {
                   "cpu_core"  : 2.0
@@ -111,6 +132,9 @@
               "mean_service_time" : {
                   "cpu_core"  : 8
               },
+              "power" : {
+                  "cpu_core"  : 4.222
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 2.0
               },
@@ -122,6 +146,9 @@
               "mean_service_time" : {
                   "cpu_core"  : 8
               },
+              "power" : {
+                  "cpu_core"  : 0
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 1
               },
@@ -132,6 +159,9 @@
               "mean_service_time" : {
                   "cpu_core"  : 8
               },
+              "power" : {
+                  "cpu_core"  : 0
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 1
               },
@@ -141,6 +171,9 @@
  "Frontier" : {
               "mean_service_time" : {
                   "cpu_core"  : 396
+              },
+              "power" : {
+                  "cpu_core"  : 5.980
               },
               "stdev_service_time" : {
                   "cpu_core"  : 2.0
@@ -153,6 +186,10 @@
                   "cpu_core"  : 973,
                   "gpu"       : 761
               },
+              "power" : {
+                  "cpu_core"  : 2.995,
+                  "gpu"       : 3.533
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 2.0,
                   "gpu"       : 1.5
@@ -164,6 +201,10 @@
               "mean_service_time" : {
                   "cpu_core"  : 1004,
                   "gpu"       : 379
+              },
+              "power" : {
+                  "cpu_core"  : 3.302,
+                  "gpu"       : 3.533
               },
               "stdev_service_time" : {
                   "cpu_core"  : 2.0,

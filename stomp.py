@@ -68,6 +68,7 @@ class Task:
         self.rank                       = 0
         self.peid                       = None
         self.parent_data                = []
+	self.server_type		= None
 
     def __str__(self):
         return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
@@ -148,7 +149,9 @@ class Server:
                 noaffinity_time             += 0.25 * task.mean_service_time_dict[self.type]
                 # print("No Affinity for parent %lf" % (noaffinity_time))
         task.noaffinity_time = int(noaffinity_time)
-
+	task.server_type = self.type
+	
+	
         task.task_service_time              = service_time + task.noaffinity_time
         self.busy                           = True
         self.curr_service_time              = task.task_service_time

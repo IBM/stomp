@@ -97,6 +97,7 @@ class DAG:
         self.dropped            = 0
         self.completed_peid     = {}
         self.noaffinity_time    = 0
+	self.energy 		= 0 
         # logging.info("Created %d,%d" % (self.arrival_time,self.deadline))
 
 
@@ -173,7 +174,7 @@ class META:
                         self.dag_id_list.append(dag_id)
                     line_count += 1
 
-        logging.info("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time")
+        logging.info("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy")
         ctime = timedelta(microseconds = 0)
         rtime = timedelta(microseconds = 0)
         
@@ -213,7 +214,12 @@ class META:
                             dag_completed.noaffinity_time += task_completed.noaffinity_time
                             
                             # print("Completed: %d,%d,%d,%d,%d,%d" % (dag_id_completed,task_completed.tid,dag_completed.slack,dag_completed.deadline,task_completed.arrival_time,task_completed.task_lifetime))
-                            dag_completed.graph.remove_node(node)
+                            
+			    task = dag_completed.comp[task_completed.tid][0]
+                            power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
+                            #print(task,power,task_completed.task_lifetime)
+                            dag_completed.energy +=(task_completed.task_lifetime*power)	
+			    dag_completed.graph.remove_node(node)
                             break;
 
 
@@ -223,14 +229,13 @@ class META:
                         ## Calculate stats for the DAG                      
                         # logging.info(str(self.params['simulation']['sched_policy_module'].split('.')[-1].split('_')[-1]) + ',' + str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
                         # logging.info(str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
-                        end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
+                        end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time,dag_completed.energy)
                         end_list.append(end_entry)
                         # Remove DAG from active list
                         self.dag_id_list.remove(dag_id_completed)
                         del self.dag_dict[dag_id_completed]
             end = datetime.now()
             ctime += end - start
- 
 
             #time_interval = 0
 
@@ -362,13 +367,13 @@ class META:
         end_list.sort(key=lambda end_entry: end_entry[0], reverse=False)
         while(len(end_list)):
             end_entry = end_list.pop(0)
-            print("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]))
+            print("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + ',' + str(end_entry[6]))
             # end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
                         
         dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
         while(len(dropped_list)):
             dropped_entry = dropped_list.pop(0)
-            print("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5]))
+            print("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5])  + ',' + str(end_entry[6]))
 
         #(Processing time for completed task, ready task time, task assignment, task ordering)
         print(("Time: %d, %d, %d, %d")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))

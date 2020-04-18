@@ -41,6 +41,11 @@
                   "gpu"       : 8,
                   "fft_accel" : 1
               },
+              "power" : {
+                  "cpu_core"  : 9,
+                  "gpu"       : 8,
+                  "fft_accel" : 1
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 0.09,
                   "gpu"       : 0.08,
@@ -55,6 +60,11 @@
                   "gpu"       : 8,
                   "fft_accel" : 1
               },
+              "power" : {
+                  "cpu_core"  : 83,
+                  "gpu"       : 8,
+                  "fft_accel" : 1
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 0.83,
                   "gpu"       : 0.08,
@@ -65,6 +75,11 @@
           },
           "fft_256" : {
               "mean_service_time" : {
+                  "cpu_core"  : 319,
+                  "gpu"       : 10,
+                  "fft_accel" : 1
+              },
+              "power" : {
                   "cpu_core"  : 319,
                   "gpu"       : 10,
                   "fft_accel" : 1
@@ -86,6 +101,11 @@
                   "gpu"       : 52,
                   "fft_accel" : 18
               },
+              "power" : {
+                  "cpu_core"  : 162,
+                  "gpu"       : 52,
+                  "fft_accel" : 18
+              },
               "stdev_service_time" : {
                   "cpu_core"  : 1.62,
                   "gpu"       : 0.52,
@@ -96,6 +116,11 @@
           },
           "cnn_32" : {
               "mean_service_time" : {
+                  "cpu_core"  : 58,
+                  "gpu"       : 35,
+                  "fft_accel" : 5
+              },
+              "power" : {
                   "cpu_core"  : 58,
                   "gpu"       : 35,
                   "fft_accel" : 5
@@ -112,6 +137,10 @@
       
           "decoder" : {
               "mean_service_time" : {
+                  "cpu_core"  : 100,
+                  "gpu"       : 2
+              },
+              "power" : {
                   "cpu_core"  : 100,
                   "gpu"       : 2
               },
