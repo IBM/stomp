@@ -4,6 +4,14 @@ STOMP is a simple yet powerful queue-based **discrete-event** simulator that ena
 
 STOMP is based on its predecesor C-based <a href="https://ieeexplore.ieee.org/document/5749737" target="_blank">QUTE framework</a>.
 
+STOMP consists of three main elements:
+
+ - **Tasks**: units of work (aka jobs, threads, processes) executed in the heterogeneous SoC, typically described as task types (e.g. _fft_, _decoder_, etc.).
+ - **Servers**: processing units that can execute tasks. Different servers execute tasks with different "efficiency" (e.g. an FFT task on DSP accelerator vs general-purpose CPU).
+ - **Scheduler**: dynamically maps tasks to servers during the execution, **supporting user-defined scheduler algorithms**.
+
+<img src="/stomp_overview.png" width="400">
+
 
 ## Usage
 
