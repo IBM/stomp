@@ -21,7 +21,12 @@ STOMP is invoked using the `stomp_main.py` script which supports the following o
 
 ## Traces
 
-STOMP supports both dynamic (i.e. randomly generated task type, arrival, and service time) and trace-driven operational modes.  The dynamic operation further supports in-situ generation (i.e. each task arrival information is generated only as-needed) and a-priori generation (all task arrival information is generated before simulation begins -- this is the pre-gen-arrivals option).  The use of pre-generated (a-priori) task arrivals provides a much more stable/repeatable task stream (for a given random number seed).  
+STOMP supports both _dynamic_ (i.e. randomly generated task type, arrival, and service time) and _trace-driven_ operational modes. The dynamic operation further supports:
+
+ * **In situ generation**: each task arrival information is generated only as-needed.
+ 
+ * **A priori generation**: all task arrival information is generated before simulation begins, enabled with the `--pre-gen-arrivals` option. The use of pre-generated (a priori) task arrivals provides a much more stable/repeatable task stream (for a given random number seed).
+  
 STOMP can automatically generate a trace file from a run (usually conducted in one of the dynamic modes) using the generate-trace option.
 Once a trace has been generated, subsequent STOMP runs can use that trace in one of two modes:
 
