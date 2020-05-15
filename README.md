@@ -10,7 +10,7 @@ STOMP consists of three main elements:
  - **Servers**: processing units that can execute tasks. Different servers execute tasks with different "efficiency" (e.g. an FFT task on DSP accelerator vs general-purpose CPU).
  - **Scheduler**: dynamically maps tasks to servers during the execution, **supporting user-defined scheduler algorithms**.
 
-<img src="/stomp_overview.png" width="400">
+<p align="center"><img src="/stomp_overview.png" width="200"></p>
 
 
 ## Usage
