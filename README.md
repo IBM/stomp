@@ -2,15 +2,15 @@
 
 STOMP is a simple yet powerful queue-based **discrete-event** simulator that enables fast implementation and evaluation of OS scheduling policies in multi-core/multi-processor systems. It implements a convenient interface to allow users and researchers to _plug in_ new scheduling policies in a simple manner and without the need to touch the STOMP code.
 
-STOMP is based on its predecesor C-based <a href="https://ieeexplore.ieee.org/document/5749737" target="_blank">QUTE framework</a>.
-
 STOMP consists of three main elements:
 
- - **Tasks**: units of work (aka jobs, threads, processes) executed in the heterogeneous SoC, typically described as task types (e.g. _fft_, _decoder_, etc.).
- - **Servers**: processing units that can execute tasks. Different servers execute tasks with different "efficiency" (e.g. an FFT task on DSP accelerator vs general-purpose CPU).
+ - **Tasks**: units of work (aka "jobs", "threads", "processes") executed in the heterogeneous SoC, typically described as task types (e.g. _fft_, _decoder_, etc.).
+ - **Servers**: processing units that can execute tasks. Different servers execute tasks with different "efficiency" (e.g. an FFT task may show different performance when executed on a specialized accelerator versus when it runs on a general-purpose CPU).
  - **Scheduler**: dynamically maps tasks to servers during the execution, **supporting user-defined scheduler algorithms**.
 
-<p align="center"><img src="/stomp_overview.png" width="200"></p>
+<p align="center"><img src="/stomp_overview.png" width="250"></p>
+
+STOMP is based on its predecesor C-based <a href="https://ieeexplore.ieee.org/document/5749737" target="_blank">QUTE framework</a>.
 
 
 ## Usage
