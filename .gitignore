@@ -5,3 +5,6 @@
 *.txt
 sim_*
 datasets
+.DS_Store
+.global.atrace
+
