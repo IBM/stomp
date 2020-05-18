@@ -1,6 +1,6 @@
 # STOMP Parameter Sweep Example Script
 
-`run_all.py` and its slightly different version `run_all_2.py` are simple Python scripts used to invoke a series of STOMP runs across a sweep of parameters and generate aggregated files summarizing the average response time and queue size during the run. The results of the run are placed into a directory which is automatically generated, and has the form `sim_<date>_<time>`.
+`run_all.py` is a simple Python scripts used to invoke a series of STOMP runs across a sweep of parameters and generate aggregated files summarizing the average response time and queue size during the run. The results of the run are placed into a directory which is automatically generated, and has the form `sim_<date>_<time>`.
 
 ## USAGE
 
@@ -21,10 +21,7 @@ The `run_all.py` script supports both command-line options and in-script options
  * `-p` or `--pre-gen-tasks`: Instructs STOMP to pre-generate the task information (at the start of the run). This results in a consistent set of tasks across the runs; it is effectively a "dynamically-generated" trace.
  * `-a` or `--arrival-trace`: Causes the first run of a STOMP simulation to generate a trace, which will then be used as an arrival trace by every succeeding STOMP simulation run. This guarantees that the task arrival time and task types are consistent across all the STOMP simulations and provides an exact trace of that first simulation (which can be used in future simulations, etc.). Note that the trace is used as an _arrival_ trace and not an "input" trace because the `run_all.py` script alters (scales) the standard deviations across runs, and the input trace fixes the task service times (which the arrival trace does not).
  * `-i` or `--input-trace`: Cause the first run of a STOMP simulation to generate a trace, which will then be used as an _input_ trace by every succeeding STOMP simulation run. This guarantees that the task arrival time and task types are consistent across all the STOMP simulations, as well as the task service times.  This is NOT a useful option when scaling the standard deviation factors.
- * `-u` or `--user-trace`: Indicates that the `run_all_2.py` run should use a set of pre-defined user traces. Currently this uses traces with the name format `user_gen_trace_stdf_NNN.trc` in the `stomp/user_traces/` directory. These traces are used as input traces (and thus keyed to the StDev Factor value, i.e. one trace per StDev Factor) but will dynamically react to the Mean Arrival Time Scaling factor parameter of the STOMP run. This allows the runs to use consistent task service times (and scaled task arrival rates) across a number of different policies and arrival time scalings.
-
-The following option only applies to `run_all_2.py`:
-
+ * `-u` or `--user-trace`: Indicates that the run should use a set of pre-defined user traces. Currently this uses traces with the name format `user_gen_trace_stdf_NNN.trc` in the `stomp/user_traces/` directory. These traces are used as input traces (and thus keyed to the StDev Factor value, i.e. one trace per StDev Factor) but will dynamically react to the Mean Arrival Time Scaling factor parameter of the STOMP run. This allows the runs to use consistent task service times (and scaled task arrival rates) across a number of different policies and arrival time scalings.
  * `-c` or `--csv-out`: Indicates that the summary output files should be written in CSV (comma separated value) format.
 
 
