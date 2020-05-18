@@ -1,6 +1,6 @@
 # STOMP Parameter Sweep Example Script
 
-`run_all.py` is a simple Python script used to invoke a series of STOMP runs across a sweep of parameters, and then generating some aggregated files summarizing the average response time and queue size during the run. The results of the run are placed into a directory which is automatically generated, and has the form `sim_<date>_<time>`.
+`run_all.py` and its slightly different version `run_all_2.py` are simple Python scripts used to invoke a series of STOMP runs across a sweep of parameters and generate aggregated files summarizing the average response time and queue size during the run. The results of the run are placed into a directory which is automatically generated, and has the form `sim_<date>_<time>`.
 
 ## USAGE
 
