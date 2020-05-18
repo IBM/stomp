@@ -12,9 +12,9 @@ The script is invoked from the `stomp/` directory level as:
 
 ## OPTIONS
 
-The `run_all.py` script supports both command-line options, and script-modification options.
+The `run_all.py` script supports both command-line options, and in-script options.
 
-### Command Line Options
+### Command-Line Options
  
  * `-h` or `--help`: Outputs the usage information. 
  * `-s` or `--save-stdout` : Saves the output of each STOMP run into the file.
