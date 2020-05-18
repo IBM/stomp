@@ -12,7 +12,7 @@ The script is invoked from the `stomp/` directory level as:
 
 ## OPTIONS
 
-The `run_all.py` script supports both command-line options, and in-script options.
+The `run_all.py` script supports both command-line options and in-script options.
 
 ### Command-Line Options
  
