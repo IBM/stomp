@@ -493,7 +493,7 @@ class STOMP:
         
         logging.info('\n==================== Simulation Statistics ====================')
         logging.info(' Scheduling policy:     %s'  % self.params['simulation']['sched_policy_module'].split('.')[-1])
-        logging.info(' Arrival trace:         %s'  % (self.arrival_trace if self.arrival_trace else 'none (random generation)'))
+        logging.info(' Arrival trace:         %s'  % self.arrival_trace)
         logging.info(' Input trace:           %s'  % (self.input_trace_file if self.input_trace_file else 'none (random generation)'))
         logging.info(' Total simulation time: %ld' % self.sim_time)
         logging.info(' Tasks serviced:        %ld' % self.stats['Tasks Serviced'])
