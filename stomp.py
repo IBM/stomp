@@ -492,6 +492,7 @@ class STOMP:
         ##### DUMP STATISTICS TO STDOUT #####
         
         logging.info('\n==================== Simulation Statistics ====================')
+        logging.info(' Scheduling policy:     %s'  % self.params['simulation']['sched_policy_module'].split('.')[-1])
         logging.info(' Total simulation time: %ld' % self.sim_time)
         logging.info(' Tasks serviced:        %ld' % self.stats['Tasks Serviced'])
         logging.info('')
