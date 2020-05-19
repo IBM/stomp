@@ -52,14 +52,14 @@ class Task:
         self.per_server_service_dict = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
         self.task_service_time       = None  # To be set upon scheduling, since it depends on the target server
         self.task_lifetime           = None  # To be set upon finishing; includes time span from arrival to departure
-        self.trace_id                = id
+        self.id                      = id
         #self.run_pos                = 0
         self.wpower                  = None
         self.current_time            = 0
         self.possible_server_idx        = None
 
     def __str__(self):
-        return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
+        return ('Task ' + str(self.id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
 
 ###############################################################################
 # This class represents a 'server' in the system; i.e. an entity that can     #
@@ -123,7 +123,7 @@ class Server:
         self.task                        = task
         
         self.busy_time                   += self.curr_service_time
-        logging.debug("[%10ld] Assigned task %d %s : srv %d st %d end %d est %d" % (sim_time, task.trace_id, task.type, self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
+        logging.debug("[%10ld] Assigned task %d %s : srv %d st %d end %d est %d" % (sim_time, task.id, task.type, self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
     
     def __str__(self):
         return ('Server ' + str(self.id) + ' (' + self.type + ')\n'
@@ -454,7 +454,7 @@ class STOMP:
         self.next_serv_end                                = None
 
         avg_resp_time = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
-        self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, avg_resp_time, server.task.trace_id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
+        self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, avg_resp_time, server.task.id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
 
         avg_resp_time = self.stats['Avg Resp Time per Type'][task_type] / self.stats['Tasks Serviced per Type'][task_type]
         self.task_trace_files[task_type].write('%ld\t%.1f\n' % (self.sim_time, avg_resp_time))
@@ -493,6 +493,8 @@ class STOMP:
         
         logging.info('\n==================== Simulation Statistics ====================')
         logging.info(' Scheduling policy:     %s'  % self.params['simulation']['sched_policy_module'].split('.')[-1])
+        logging.info(' Arrival trace:         %s'  % (self.arrival_trace if self.arrival_trace else 'none (random generation)'))
+        logging.info(' Input trace:           %s'  % (self.input_trace_file if self.input_trace_file else 'none (random generation)'))
         logging.info(' Total simulation time: %ld' % self.sim_time)
         logging.info(' Tasks serviced:        %ld' % self.stats['Tasks Serviced'])
         logging.info('')
@@ -774,7 +776,7 @@ class STOMP:
                 self.stats['Busy Servers']                   += 1
                 self.stats['Available Servers'][server.type] -= 1
 
-                self.task_assign_trace.write('%ld,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, server.task.trace_id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
+                self.task_assign_trace.write('%ld,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, server.task.id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
 
                 # Update histogram
                 queue_size  = len(self.tasks) + 1  # +1 because the task was already removed
@@ -787,7 +789,7 @@ class STOMP:
                 self.stats['Queue Size Histogram'][bin] += time_period
                 self.last_size_change_time = self.sim_time
 
-                logging.debug('[%10ld] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
+                logging.debug('[%10ld] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.id, server.id, server.type, server.curr_job_end_time))
                 logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
                 logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
 
