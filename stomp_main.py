@@ -44,7 +44,7 @@ def update(d, u):
 def main(argv):
 
     try:
-        opts, args = getopt.getopt(argv,"hdpc:j:i:a:g:",["help", "conf-file=", "conf-json=", "debug", "arrival-trace", "input-trace", "generate-trace", "pre-gen-arrivals"])
+        opts, args = getopt.getopt(argv,"hdpc:j:i:a:g:",["help", "conf-file=", "conf-json=", "debug", "arrival-trace=", "input-trace=", "generate-trace=", "pre-gen-arrivals"])
     except getopt.GetoptError:
         usage_and_exit(2)
 
@@ -62,11 +62,11 @@ def main(argv):
             conf_file = arg
         elif opt in ("-j", "--conf-json="):
             conf_json = json.loads(arg)
-        elif opt in ("-a", "--arrival-trace="):
+        elif opt in ("-a", "--arrival-trace"):
             input_trace_file = (True, arg)
-        elif opt in ("-i", "--input-trace="):
+        elif opt in ("-i", "--input-trace"):
             input_trace_file = (False, arg)
-        elif opt in ("-g", "--generate-trace="):
+        elif opt in ("-g", "--generate-trace"):
             output_trace_file = arg
         elif opt in ("-d", "--debug"):
             log_level = "DEBUG"
