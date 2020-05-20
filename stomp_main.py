@@ -29,7 +29,7 @@ from meta import META
 
 
 def usage_and_exit(exit_code):
-    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival-trace=<string>] [--input-trace=<string>] [--generate-trace=<string>] [--pre-gen-arrivals]'
+    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--input-trace=<string>] '
     sys.exit(exit_code)
 
 
@@ -47,7 +47,7 @@ def update(d, u):
 def main(argv):
 
     try:
-        opts, args = getopt.getopt(argv,"hdpc:j:i:a:g:",["help", "conf-file=", "conf-json=", "debug", "arrival-trace", "input-trace", "generate-trace", "pre-gen-arrivals"])
+        opts, args = getopt.getopt(argv,"hdpc:j:i:",["help", "conf-file=", "conf-json=", "debug", "input-trace"])
     except getopt.GetoptError:
         usage_and_exit(2)
 
@@ -55,8 +55,6 @@ def main(argv):
     conf_json = None
     log_level = None
     input_trace_file = None
-    output_trace_file = None
-    pre_gen = False
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
@@ -65,16 +63,10 @@ def main(argv):
             conf_file = arg
         elif opt in ("-j", "--conf-json="):
             conf_json = json.loads(arg)
-        elif opt in ("-a", "--arrival-trace="):
-            input_trace_file = (True, arg)
         elif opt in ("-i", "--input-trace="):
-            input_trace_file = (False, arg)
-        elif opt in ("-g", "--generate-trace="):
-            output_trace_file = arg
+            input_trace_file = arg
         elif opt in ("-d", "--debug"):
             log_level = "DEBUG"
-        elif opt in ("-p", "--pre-gen-arrivals"):
-            pre_gen = True
 
     with open(conf_file) as conf_file:
         stomp_params = json.load(conf_file)
@@ -89,12 +81,8 @@ def main(argv):
     if (log_level):
         stomp_params['general']['logging_level'] = log_level
 
-    if (pre_gen):
-        stomp_params['general']['pre_gen_arrivals'] = True
-        
-    #print('Setting input_arr_tr file to %s and output_tr_file to %s\n' % (input_trace_file, output_trace_file))
+    #print('Setting input_arr_tr file to %s\n' % (input_trace_file))
     stomp_params['general']['input_trace_file'] = input_trace_file
-    stomp_params['general']['output_trace_file'] = output_trace_file
 
     # Instantiate and run STOMP, print statistics
     stomp_sim = STOMP(stomp_params, sched_policy_module.SchedulingPolicy())

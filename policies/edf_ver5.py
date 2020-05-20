@@ -19,7 +19,8 @@
 # 
 
 # SCHEDULING POLICY DESCRIPTION:
-#  This scheduling policy tries to schedule the task at the head of the
+#  This scheduling policy priortizes tasks according to the earliest 
+#  deadline of the task. It then schedules the task at the head of the
 #  queue into the queue that will result in the earliest estimated
 #  completion time for this task (factoring in the given start time
 #  of the task taking into account the current busy status of a server).
@@ -60,6 +61,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # There aren't tasks to serve
             return None    
 
+        tasks.sort(key=lambda task: task.deadline, reverse=False)
         tidx = 0;
         for task in tasks:      
             logging.debug('[%10ld] Attempting to scheduling task %2d : %s' % (sim_time, tidx, task.type))

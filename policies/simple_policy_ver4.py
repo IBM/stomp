@@ -63,7 +63,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         tidx = 0;
         for task in tasks:
-            #task = tasks[0]
             logging.debug('[%10ld] Attempting to scheduling task %2d : %s' % (sim_time, tidx, task.type))
         
             # Compute execution times for each target server, factoring in

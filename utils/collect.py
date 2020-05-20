@@ -19,12 +19,8 @@
 # 
 
 # DESCRIPTION:
-#  This script is used to kick off a run of a large number of tests.
-#  It is derived from run_all.py but adds another search dimension --
-#  the scaling of the mean task arrival time (ARRIVE_SCALE).
-#  This script also supports the output of the results in a "CSV"
-#   format, automatically converting the outputs to be comma-separated
-#   and to be written into files ending in .csv
+#  This script is used to collect data for large number of tests run using 
+#  run_all.py 
 #
 
 
@@ -41,56 +37,102 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE
+from run_all import POLICY, STDEV_FACTOR, ARRIVE_SCALE
+
+extra = True
+
+conf_file = "stomp.json"
+stomp_params = {}
+with open(conf_file) as conf_file:
+    stomp_params = json.load(conf_file)
+
+mean_arrival_time = stomp_params['simulation']['mean_arrival_time']
+
+
+deadline_5 = 537
+deadline_7 = 428
+deadline_10 = 1012
 
 
 def main(argv):
     sim_dir = argv
-    first = 1
-    for arr_scale in ARRIVE_SCALE:
+    header = "Arrival Scale,Stdev Factor,Policy,Mission time,Mission Completed,Met,Cnt"
+    if (extra):
+        header = header + ",Slack"
+    print(header)
+    for stdev_factor in STDEV_FACTOR:
+        for arr_scale in ARRIVE_SCALE:
+            cnt                     = {}
+            slack                   = {}
+            met                     = {}
+            mission_time            = {}
+            mission_completed       = {}
 
-        cnt = {}
-        resp = {}
-
-        header = "ARR_SCALE,STDEV_FACTOR"
-        out = str(arr_scale)
-        for stdev_factor in STDEV_FACTOR:
-            out += "," + str(stdev_factor) 
+            out = str(arr_scale) + "," + str(stdev_factor) 
             for policy in POLICY:
-                header = header + "," + policy + " Avg Response Time"
-                cnt[policy] = 0  
-                resp[policy] = 0
+                slack[policy]                   = 0
+                met[policy]                     = 0
+                cnt[policy]                     = 0   
+                mission_time[policy]            = 0
+                mission_completed[policy]       = 0
+                mission_failed                  = 0
+                
 
                 flag = 0
                 fname = str(sim_dir) + '/run_dag_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.csv'
+                if os.path.exists(fname):
+                    pass
+                else:
+
+                    out2 = str(arr_scale) + "," + str(stdev_factor) + "," + str(policy) 
+                    print(out2 + ",NodataYet")
+                    continue
 
                 with open(fname,'r') as fp:
                     for line in fp.readlines():
-                        # print(line)
-                        if not line:
-                            break
-                        if (line == "DAG ID,DAG Type,Response Time\n"):
+                        # if not line:
+                        #     break
+                        if (line == "DAG ID,DAG Type,Slack,Response Time,Energy\n"):
                             flag = 1
                             continue
 
                         if (flag):
-                            if(cnt[policy] >= 1000):
-                                break
+                            # if(cnt[policy] >= 1000):
+                            #     break
+                            
+                            tid,dag_type,dag_slack,resp,energy = line.split(',')
 
                             cnt[policy] += 1
-                            tid,dag_type,response = line.split(',')
-                            resp[policy] += float(response)
-                        line = fp.readline()
-                
-                resp[policy] = resp[policy]/cnt[policy]
+                            
+                            if dag_type == '5':
+                                slack[policy] += float(dag_slack)/deadline_5
+                            if dag_type == '7':
+                                slack[policy] += float(dag_slack)/deadline_7 
+                            if dag_type == '10': 
+                                slack[policy] += float(dag_slack)/deadline_10
 
-                out += ((",%lf") % (resp[policy]))
-            if(first):
-                print(header)
-                first = 0
-            print(out)
+                            if(float(dag_slack) >= 0):
+                                met[policy] += 1
+                            elif(mission_failed != 1):
+                                mission_failed = 1
+                                mission_completed[policy] = met[policy]
+                            
+                            mission_time[policy] += float(resp)
 
 
+                slack[policy] = float(slack[policy])/(cnt[policy])
+                met[policy] = float(met[policy])/cnt[policy]  
+
+                mission_completed[policy] = float(mission_completed[policy])/cnt[policy]
+                if mission_failed == 0:
+                    mission_completed[policy] = 1.0;
+
+                out = str(arr_scale) + "," + str(stdev_factor) + "," + str(policy) 
+                out += ((",%lf,%lf,%lf,%d") % (mission_time[policy], mission_completed[policy],met[policy],cnt[policy]))
+                if(extra):
+                    out += ((",%lf") % (slack[policy]))
+
+                print(out)
 
 
 if __name__ == "__main__":
