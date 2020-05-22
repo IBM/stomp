@@ -4,3 +4,6 @@
 *.trace
 sim_*
 datasets
+.DS_Store
+.global.atrace
+*.csv
