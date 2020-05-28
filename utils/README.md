@@ -18,12 +18,9 @@ The run_all.py script supports both command-line options, and script-modificatio
  
  * -h or --help : This outputs the usage information 
  * -s or --save-stdout  : This saves the output of each STOMP run into the file.
- * -p or --pre-gen-tasks : This instructs STOMP to pre-generate the task information (at the start of the run).  This results in a consistent set of tasks across the runs; it is effectively a "dynamically-generated" trace.
- * -a or --arrival-trace : This will cause the first run of a STOMP simulation to generate a trace, which will then be used as an arrival trace by every succeeding STOMP simulation run.  This guarantees that the task arrival time and task_types are consistent across all the STOMP simulations and provides an exact trace of that first simulation (which can be used in future simulations, etc.).  Note that the trace is used as an "arrival" trace and not an "input" trace because the run_all.py script alters (scales) the standard deviations across runs, and the input trace fixes the task service times (which the arrival trace does not).
- * -i or --input-trace : This will cause the first run of a STOMP simulation to generate a trace, which will then be used as an input trace by every succeeding STOMP simulation run.  This guarantees that the task arrival time and task_types are consistent across all the STOMP simulations, as well as the task service times.  This is NOT a useful option when scaling the standard deviation factors...
- * -u or --user-trace : This indicates that the run_all_2.py run should use a set of pre-defined user traces.  Currently this uses traces with the name format user_gen_trace_stdf_NNN.trc in the stomp/user_traces directory.  GThese traces are used as input traces (and thus keyed to the StDev Factor value, i.e. one trace per StDev Factor) but will dynamically react to the Mean Arrival Time Scaling factor parameter of the STOMP run.  This allows the runs to use consistent task service times (and scaled task arrival trates) across a number of different policies and arrival time scalings.
+ * -u or --user-trace : This indicates that the run_all.py run should use a set of pre-defined user traces.  Currently this uses traces with the name format user_gen_trace.trc in the stomp/user_traces directory.  These traces are used as input traces.  This allows the runs to use consistent arrival times across a number of different policies and arrival time scalings.
 
-*The following only currently apply to run_all_2.py*
+*The following only currently apply to run_all.py*
  * -c or --csv-out : This indicates that the summary output files should be written in CSV (comma separated value) format.
 
 ### In-Script Options
@@ -31,11 +28,11 @@ The run_all.py script supports both command-line options, and script-modificatio
 The run_all.py script specifies the baseline configuration file, and the set of scheduling policies and standard deviation factors to use in the parametric sweep in a few lines near the top of the file (just after the includes):
 ```
 CONF_FILE    = './stomp.json'
-POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3']
-STDEV_FACTOR = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
+POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5', 'edf', 'edf_ver5']
+ARRIVE_SCALE = [0.8, 1.0, 1.2, 1.4] 
 ```
 
-Altering these values, e.g. by adding or removing entries from the STDEV_FACTOR list, will cause the run_all.py script to run a modified parametric sweep, but will still generate all the same data, etc. 
+Altering these values, e.g. by adding or removing entries from the ARRIVE_SCALE list, will cause the run_all.py script to run a modified parametric sweep, but will still generate all the same data, etc. 
 __NOTE that altering the POLICY list also requires the addition of new policy files in the policies subdirectory of stomp (by the same name)__
 
 ## OUTPUTS

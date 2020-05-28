@@ -252,7 +252,6 @@ class STOMP:
 
         self.init_servers()
 
-        # IF user specified an input trace file then read that in here:
         self.global_task_trace = []
         self.lock = threading.Lock()        #For safe access of global_task_trace
         self.tlock = threading.Lock()       #For safe access of tasks_completed and task_completed_flag

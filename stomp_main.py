@@ -55,6 +55,7 @@ def main(argv):
     conf_json = None
     log_level = None
     input_trace_file = None
+    input_trace_external = False
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
@@ -65,6 +66,7 @@ def main(argv):
             conf_json = json.loads(arg)
         elif opt in ("-i", "--input-trace"):
             input_trace_file = arg
+            input_trace_external = True
         elif opt in ("-d", "--debug"):
             log_level = "DEBUG"
 
@@ -82,7 +84,8 @@ def main(argv):
         stomp_params['general']['logging_level'] = log_level
 
     #print('Setting input_arr_tr file to %s\n' % (input_trace_file))
-    stomp_params['general']['input_trace_file'] = input_trace_file
+    if input_trace_external:
+        stomp_params['general']['input_trace_file'] = input_trace_file
 
     # Instantiate and run STOMP, print statistics
     stomp_sim = STOMP(stomp_params, sched_policy_module.SchedulingPolicy())

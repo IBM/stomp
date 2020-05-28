@@ -49,7 +49,7 @@ ARRIVE_SCALE = [0.8, 1.0, 1.2, 1.4] #scaling factor
 
 
 def usage_and_exit(exit_code):
-    stdout.write('\nusage: run_all.py [--help] [--verbose] [--csv-out] [--save-stdout] [--user-input-trace]\n\n')
+    stdout.write('\nusage: run_all.py [--help] [--verbose] [--csv-out] [--save-stdout] [--user-input-trace=<string>]\n\n')
     sys.exit(exit_code)
 
 
@@ -57,13 +57,14 @@ def usage_and_exit(exit_code):
 def main(argv):
 
     try:
-        opts, args = getopt.getopt(argv,"hvcsu",["help", "verbose", "csv-out", "save-stdout", "user-input-trace"])
+        opts, args = getopt.getopt(argv,"hvcsu:",["help", "verbose", "csv-out", "save-stdout", "user-input-trace="])
     except getopt.GetoptError:
         usage_and_exit(2)
 
     verbose               = False
     save_stdout           = False
     use_user_input_trace  = False
+    user_input_trace      = None
     do_csv_output         = False
     out_sep               = '\t'
 
@@ -77,8 +78,9 @@ def main(argv):
             out_sep = ','
         elif opt in ("-s", "--save-stdout"):
             save_stdout = True
-        elif opt in ("-u", "--user-input-trace"):
+        elif opt in ("-u", "--user-input-trace="):
             use_user_input_trace = True
+            user_input_trace = arg
         else:
             stdout.write('\nERROR: Unrecognized input parameter %s\n' % opt)
             usage_and_exit(3)
@@ -104,6 +106,7 @@ def main(argv):
         stomp_params = json.load(conf_file)
 
     stomp_params['general']['working_dir'] = os.getcwd() + '/' + sim_dir
+    stomp_params['general']['input_trace_file'] = '../' + stomp_params['general']['input_trace_file']
 
 
     ###############################################################################################
@@ -148,7 +151,7 @@ def main(argv):
                 command_str = ' '.join(command)
 
                 if (use_user_input_trace):
-                    command_str = command_str + ' -i ../user_traces/user_gen_trace.trc'
+                    command_str = command_str + ' -i ../' + user_input_trace
 
                 if (verbose):
                     print('Running', command_str)
