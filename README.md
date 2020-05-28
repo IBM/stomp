@@ -30,7 +30,7 @@ STOMP requires:
  - Python 2.7
  - Python modules
     - numpy
-    - neworkx
+    - networkx
 
 
 ## Running STOMP
