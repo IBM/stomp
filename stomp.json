@@ -10,7 +10,7 @@
       "output_trace_file":	""
 
   },
-  
+
   "simulation" : {
       "sched_policy_module": "policies.simple_policy_ver3",
       "drop": false,
@@ -42,8 +42,8 @@
                   "fft_accel" : 1
               },
               "power" : {
-                  "cpu_core"  : 9,
-                  "gpu"       : 8,
+                  "cpu_core"  : 4527,
+                  "gpu"       : 2533,
                   "fft_accel" : 1
               },
               "stdev_service_time" : {
@@ -61,8 +61,8 @@
                   "fft_accel" : 1
               },
               "power" : {
-                  "cpu_core"  : 83,
-                  "gpu"       : 8,
+                  "cpu_core"  : 3531,
+                  "gpu"       : 1228,
                   "fft_accel" : 1
               },
               "stdev_service_time" : {
@@ -80,8 +80,8 @@
                   "fft_accel" : 1
               },
               "power" : {
-                  "cpu_core"  : 319,
-                  "gpu"       : 10,
+                  "cpu_core"  : 4144,
+                  "gpu"       : 6364,
                   "fft_accel" : 1
               },
               "stdev_service_time" : {
@@ -94,7 +94,7 @@
           },
 
 
-          
+
           "cnn_14" : {
               "mean_service_time" : {
                   "cpu_core"  : 162,
@@ -102,8 +102,8 @@
                   "fft_accel" : 18
               },
               "power" : {
-                  "cpu_core"  : 162,
-                  "gpu"       : 52,
+                  "cpu_core"  : 3456,
+                  "gpu"       : 2915,
                   "fft_accel" : 18
               },
               "stdev_service_time" : {
@@ -121,8 +121,8 @@
                   "fft_accel" : 5
               },
               "power" : {
-                  "cpu_core"  : 58,
-                  "gpu"       : 35,
+                  "cpu_core"  : 2534,
+                  "gpu"       : 2225,
                   "fft_accel" : 5
               },
               "stdev_service_time" : {
@@ -133,16 +133,16 @@
               "priority" : 2,
               "deadline" : 1000
           },
- 
-      
+
+
           "decoder" : {
               "mean_service_time" : {
                   "cpu_core"  : 100,
                   "gpu"       : 2
               },
               "power" : {
-                  "cpu_core"  : 100,
-                  "gpu"       : 2
+                  "cpu_core"  : 3456,
+                  "gpu"       : 1228
               },
               "stdev_service_time" : {
                   "cpu_core"  : 1.0,
