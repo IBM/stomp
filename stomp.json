@@ -7,13 +7,14 @@
       "basename":      		"",
       "pre_gen_arrivals":	false,
       "input_trace_file":	"",
-      "output_trace_file":	""
-
+      "output_trace_file":	"",
+      "comment":           "Power values derived from Jetson TX1 dev board. CPU power numbers are scaled to 1/N where N is the number of cores on the TX1. Accel power values are placeholders right now and are set to 1/5th of corresponding GPU power numbers."
   },
 
   "simulation" : {
-      "sched_policy_module": "policies.simple_policy_ver3",
+      "sched_policy_module": "policies.simple_policy_ver2",
       "drop": false,
+      "total_ptoks": 1000,
       "promote": true,
       "max_tasks_simulated": 10000,
       "mean_arrival_time":   25,
@@ -42,9 +43,9 @@
                   "fft_accel" : 1
               },
               "power" : {
-                  "cpu_core"  : 4527,
+                  "cpu_core"  : 1132,
                   "gpu"       : 2533,
-                  "fft_accel" : 1
+                  "fft_accel" : 506
               },
               "stdev_service_time" : {
                   "cpu_core"  : 0.09,
@@ -61,9 +62,9 @@
                   "fft_accel" : 1
               },
               "power" : {
-                  "cpu_core"  : 3531,
+                  "cpu_core"  : 883,
                   "gpu"       : 1228,
-                  "fft_accel" : 1
+                  "fft_accel" : 246
               },
               "stdev_service_time" : {
                   "cpu_core"  : 0.83,
@@ -80,9 +81,9 @@
                   "fft_accel" : 1
               },
               "power" : {
-                  "cpu_core"  : 4144,
+                  "cpu_core"  : 1036,
                   "gpu"       : 6364,
-                  "fft_accel" : 1
+                  "fft_accel" : 1273
               },
               "stdev_service_time" : {
                   "cpu_core"  : 3.2,
@@ -102,9 +103,9 @@
                   "fft_accel" : 18
               },
               "power" : {
-                  "cpu_core"  : 3456,
+                  "cpu_core"  : 864,
                   "gpu"       : 2915,
-                  "fft_accel" : 18
+                  "fft_accel" : 583
               },
               "stdev_service_time" : {
                   "cpu_core"  : 1.62,
@@ -121,9 +122,9 @@
                   "fft_accel" : 5
               },
               "power" : {
-                  "cpu_core"  : 2534,
+                  "cpu_core"  : 634,
                   "gpu"       : 2225,
-                  "fft_accel" : 5
+                  "fft_accel" : 445
               },
               "stdev_service_time" : {
                   "cpu_core"  : 0.58,
@@ -141,7 +142,7 @@
                   "gpu"       : 2
               },
               "power" : {
-                  "cpu_core"  : 3456,
+                  "cpu_core"  : 864,
                   "gpu"       : 1228
               },
               "stdev_service_time" : {
