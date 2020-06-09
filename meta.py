@@ -97,8 +97,8 @@ class DAG:
         self.dropped            = 0
         self.completed_peid     = {}
         self.noaffinity_time    = 0
-	self.energy 		= 0 
         # logging.info("Created %d,%d" % (self.arrival_time,self.deadline))
+        self.energy         = 0 
 
 
 class META:
@@ -143,36 +143,34 @@ class META:
 
         ## Read trace file and populate DAG information ##
         with open(in_trace_name, 'r') as input_trace:
-                line_count = 0;
-                for line in input_trace.readlines():
-                    tmp = line.strip().split(',')
-                    if (line_count >= 0):
-                        atime = int(int(tmp.pop(0))*self.params['simulation']['arrival_time_scale'])
-                        dag_id = int(tmp.pop(0))
-                        dag_type = tmp.pop(0)
-                        graph = nx.read_graphml("inputs/random_dag_{0}.graphml".format(dag_type), MetaTask)
-                        #print(graph.criticalPath.nodes())
-                        #exit
+            line_count = 0;
+            for line in input_trace.readlines():
+                tmp = line.strip().split(',')
+                if (line_count >= 0):
+                    atime = int(int(tmp.pop(0))*self.params['simulation']['arrival_time_scale'])
+                    dag_id = int(tmp.pop(0))
+                    dag_type = tmp.pop(0)
+                    graph = nx.read_graphml("inputs/random_dag_{0}.graphml".format(dag_type), MetaTask)
 
-                        #### AFFINITY ####
-                        # Add matrix to maintain parent node id's
-                        ####
-                        parent_dict = {}
-                        for node in graph.nodes():
-                            parent_list = []
-                            for pred_node in graph.predecessors(node):
-                                parent_list.append(pred_node.tid)
-                            parent_dict[node.tid] = parent_list
-                            # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
-            
-                        comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
-                        priority = int(tmp.pop(0))
-                        deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale'])
-                        dtime = atime + deadline
-                        the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, dtime, priority,dag_type)
-                        self.dag_dict[dag_id] = the_dag_trace
-                        self.dag_id_list.append(dag_id)
-                    line_count += 1
+                    #### AFFINITY ####
+                    # Add matrix to maintain parent node id's
+                    ####
+                    parent_dict = {}
+                    for node in graph.nodes():
+                        parent_list = []
+                        for pred_node in graph.predecessors(node):
+                            parent_list.append(pred_node.tid)
+                        parent_dict[node.tid] = parent_list
+                        # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
+        
+                    comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
+                    priority = int(tmp.pop(0))
+                    deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale'])
+                    dtime = atime + deadline
+                    the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, dtime, priority,dag_type)
+                    self.dag_dict[dag_id] = the_dag_trace
+                    self.dag_id_list.append(dag_id)
+            line_count += 1
 
         logging.info("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy")
         ctime = timedelta(microseconds = 0)
@@ -204,6 +202,7 @@ class META:
                     ## Remove completed task from parent DAG and update meta-info ##
                     for node in dag_completed.graph.nodes():
                         if node.tid == task_completed.tid:
+                            # TODO: If internal task deadline of priority == 1 is not met drop it
                             dag_completed.ready_time = task_completed.arrival_time + task_completed.task_lifetime
                             dag_completed.resp_time = dag_completed.ready_time - dag_completed.arrival_time
                             dag_completed.slack = dag_completed.deadline - dag_completed.resp_time
@@ -215,11 +214,11 @@ class META:
                             
                             # print("Completed: %d,%d,%d,%d,%d,%d" % (dag_id_completed,task_completed.tid,dag_completed.slack,dag_completed.deadline,task_completed.arrival_time,task_completed.task_lifetime))
                             
-			    task = dag_completed.comp[task_completed.tid][0]
+                            task = dag_completed.comp[task_completed.tid][0]
                             power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
                             #print(task,power,task_completed.task_lifetime)
                             dag_completed.energy +=(task_completed.task_lifetime*power)	
-			    dag_completed.graph.remove_node(node)
+                            dag_completed.graph.remove_node(node)
                             break;
 
 
@@ -329,7 +328,6 @@ class META:
             # Remove Dropped DAGs from active DAG list
             for dag_id_dropped in dropped_dag_id_list:
                 self.dag_id_list.remove(dag_id_dropped)
-                # TODO: Remove any tasks belonging to a dropped DAG from ready queue
                 del self.dag_dict[dag_id_dropped]
             #########################
 
