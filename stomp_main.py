@@ -84,8 +84,11 @@ def main(argv):
         # values received through the command line
         update(stomp_params, conf_json)
     
-    # Dinamically import the scheduling policy class
+    # Dynamically import the scheduling policy class
     sched_policy_module = importlib.import_module(stomp_params['simulation']['sched_policy_module'])
+
+    # Dynamically import the meta policy class
+    meta_policy_module = importlib.import_module(stomp_params['simulation']['meta_policy_module'])
 
     if (log_level):
         stomp_params['general']['logging_level'] = log_level
@@ -99,7 +102,7 @@ def main(argv):
 
     # Instantiate and run STOMP, print statistics
     stomp_sim = STOMP(stomp_params, sched_policy_module.SchedulingPolicy())
-    meta_sim = META(stomp_params,stomp_sim)
+    meta_sim = META(stomp_params,stomp_sim, meta_policy_module.MetaPolicy())
 
     thread1 = threading.Thread(target=meta_sim.run)
     thread2 = threading.Thread(target=stomp_sim.run)

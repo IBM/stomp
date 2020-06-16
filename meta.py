@@ -42,18 +42,23 @@ def max_length(G, node_run):
     if(num_paths == 0):
         min_time = int(time_dict[node])
         return min_time
-		
+        
     return max_path_length
 
 class MetaTask(object):
 
-    def __init__(self, tid, comp_cost=[]):
+    def __init__(self, tid):
         self.tid = int(tid)# task id - this is unique
         self.rank = -1 # This is updated during the 'Task Prioritisation' phase 
         self.processor = -1
         self.ast = 0 
         self.aft = 0 
         self.scheduled = 0
+        self.R_its_k_heft= 0.31 
+        self.est = 0
+        self.eft = 0
+        self.subD = 0
+        self.lst = 0
 
     def __repr__(self):
         return str(self.tid)
@@ -100,6 +105,22 @@ class DAG:
         # logging.info("Created %d,%d" % (self.arrival_time,self.deadline))
         self.energy         = 0 
 
+class BaseMetaPolicy:
+
+    __metaclass__ = ABCMeta
+    
+    @abstractmethod
+    def init(self): pass
+
+    @abstractmethod
+    def set_policy_variables(self, dag): pass
+
+    @abstractmethod
+    def meta_static_rank(self, stomp, dag): pass
+
+    @abstractmethod
+    def meta_dynamic_rank(self, stomp, task, comp, max_time, min_time, deadline): pass
+
 
 class META:
 
@@ -110,10 +131,11 @@ class META:
 
     E_META_DONE         = 0
 
-    def __init__(self, meta_params, stomp_sim):
+    def __init__(self, meta_params, stomp_sim, meta_policy):
 
         self.params         = meta_params
         self.stomp          = stomp_sim
+        self.meta_policy    = meta_policy
 
         self.working_dir    = self.params['general']['working_dir']
         self.basename       = self.params['general']['basename']
@@ -128,7 +150,10 @@ class META:
         self.dag_dict                       = {}
         self.dag_id_list                    = []
         self.server_types                   = ["cpu_core", "gpu", "fft_accel"]
+
     def run(self):
+
+        self.meta_policy.init(self.params["simulation"]["dag_types"])
 
         ### Read input DAGs ####
         dags_completed = 0
@@ -167,9 +192,17 @@ class META:
                     priority = int(tmp.pop(0))
                     deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale'])
                     dtime = atime + deadline
-                    the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, dtime, priority,dag_type)
+
+
+
+                    the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, dtime, priority, dag_type)
+                    the_dag_trace.policy_variables = self.meta_policy.set_policy_variables(the_dag_trace)
                     self.dag_dict[dag_id] = the_dag_trace
                     self.dag_id_list.append(dag_id)
+
+                    ## Static ranking ##
+                    self.meta_policy.meta_static_rank(self.stomp, the_dag_trace)
+
             line_count += 1
 
         logging.info("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy")
@@ -217,7 +250,7 @@ class META:
                             task = dag_completed.comp[task_completed.tid][0]
                             power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
                             #print(task,power,task_completed.task_lifetime)
-                            dag_completed.energy +=(task_completed.task_lifetime*power)	
+                            dag_completed.energy +=(task_completed.task_lifetime*power) 
                             dag_completed.graph.remove_node(node)
                             break;
 
@@ -259,14 +292,11 @@ class META:
                         if (self.params['simulation']['sched_policy_module'].startswith("policies.ms3")):
                             deadline = int(deadline*float(the_dag_sched.comp[node.tid][1]))
                         if (self.params['simulation']['sched_policy_module'].startswith("policies.edf")):
-                            deadline = int(the_dag_sched.dtime)
-                        
-                        task_entry.append((atime,task,dag_id,node.tid,priority,deadline))
-                        # logging.info( "Task arr: %d,%d,%d,%d" % (atime,dag_id,node.tid,deadline)) #Aporva
-                        
+                            deadline = int(the_dag_sched.dtime)                        
                         
                         stimes = []
                         count = 0
+                        max_time = 0
                         min_time = 100000
                         # Iterate over each column of comp entry.
                         for comp_time in the_dag_sched.comp[node.tid]:
@@ -275,13 +305,21 @@ class META:
                                 count += 1
                                 continue
                             else:
-                                if (comp_time != "None" and (min_time > round(float(comp_time)))):
-                                    min_time = round(float(comp_time))
+                                if (comp_time != "None"):
+                                    if (min_time > round(float(comp_time))):
+                                        min_time = round(float(comp_time))
+                                    if(max_time < float(comp_time)):
+                                        max_time = float(comp_time)
                                 stimes.append((self.server_types[count-2],comp_time))
                                 # print(str(self.server_types[count-2])+ "," + str(comp_time))
                             count += 1
+
+                        # Dynamic Rank Assignment
+                        self.meta_policy.meta_dynamic_rank(self.stomp, node, comp, max_time, min_time, deadline, priority)
                         
+                        task_entry.append((atime,task,dag_id,node.tid,priority,deadline,node.rank,node.est,node.eft,node.subD,node.lst,the_dag_sched.policy_variables.ftsched))
                         task_entry.append(stimes)
+                        
                         ##### DROPPED ##########
                         if(self.params['simulation']['drop'] == True):
                             ex_time = max_length(the_dag_sched.graph, node)

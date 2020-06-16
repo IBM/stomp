@@ -68,7 +68,7 @@ class Task:
         self.rank                       = 0
         self.peid                       = None
         self.parent_data                = []
-	self.server_type		= None
+        self.server_type        = None
 
     def __str__(self):
         return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
@@ -149,9 +149,9 @@ class Server:
                 noaffinity_time             += 0.25 * task.mean_service_time_dict[self.type]
                 # print("No Affinity for parent %lf" % (noaffinity_time))
         task.noaffinity_time = int(noaffinity_time)
-	task.server_type = self.type
-	
-	
+        task.server_type = self.type
+    
+    
         task.task_service_time              = service_time + task.noaffinity_time
         self.busy                           = True
         self.curr_service_time              = task.task_service_time
@@ -367,25 +367,30 @@ class STOMP:
             tid = tr_entry[0][3]
             priority = tr_entry[0][4]
             deadline = tr_entry[0][5]
-            # print('ARR_TR : %d,%d,%d' % (task_atime,dag_id,tid)) #Aporva
+            rank = tr_entry[0][6]
+
+            est = tr_entry[0][7]
+            eft = tr_entry[0][8]
+            subD = tr_entry[0][9]
+            lst = tr_entry[0][10]
+            ftsched = tr_entry[0][11]
+
             logging.debug('[%10ld] Setting next task type from TRACE to %s' % (self.sim_time, task))
  
             
-            #logging.debug("NEW_TASK from %s\n" % list(self.params['simulation']['tasks']))
-                #logging.debug("%s\n" % task)
-            #task = Task(self.sim_time, self.params['simulation']['mean_service_time'], self.params['simulation']['stdev_service_time'])
-            #self.tasks.append(task)
-            # logging.info("Generating task at time: " + str(self.sim_time))
             the_task = Task(task_atime, dag_id, tid, task_num, task, self.params['simulation']['tasks'][task])
             the_task.priority = priority
             the_task.deadline = deadline
-        # Set up the per-server-type execution times for this task...
-        # if (self.global_task_trace or tr_entry): ##Trace entries exist or for last entry
+            the_task.rank = rank
+            the_task.est  = est
+            the_task.eft  = eft
+            the_task.subD  = subD
+            the_task.lst  = lst
+            the_task.ftsched = ftsched
+        
+            # Set up the per-server-type execution times for this task...
             # The service times are given (per-server-type) in the global_task_trace
             stimes = tr_entry[1]
-            sum_time = 0
-            max_time = 0
-            num_servers = 0
             for time_entry in stimes:
                 #logging.info('   %s %s' % (time_entry[0], time_entry[1]))
                 server_type  = time_entry[0]
@@ -393,32 +398,12 @@ class STOMP:
                 the_task.per_server_services.append(service_time)
                 if (service_time != "None" ):
                     the_task.per_server_service_dict[server_type] = round(float(service_time))
-                    sum_time += float(service_time)
-                    if(max_time < float(service_time)):
-                        max_time = float(service_time)
-                    num_servers += 1
+
             #logging.info('   PSD : %s' % the_task.per_server_service_dict)
 
             parent_data = tr_entry[2]
             the_task.parent_data = parent_data
        
-        #logging.info('%s :: %s' % (the_task.per_server_services, the_task.per_server_service_dict))
-            if ((the_task.deadline - (sum_time/num_servers)) == 0):
-                slack = 1
-            else:
-                if ((the_task.deadline - (sum_time/num_servers)) < 0):
-                    slack = 1/((sum_time/num_servers) - the_task.deadline)
-                else:
-                    slack = 1 + (the_task.deadline - (sum_time/num_servers))
-
-            if ((the_task.deadline - (max_time)) == 0):
-                slack_max = 1
-            else:
-                if ((the_task.deadline - (max_time)) < 0):
-                    slack_max = 1/((max_time) - the_task.deadline)
-                else:
-                    slack_max = 1 + (the_task.deadline - (max_time))
-            the_task.rank = int(100000 * ((the_task.priority)/slack_max))
             # logging.info("Task rank: %d,%d,%d,%d,%d" % (the_task.rank, the_task.priority, the_task.deadline, sum_time, num_servers))
             self.tasks.append(the_task)
             self.stats['Tasks Generated'] += 1

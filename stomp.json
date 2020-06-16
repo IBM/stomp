@@ -1,158 +1,186 @@
 {
 
-  "general" : {
-      "logging_level": 		"INFO",
-      "random_seed":   		0,
-      "working_dir":   		".",
-      "basename":      		"",
-      "pre_gen_arrivals":	false,
-      "input_trace_file":	"",
-      "output_trace_file":	"",
-      "comment":           "Power values derived from Jetson TX1 dev board. CPU power numbers are scaled to 1/N where N is the number of cores on the TX1. Accel power values are placeholders right now and are set to 1/5th of corresponding GPU power numbers."
-  },
+    "general" : {
+        "logging_level":        "INFO",
+        "random_seed":          0,
+        "working_dir":          ".",
+        "basename":             "",
+        "pre_gen_arrivals": false,
+        "input_trace_file": "",
+        "output_trace_file":    "",
+        "comment":           "Power values derived from Jetson TX1 dev board. CPU power numbers are scaled to 1/N where N is the number of cores on the TX1. Accel power values are placeholders right now and are set to 1/5th of corresponding GPU power numbers."
+    },
 
   "simulation" : {
-      "sched_policy_module": "policies.simple_policy_ver2",
-      "drop": false,
-      "total_ptoks": 1000,
-      "promote": true,
-      "max_tasks_simulated": 10000,
-      "mean_arrival_time":   25,
-      "power_mgmt_enabled":  false,
-      "max_queue_size":      1000000,
-      "arrival_time_scale":  1.0,
-      "stdev_factor":     0.01,
+        "meta_policy_module": "meta_policies.ms",
+        "sched_policy_module": "policies.simple_policy_ver2",
+        "drop": false,
+        "total_ptoks": 1000,
+        "promote": true,
+        "max_tasks_simulated": 10000,
+        "mean_arrival_time":   25,
+        "power_mgmt_enabled":  false,
+        "max_queue_size":      1000000,
+        "arrival_time_scale":  1.0,
+        "stdev_factor":     0.01,
 
-      "servers": {
-          "cpu_core" : {
+        "policies": {
+            "ms1" : {
+                "meta_policy" : "ms"
+            },
+            "ms2" : {
+                "meta_policy" : "ms"
+            },
+            "ms3" : {
+                "meta_policy" : "ms"
+            },
+            "ms1_update2" : {
+                "meta_policy" : "ms"
+            },
+            "ms2_update2" : {
+                "meta_policy" : "ms"
+            },
+            "ms3_update2" : {
+                "meta_policy" : "ms"
+            },
+            "heft" : {
+                "meta_policy" : "heft" 
+            },
+            "rheft" : {
+                "meta_policy" : "rheft" 
+            }
+        },
+
+        "servers": {
+            "cpu_core" : {
               "count" : 8
-          },
-          "gpu" : {
+            },
+            "gpu" : {
               "count" : 2
-          },
-          "fft_accel" : {
+            },
+            "fft_accel" : {
               "count" : 1
-          }
-      },
+            }
+        },
 
-      "tasks": {
-          "fft_64" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 9,
-                  "gpu"       : 8,
-                  "fft_accel" : 1
-              },
-              "power" : {
-                  "cpu_core"  : 1132,
-                  "gpu"       : 2533,
-                  "fft_accel" : 506
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 0.09,
-                  "gpu"       : 0.08,
-                  "fft_accel" : 0.01
-              },
-              "priority" : 1,
-              "deadline" : 1000
-          },
-          "fft_128" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 83,
-                  "gpu"       : 8,
-                  "fft_accel" : 1
-              },
-              "power" : {
-                  "cpu_core"  : 883,
-                  "gpu"       : 1228,
-                  "fft_accel" : 246
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 0.83,
-                  "gpu"       : 0.08,
-                  "fft_accel" : 0.01
-              },
-              "priority" : 1,
-              "deadline" : 1000
-          },
-          "fft_256" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 319,
-                  "gpu"       : 10,
-                  "fft_accel" : 1
-              },
-              "power" : {
-                  "cpu_core"  : 1036,
-                  "gpu"       : 6364,
-                  "fft_accel" : 1273
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 3.2,
-                  "gpu"       : 0.1,
-                  "fft_accel" : 0.01
-              },
-              "priority" : 1,
-              "deadline" : 1000
-          },
+        "dag_types": {
+            "5": {},
+            "7": {},
+            "10": {}
+        },
 
-
-
-          "cnn_14" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 162,
-                  "gpu"       : 52,
-                  "fft_accel" : 18
-              },
-              "power" : {
-                  "cpu_core"  : 864,
-                  "gpu"       : 2915,
-                  "fft_accel" : 583
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 1.62,
-                  "gpu"       : 0.52,
-                  "fft_accel" : 0.18
-              },
-              "priority" : 2,
-              "deadline" : 1000
-          },
-          "cnn_32" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 58,
-                  "gpu"       : 35,
-                  "fft_accel" : 5
-              },
-              "power" : {
-                  "cpu_core"  : 634,
-                  "gpu"       : 2225,
-                  "fft_accel" : 445
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 0.58,
-                  "gpu"       : 0.35,
-                  "fft_accel" : 0.05
-              },
-              "priority" : 2,
-              "deadline" : 1000
-          },
-
-
-          "decoder" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 100,
-                  "gpu"       : 2
-              },
-              "power" : {
-                  "cpu_core"  : 864,
-                  "gpu"       : 1228
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 1.0,
-                  "gpu"       : 0.2
-              },
-              "priority" : 3,
-              "deadline" : 1000
-          }
-      }
-  }
-
+        "tasks": {
+            "fft_64" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 9,
+                    "gpu"       : 8,
+                    "fft_accel" : 1
+                },
+                "power" : {
+                    "cpu_core"  : 1132,
+                    "gpu"       : 2533,
+                    "fft_accel" : 506
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.09,
+                    "gpu"       : 0.08,
+                    "fft_accel" : 0.01
+                },
+                "priority" : 1,
+                "deadline" : 1000
+            },
+            "fft_128" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 83,
+                    "gpu"       : 8,
+                    "fft_accel" : 1
+                },
+                "power" : {
+                    "cpu_core"  : 883,
+                    "gpu"       : 1228,
+                    "fft_accel" : 246
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.83,
+                    "gpu"       : 0.08,
+                    "fft_accel" : 0.01
+                },
+                "priority" : 1,
+                "deadline" : 1000
+            },
+            "fft_256" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 319,
+                    "gpu"       : 10,
+                    "fft_accel" : 1
+                },
+                "power" : {
+                    "cpu_core"  : 1036,
+                    "gpu"       : 6364,
+                    "fft_accel" : 1273
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 3.2,
+                    "gpu"       : 0.1,
+                    "fft_accel" : 0.01
+                },
+                "priority" : 1,
+                "deadline" : 1000
+            },
+            "cnn_14" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 162,
+                    "gpu"       : 52,
+                    "fft_accel" : 18
+                },
+                "power" : {
+                    "cpu_core"  : 864,
+                    "gpu"       : 2915,
+                    "fft_accel" : 583
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 1.62,
+                    "gpu"       : 0.52,
+                    "fft_accel" : 0.18
+                },
+                "priority" : 2,
+                "deadline" : 1000
+            },
+            "cnn_32" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 58,
+                    "gpu"       : 35,
+                    "fft_accel" : 5
+                },
+                "power" : {
+                    "cpu_core"  : 634,
+                    "gpu"       : 2225,
+                    "fft_accel" : 445
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.58,
+                    "gpu"       : 0.35,
+                    "fft_accel" : 0.05
+                },
+                "priority" : 2,
+                "deadline" : 1000
+            },
+            "decoder" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 100,
+                    "gpu"       : 2
+                },
+                "power" : {
+                    "cpu_core"  : 864,
+                    "gpu"       : 1228
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 1.0,
+                    "gpu"       : 0.2
+                },
+                "priority" : 3,
+                "deadline" : 1000
+            }
+        }
+    }
 }

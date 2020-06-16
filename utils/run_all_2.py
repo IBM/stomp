@@ -44,7 +44,7 @@ from __builtin__ import str
 
 CONF_FILE    = './stomp.json'
 PROMOTE = True
-POLICY       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2']
+POLICY       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2', ''heft', 'rheft']
 STDEV_FACTOR = [0.01] # percentages
 ARRIVE_SCALE = [0.8, 1.0, 1.2, 1.4] # percentages
 PROB         = [0.5, 0.4, 0.3, 0.2, 0.1]
@@ -164,6 +164,7 @@ def main(argv):
                     # Update the simulation configuration by updating
                     # the specific parameters in the input JSON data
                     stomp_params['simulation']['sched_policy_module'] = 'policies.' + policy 
+                    stomp_params['simulation']['meta_policy_module'] = 'meta_policies.' + stomp_params['simulation']["policies"][policy]['meta_policy']
                     for task in stomp_params['simulation']['tasks']:
                         # Set the stdev for the service time
                         for server, mean_service_time in stomp_params['simulation']['tasks'][task]['mean_service_time'].items():

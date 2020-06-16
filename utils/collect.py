@@ -90,6 +90,7 @@ def main(argv):
                     
                     mission_time            = {}
                     mission_completed       = {}
+                    total_energy            = {}
                     ctime                   = {}
                     rtime                   = {}
                     ta_time                 = {}
@@ -98,7 +99,7 @@ def main(argv):
                     header1 = "ACCEL_COUNT,DROP,PROB,ARR_SCALE"
                     out1 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) 
                     for policy in POLICY:
-                        header = header1 + ",Mission time, Mission Completed, Pr1 Met, Pr2 Met, Pr2 Cnt"
+                        header = header1 + ",Policy,Mission time,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Energy"
                         if (extra):
                             header = header + "," + policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
                         priority_1_slack[policy]        = 0
@@ -114,6 +115,7 @@ def main(argv):
                         mission_time[policy]            = 0
                         mission_completed[policy]       = 0
                         mission_failed                  = 0
+                        total_energy[policy]            = 0
 
                         ctime[policy]                   = 0
                         rtime[policy]                   = 0
@@ -138,7 +140,7 @@ def main(argv):
                                 line = fp.readline()
                                 if not line:
                                     break
-                                if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time\n"):
+                                if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy\n"):
                                     flag = 1
                                     continue
 
@@ -160,7 +162,8 @@ def main(argv):
                                     if(cnt_1[policy] + cnt_2[policy] >= 1000):
                                         break
                                     # print(line)
-                                    dropped,tid,priority,dag_type,slack,resp,noafftime = line.split(',')
+                                    dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.split(',')
+                                    total_energy[policy] = int(energy)
                                     if priority == '1':
                                         cnt_1[policy] += 1
                                         if (int(dropped) == 1):
@@ -212,7 +215,7 @@ def main(argv):
                             mission_completed[policy] = 1.0;
 
                         out = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy) 
-                        out += ((",%lf,%lf,%lf,%lf,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy]))
+                        out += ((",%lf,%lf,%lf,%lf,%d,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],total_energy[policy]))
                         if(extra):
                             out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
 
