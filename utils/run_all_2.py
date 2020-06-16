@@ -44,7 +44,7 @@ from __builtin__ import str
 
 CONF_FILE    = './stomp.json'
 PROMOTE = True
-POLICY       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2', ''heft', 'rheft']
+POLICY       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2', 'heft', 'rheft']
 STDEV_FACTOR = [0.01] # percentages
 ARRIVE_SCALE = [0.8, 1.0, 1.2, 1.4] # percentages
 PROB         = [0.5, 0.4, 0.3, 0.2, 0.1]
