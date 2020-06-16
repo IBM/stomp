@@ -315,7 +315,7 @@ class META:
                             count += 1
 
                         # Dynamic Rank Assignment
-                        self.meta_policy.meta_dynamic_rank(self.stomp, node, comp, max_time, min_time, deadline, priority)
+                        self.meta_policy.meta_dynamic_rank(self.stomp, node, the_dag_sched.comp, max_time, min_time, deadline, priority)
                         
                         task_entry.append((atime,task,dag_id,node.tid,priority,deadline,node.rank,node.est,node.eft,node.subD,node.lst,the_dag_sched.policy_variables.ftsched))
                         task_entry.append(stimes)
