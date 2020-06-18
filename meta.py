@@ -6,7 +6,7 @@ import pprint
 import sys
 import operator
 import logging
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
 
 import time
 import networkx as nx
@@ -21,10 +21,10 @@ def read_matrix(matrix):
         # logging.info(row)
         lmatrix.append(list(map(str,row)))
     f.close()
-    return lmatrix 
+    return lmatrix
 
-def max_length(G, node_run):    
-    leaf_nodes = [node for node in G.nodes() if G.out_degree(node)==0] 
+def max_length(G, node_run):
+    leaf_nodes = [node for node in G.nodes() if G.out_degree(node)==0]
     time_dict = nx.get_node_attributes(G, 't')
 
     max_path_length = 0
@@ -42,19 +42,19 @@ def max_length(G, node_run):
     if(num_paths == 0):
         min_time = int(time_dict[node])
         return min_time
-        
+
     return max_path_length
 
 class MetaTask(object):
 
     def __init__(self, tid):
         self.tid = int(tid)# task id - this is unique
-        self.rank = -1 # This is updated during the 'Task Prioritisation' phase 
+        self.rank = -1 # This is updated during the 'Task Prioritisation' phase
         self.processor = -1
-        self.ast = 0 
-        self.aft = 0 
+        self.ast = 0
+        self.aft = 0
         self.scheduled = 0
-        self.R_its_k_heft= 0.31 
+        self.R_its_k_heft= 0.31
         self.est = 0
         self.eft = 0
         self.subD = 0
@@ -63,8 +63,8 @@ class MetaTask(object):
     def __repr__(self):
         return str(self.tid)
     """
-    To utilise the NetworkX graph library, we need to make the node structure hashable  
-    Implementation adapted from: http://stackoverflow.com/a/12076539        
+    To utilise the NetworkX graph library, we need to make the node structure hashable
+    Implementation adapted from: http://stackoverflow.com/a/12076539
     """
 
     def __hash__(self):
@@ -75,8 +75,8 @@ class MetaTask(object):
             return self.tid == task.tid
         return NotImplemented
 
-    
-    def __lt__(self,task): 
+
+    def __lt__(self,task):
         if isinstance(task,self.__class__):
             return self.tid < task.tid
 
@@ -103,12 +103,12 @@ class DAG:
         self.completed_peid     = {}
         self.noaffinity_time    = 0
         # logging.info("Created %d,%d" % (self.arrival_time,self.deadline))
-        self.energy         = 0 
+        self.energy         = 0
 
 class BaseMetaPolicy:
 
     __metaclass__ = ABCMeta
-    
+
     @abstractmethod
     def init(self): pass
 
@@ -187,7 +187,7 @@ class META:
                             parent_list.append(pred_node.tid)
                         parent_dict[node.tid] = parent_list
                         # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
-        
+
                     comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
                     priority = int(tmp.pop(0))
                     deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale'])
@@ -208,8 +208,8 @@ class META:
         logging.info("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy")
         ctime = timedelta(microseconds = 0)
         rtime = timedelta(microseconds = 0)
-        
-                    
+
+
         while(self.dag_id_list or self.stomp.E_TSCHED_DONE == 0):
             temp_task_trace = []
             completed_list = []
@@ -231,7 +231,7 @@ class META:
                 if dag_id_completed in self.dag_dict:
                     dag_completed = self.dag_dict[dag_id_completed]
                     # logging.info('Task completed : %d,%d,%d' % ((task_completed.arrival_time + task_completed.task_lifetime),dag_id_completed,task_completed.tid))
-                    
+
                     ## Remove completed task from parent DAG and update meta-info ##
                     for node in dag_completed.graph.nodes():
                         if node.tid == task_completed.tid:
@@ -244,13 +244,13 @@ class META:
                             ####
                             dag_completed.completed_peid[task_completed.tid] = task_completed.peid
                             dag_completed.noaffinity_time += task_completed.noaffinity_time
-                            
+
                             # print("Completed: %d,%d,%d,%d,%d,%d" % (dag_id_completed,task_completed.tid,dag_completed.slack,dag_completed.deadline,task_completed.arrival_time,task_completed.task_lifetime))
-                            
+
                             task = dag_completed.comp[task_completed.tid][0]
                             power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
                             #print(task,power,task_completed.task_lifetime)
-                            dag_completed.energy +=(task_completed.task_lifetime*power) 
+                            dag_completed.energy +=(task_completed.task_lifetime*power)
                             dag_completed.graph.remove_node(node)
                             break;
 
@@ -258,7 +258,7 @@ class META:
                     ## Update stats if DAG has finished execution ##
                     if (len(dag_completed.graph.nodes()) == 0):
                         dags_completed += 1
-                        ## Calculate stats for the DAG                      
+                        ## Calculate stats for the DAG
                         # logging.info(str(self.params['simulation']['sched_policy_module'].split('.')[-1].split('_')[-1]) + ',' + str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
                         # logging.info(str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
                         end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time,dag_completed.energy)
@@ -292,8 +292,8 @@ class META:
                         if (self.params['simulation']['sched_policy_module'].startswith("policies.ms3")):
                             deadline = int(deadline*float(the_dag_sched.comp[node.tid][1]))
                         if (self.params['simulation']['sched_policy_module'].startswith("policies.edf")):
-                            deadline = int(the_dag_sched.dtime)                        
-                        
+                            deadline = int(the_dag_sched.dtime)
+
                         stimes = []
                         count = 0
                         max_time = 0
@@ -316,16 +316,16 @@ class META:
 
                         # Dynamic Rank Assignment
                         self.meta_policy.meta_dynamic_rank(self.stomp, node, the_dag_sched.comp, max_time, min_time, deadline, priority)
-                        
-                        task_entry.append((atime,task,dag_id,node.tid,priority,deadline,node.rank,node.est,node.eft,node.subD,node.lst,the_dag_sched.policy_variables.ftsched))
+
+                        task_entry.append((atime,task,dag_id,node.tid,priority,deadline,int(the_dag_sched.dtime),node.rank,node.est,node.eft,node.subD,node.lst,the_dag_sched.policy_variables.ftsched))
                         task_entry.append(stimes)
-                        
+
                         ##### DROPPED ##########
                         if(self.params['simulation']['drop'] == True):
                             ex_time = max_length(the_dag_sched.graph, node)
                             if(the_dag_sched.slack - ex_time < 0 and the_dag_sched.priority == 1):
                             # if(the_dag_sched.slack - the_dag_sched(G) < 0 and the_dag_sched.priority == 1):
-                                
+
                                 dags_missed_per_interval += 1
                                 the_dag_sched.dropped = 1
                                 dags_dropped += 1
@@ -346,7 +346,7 @@ class META:
                                 dags_missed_per_interval = 0
 
                         time_interval = the_dag_sched.arrival_time
-            
+
 
                         ##### DROPPED ##########
 
@@ -361,7 +361,7 @@ class META:
                         ## Ready task found, push into temp ready task queue
                         temp_task_trace.append(task_entry)
                         node.scheduled = 1
-            
+
             ##### DROPPED ##########
             # Remove Dropped DAGs from active DAG list
             for dag_id_dropped in dropped_dag_id_list:
@@ -371,7 +371,7 @@ class META:
 
             end = datetime.now()
             rtime += end - start
-            
+
 
             self.stomp.lock.acquire()
             ## Push all ready tasks in the order of their arrival time ##
@@ -382,14 +382,14 @@ class META:
 
             if (len(self.stomp.global_task_trace) and (self.stomp.next_cust_arrival_time != self.stomp.global_task_trace[0][0][0])):
                 self.stomp.next_cust_arrival_time = self.stomp.global_task_trace[0][0][0]
-            
+
             self.stomp.tlock.acquire()
             if(self.stomp.task_completed_flag == 1 and (len(self.stomp.tasks_completed) == 0)):
                 self.stomp.task_completed_flag = 0
             self.stomp.tlock.release()
 
-            self.stomp.lock.release()   
-            
+            self.stomp.lock.release()
+
             ## Update META START after first iteration in META. Used to start TSCHED and STOMP processing
             self.stomp.E_META_START = 1
             self.stomp.stats['Tasks Generated by META'] = 1
@@ -397,7 +397,7 @@ class META:
 
             ## If all DAGs have completed update META is done
             if(len(self.dag_id_list) == 0):
-                self.stomp.E_META_DONE = 1    
+                self.stomp.E_META_DONE = 1
                 # logging.info("META completed")
 
         end_list.sort(key=lambda end_entry: end_entry[0], reverse=False)
@@ -405,7 +405,7 @@ class META:
             end_entry = end_list.pop(0)
             print("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + ',' + str(end_entry[6]))
             # end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
-                        
+
         dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
         while(len(dropped_list)):
             dropped_entry = dropped_list.pop(0)

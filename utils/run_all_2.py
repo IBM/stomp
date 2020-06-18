@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright 2018 IBM
-# 
+#
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
 # DESCRIPTION:
 #  This script is used to kick off a run of a large number of tests.
@@ -44,11 +44,11 @@ from __builtin__ import str
 
 CONF_FILE    = './stomp.json'
 PROMOTE = True
-POLICY       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2', 'heft', 'rheft']
+POLICY       = ['ms1'] # , 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2', 'heft', 'rheft']
 STDEV_FACTOR = [0.01] # percentages
-ARRIVE_SCALE = [0.8, 1.0, 1.2, 1.4] # percentages
-PROB         = [0.5, 0.4, 0.3, 0.2, 0.1]
-DROP         = [True, False]
+ARRIVE_SCALE = [0.8] # , 1.0, 1.2, 1.4] # percentages
+PROB         = [0.5] # , 0.4, 0.3, 0.2, 0.1]
+DROP         = [True] # , False]
 folder = "MS"
 
 
@@ -103,7 +103,7 @@ def main(argv):
         else:
             stdout.write('\nERROR: Unrecognized input parameter %s\n' % opt)
             usage_and_exit(3)
-            
+
     if (use_arrival_trace and use_input_trace):
         stdout.write('\nERROR: Cannot specify both arrival-trace and input-trace\n')
         usage_and_exit(4)
@@ -150,7 +150,7 @@ def main(argv):
 
                 for policy in POLICY:
                     sim_output[arr_scale][policy] = {}
-                    
+
                     stdev_factor = STDEV_FACTOR[0]
                     stomp_params['simulation']['stdev_factor'] = stdev_factor
                     stomp_params['simulation']['drop']         = drop
@@ -163,7 +163,7 @@ def main(argv):
                     ###########################################################################################
                     # Update the simulation configuration by updating
                     # the specific parameters in the input JSON data
-                    stomp_params['simulation']['sched_policy_module'] = 'policies.' + policy 
+                    stomp_params['simulation']['sched_policy_module'] = 'policies.' + policy
                     stomp_params['simulation']['meta_policy_module'] = 'meta_policies.' + stomp_params['simulation']["policies"][policy]['meta_policy']
                     for task in stomp_params['simulation']['tasks']:
                         # Set the stdev for the service time
@@ -178,7 +178,7 @@ def main(argv):
                     ###########################################################################################
                     # Create command and execute the simulation
 
-                    command = ['./stomp_main.py'                       
+                    command = ['./stomp_main.py'
                                + ' -j \'' + conf_str + '\''
                                ]
 

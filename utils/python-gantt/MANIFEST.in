@@ -1,0 +1,16 @@
+#include *.txt
+include CHANGELOG
+include MANIFEST.in
+include Makefile
+include gpl-3.0.txt
+include setup.py
+include README.md
+include README.txt
+include requirements.txt
+include gantt/gantt.py
+include gantt/test_gantt.py
+include gantt/__init__.py
+include org2gantt/org2gantt.py
+include org2gantt/Orgnode.py
+include org2gantt/README.org
+include org2gantt/example.org

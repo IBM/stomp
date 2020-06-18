@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright 2018 IBM
-# 
+#
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
 # DESCRIPTION:
 #  This script is used to kick off a run of a large number of tests.
@@ -87,7 +87,7 @@ def main(argv):
                     priority_2_slack        = {}
                     priority_2_met          = {}
                     priority_2_noaff_per    = {}
-                    
+
                     mission_time            = {}
                     mission_completed       = {}
                     total_energy            = {}
@@ -97,7 +97,7 @@ def main(argv):
                     to_time                 = {}
 
                     header1 = "ACCEL_COUNT,DROP,PROB,ARR_SCALE"
-                    out1 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) 
+                    out1 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale)
                     for policy in POLICY:
                         header = header1 + ",Policy,Mission time,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Energy"
                         if (extra):
@@ -107,9 +107,9 @@ def main(argv):
                         cnt_1[policy]                   = 0
                         priority_2_slack[policy]        = 0
                         priority_2_met[policy]          = 0
-                        cnt_2[policy]                   = 0   
-                        cnt_dropped_1[policy]           = 0   
-                        cnt_dropped_2[policy]           = 0  
+                        cnt_2[policy]                   = 0
+                        cnt_dropped_1[policy]           = 0
+                        cnt_dropped_2[policy]           = 0
                         priority_1_noaff_per[policy]    = 0
                         priority_2_noaff_per[policy]    = 0
                         mission_time[policy]            = 0
@@ -131,7 +131,7 @@ def main(argv):
                             pass
                         else:
 
-                            out2 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy) 
+                            out2 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy)
                             print(out2 + ",NodataYet")
                             continue
                         with open(fname,'r') as fp:
@@ -173,9 +173,9 @@ def main(argv):
                                                 priority_1_slack[policy] += float(slack)/deadline_5
                                             else:
                                                 if dag_type == '7':
-                                                    priority_1_slack[policy] += float(slack)/deadline_7 
-                                                else: 
-                                                    priority_1_slack[policy] += float(slack)/deadline_10 
+                                                    priority_1_slack[policy] += float(slack)/deadline_7
+                                                else:
+                                                    priority_1_slack[policy] += float(slack)/deadline_10
                                             if(float(slack) >= 0):
                                                 priority_1_met[policy] += 1
                                             priority_1_noaff_per[policy] += float(noafftime)/float(resp)
@@ -188,9 +188,9 @@ def main(argv):
                                                 priority_2_slack[policy] += float(slack)/deadline_5
                                             else:
                                                 if dag_type == '7':
-                                                    priority_2_slack[policy] += float(slack)/deadline_7 
-                                                else: 
-                                                    priority_2_slack[policy] += float(slack)/deadline_10 
+                                                    priority_2_slack[policy] += float(slack)/deadline_7
+                                                else:
+                                                    priority_2_slack[policy] += float(slack)/deadline_10
                                             if(float(slack) >= 0):
                                                 priority_2_met[policy] += 1
                                             elif(mission_failed != 1):
@@ -204,17 +204,17 @@ def main(argv):
                             priority_1_noaff_per[policy] = priority_1_noaff_per[policy]/(cnt_1[policy]-cnt_dropped_1[policy])
                         priority_2_slack[policy] = float(priority_2_slack[policy])/(cnt_2[policy]-cnt_dropped_2[policy])
                         priority_1_met[policy] = float(priority_1_met[policy])/cnt_1[policy]
-                        priority_2_met[policy] = float(priority_2_met[policy])/cnt_2[policy]  
+                        priority_2_met[policy] = float(priority_2_met[policy])/cnt_2[policy]
 
-                        
-                        priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])  
+
+                        priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])
 
                         mission_time[policy] += arr_scale*mean_arrival_time*1000
                         mission_completed[policy] = float(mission_completed[policy])/cnt_2[policy]
                         if mission_failed == 0:
                             mission_completed[policy] = 1.0;
 
-                        out = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy) 
+                        out = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy)
                         out += ((",%lf,%lf,%lf,%lf,%d,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],total_energy[policy]))
                         if(extra):
                             out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
@@ -229,4 +229,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-   main(sys.argv[1])
+    assert len(sys.argv) >= 2, "Insufficient args"
+    main(sys.argv[1])
