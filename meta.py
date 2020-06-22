@@ -158,10 +158,12 @@ class META:
         ### Read input DAGs ####
         dags_completed = 0
         dags_dropped = 0
-        dags_missed_per_interval = 0
+        dags_completed_per_interval = 0
         end_list = []
         dropped_list = []
         time_interval = 0
+        last_promoted_id = 0
+        promote_interval = 10*self.params['simulation']['arrival_time_scale']*self.params['simulation']['mean_arrival_time']
         in_trace_name = self.working_dir + '/' + self.input_trace_file
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
@@ -258,6 +260,9 @@ class META:
                     ## Update stats if DAG has finished execution ##
                     if (len(dag_completed.graph.nodes()) == 0):
                         dags_completed += 1
+                        if(dag_completed.priority == 1 and dag_id_completed >= last_promoted_id):
+                            # print("%d: DAG id: %d completed" %(self.stomp.sim_time, dag_id_completed))
+                            dags_completed_per_interval += 1
                         ## Calculate stats for the DAG
                         # logging.info(str(self.params['simulation']['sched_policy_module'].split('.')[-1].split('_')[-1]) + ',' + str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
                         # logging.info(str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
@@ -278,89 +283,99 @@ class META:
 
                 ## Push ready tasks into ready queue ##
                 for node,deg in the_dag_sched.graph.in_degree():
-                    if deg == 0 and node.scheduled == 0:
-                        task_entry = []
-                        if (node.tid == 0):
-                            atime = the_dag_sched.arrival_time
-                        else:
-                            atime = the_dag_sched.ready_time
-                        task = the_dag_sched.comp[node.tid][0]
-                        priority = the_dag_sched.priority
-                        deadline = int(the_dag_sched.slack)
-                        if (self.params['simulation']['sched_policy_module'].startswith("policies.ms1")):
-                            deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[node.tid][1]))
-                        if (self.params['simulation']['sched_policy_module'].startswith("policies.ms3")):
-                            deadline = int(deadline*float(the_dag_sched.comp[node.tid][1]))
-                        if (self.params['simulation']['sched_policy_module'].startswith("policies.edf")):
-                            deadline = int(the_dag_sched.dtime)
+                    if deg == 0:
+                        ##### DROPPED ##########
+                        # TODO: Fix this code to be non-deterministic
+                        # if(self.params['simulation']['drop'] == True):
+                        #     if(the_dag_sched.priority == 1 and (the_dag_sched.dtime - self.stomp.sim_time) < 0):
 
-                        stimes = []
-                        count = 0
-                        max_time = 0
-                        min_time = 100000
-                        # Iterate over each column of comp entry.
-                        for comp_time in the_dag_sched.comp[node.tid]:
-                            # Ignore first two columns.
-                            if (count <= 1):
-                                count += 1
-                                continue
+                        #         the_dag_sched.dropped = 1
+                        #         dags_dropped += 1
+                        #         dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
+                        #         self.stomp.dags_dropped.append(dag_id)
+                        #         dropped_list.append(dropped_entry)
+                        #         dropped_dag_id_list.append(dag_id)
+                        #         break
+
+                        if node.scheduled == 0:
+
+                            ##### DROPPED ##########
+                            if(self.params['simulation']['drop'] == True):
+                                ex_time = max_length(the_dag_sched.graph, node)
+                                if(the_dag_sched.slack - ex_time < 0 and the_dag_sched.priority == 1):
+
+                                    the_dag_sched.dropped = 1
+                                    dags_dropped += 1
+                                    dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
+                                    self.stomp.dags_dropped.append(dag_id)
+                                    dropped_list.append(dropped_entry)
+                                    dropped_dag_id_list.append(dag_id)
+                                    break
+
+                            ## PROMOTE DAGs
+                            if(self.params['simulation']['promote'] == True):
+                                if (the_dag_sched.arrival_time > time_interval + promote_interval and the_dag_sched.priority == 1 and node.tid != 0):
+                                    # print("%d: DAG id: %d, atime: %d, completed DAGs: %d\n" % (self.stomp.sim_time, dag_id, the_dag_sched.arrival_time, dags_completed_per_interval))
+                                    if dags_completed_per_interval <= 0: 
+                                        the_dag_sched.priority = 2
+                                        # print("%d: Dag promoted\n" %(self.stomp.sim_time))
+                                    dags_completed_per_interval = 0
+                                    time_interval = the_dag_sched.arrival_time
+                                    last_promoted_id = dag_id
+
+
+                            task_entry = []
+                            if (node.tid == 0):
+                                atime = the_dag_sched.arrival_time
                             else:
-                                if (comp_time != "None"):
-                                    if (min_time > round(float(comp_time))):
-                                        min_time = round(float(comp_time))
-                                    if(max_time < float(comp_time)):
-                                        max_time = float(comp_time)
-                                stimes.append((self.server_types[count-2],comp_time))
-                                # print(str(self.server_types[count-2])+ "," + str(comp_time))
-                            count += 1
+                                atime = the_dag_sched.ready_time
+                            task = the_dag_sched.comp[node.tid][0]
+                            priority = the_dag_sched.priority
+                            deadline = int(the_dag_sched.slack)
+                            if (self.params['simulation']['sched_policy_module'].startswith("policies.ms1")):
+                                deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[node.tid][1]))
+                            if (self.params['simulation']['sched_policy_module'].startswith("policies.ms3")):
+                                deadline = int(deadline*float(the_dag_sched.comp[node.tid][1]))
+                            if (self.params['simulation']['sched_policy_module'].startswith("policies.edf")):
+                                deadline = int(the_dag_sched.dtime)
 
-                        # Dynamic Rank Assignment
-                        self.meta_policy.meta_dynamic_rank(self.stomp, node, the_dag_sched.comp, max_time, min_time, deadline, priority)
+                            stimes = []
+                            count = 0
+                            max_time = 0
+                            min_time = 100000
+                            # Iterate over each column of comp entry.
+                            for comp_time in the_dag_sched.comp[node.tid]:
+                                # Ignore first two columns.
+                                if (count <= 1):
+                                    count += 1
+                                    continue
+                                else:
+                                    if (comp_time != "None"):
+                                        if (min_time > round(float(comp_time))):
+                                            min_time = round(float(comp_time))
+                                        if(max_time < float(comp_time)):
+                                            max_time = float(comp_time)
+                                    stimes.append((self.server_types[count-2],comp_time))
+                                    # print(str(self.server_types[count-2])+ "," + str(comp_time))
+                                count += 1
 
-                        task_entry.append((atime,task,dag_id,node.tid,priority,deadline,int(the_dag_sched.dtime),node.rank,node.est,node.eft,node.subD,node.lst,the_dag_sched.policy_variables.ftsched))
-                        task_entry.append(stimes)
+                            # Dynamic Rank Assignment
+                            self.meta_policy.meta_dynamic_rank(self.stomp, node, the_dag_sched.comp, max_time, min_time, deadline, priority)
 
-                        ##### DROPPED ##########
-                        if(self.params['simulation']['drop'] == True):
-                            ex_time = max_length(the_dag_sched.graph, node)
-                            if(the_dag_sched.slack - ex_time < 0 and the_dag_sched.priority == 1):
-                            # if(the_dag_sched.slack - the_dag_sched(G) < 0 and the_dag_sched.priority == 1):
+                            task_entry.append((atime,task,dag_id,node.tid,priority,deadline,int(the_dag_sched.dtime),node.rank,node.est,node.eft,node.subD,node.lst,the_dag_sched.policy_variables.ftsched))
+                            task_entry.append(stimes)
 
-                                dags_missed_per_interval += 1
-                                the_dag_sched.dropped = 1
-                                dags_dropped += 1
-                                dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
-                                #print(("Dropping DAG %d") % (dag_id))
-                                self.stomp.dags_dropped.append(dag_id)
-                                dropped_list.append(dropped_entry)
-                                dropped_dag_id_list.append(dag_id)
-                                break
+                            #### AFFINITY ####
+                            # Pass parent id and HW id of parents with task
+                            ####
+                            parent_data = []
+                            for parent in the_dag_sched.parent_dict[node.tid]:
+                                parent_data.append((parent,the_dag_sched.completed_peid[parent]))
+                            task_entry.append(parent_data)
 
-                        if(self.params['simulation']['promote'] == True):
-                            ex_time = max_length(the_dag_sched.graph, node)
-                            if(the_dag_sched.slack - ex_time < 0 and the_dag_sched.priority == 1):
-                                dags_missed_per_interval += 1
-                            elif the_dag_sched.arrival_time > time_interval + 100:
-                                if dags_missed_per_interval > 0 and the_dag_sched.priority == 1:
-                                    the_dag_sched.priority = 2
-                                dags_missed_per_interval = 0
-
-                        time_interval = the_dag_sched.arrival_time
-
-
-                        ##### DROPPED ##########
-
-                        #### AFFINITY ####
-                        # Pass parent id and HW id of parents with task
-                        ####
-                        parent_data = []
-                        for parent in the_dag_sched.parent_dict[node.tid]:
-                            parent_data.append((parent,the_dag_sched.completed_peid[parent]))
-                        task_entry.append(parent_data)
-
-                        ## Ready task found, push into temp ready task queue
-                        temp_task_trace.append(task_entry)
-                        node.scheduled = 1
+                            ## Ready task found, push into temp ready task queue
+                            temp_task_trace.append(task_entry)
+                            node.scheduled = 1
 
             ##### DROPPED ##########
             # Remove Dropped DAGs from active DAG list
