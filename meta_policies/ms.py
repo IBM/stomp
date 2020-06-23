@@ -1,5 +1,6 @@
 
 from meta import BaseMetaPolicy
+from meta import max_length
 
 class PolicyVariables:
     def __init__(self, R_its_k_heft, ftsched):
@@ -52,4 +53,13 @@ class MetaPolicy(BaseMetaPolicy):
         
         task.rank = int(100000 * ((priority)/slack_max))
         # logging.info("Task rank: %d,%d,%d,%d,%d" % (task.rank, priority, deadline, sum, (len(stomp.servers) - none)))
+
+    def dropping_policy(self, dag, task_node): 
+        ex_time = max_length(dag.graph, task_node)
+        if(dag.slack - ex_time < 0 and dag.priority == 1):
+
+            dag.dropped = 1
+            return True
+        
+        return False
            

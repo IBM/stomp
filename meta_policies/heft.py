@@ -54,4 +54,7 @@ class MetaPolicy(BaseMetaPolicy):
                                     
 
     def meta_dynamic_rank(self, stomp, task, comp, max_time, min_time, deadline, priority):
+        pass 
+
+    def dropping_policy(self, dag, task_node): 
         pass      
