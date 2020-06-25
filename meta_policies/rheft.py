@@ -11,7 +11,6 @@ class MetaPolicy(BaseMetaPolicy):
 
     def init(self, dag_types):
         self.pre_schd_data = {}
-        print(dag_types)
         for dag_type in dag_types:
             self.pre_schd_data[dag_type]=[]
             with open("pre_schd/random_"+ dag_type, 'r') as input_data:
