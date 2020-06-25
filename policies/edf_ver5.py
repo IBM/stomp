@@ -70,7 +70,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             window_len = len(tasks)
             
 
-        tasks.sort(key=lambda task: task.deadline, reverse=False)
+        tasks.sort(key=lambda task: task.dtime, reverse=False)
         window = tasks[:window_len]
         
         # out = str(sim_time) + ","

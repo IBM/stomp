@@ -48,6 +48,12 @@
             },
             "rheft" : {
                 "meta_policy" : "rheft" 
+            },
+            "edf" : {
+                "meta_policy" : "edf" 
+            },
+            "edf_ver5" : {
+                "meta_policy" : "edf" 
             }
         },
 

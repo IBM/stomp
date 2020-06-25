@@ -51,7 +51,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # There aren't tasks to serve
             return None    
 
-        tasks.sort(key=lambda task: task.deadline, reverse=False)
+        tasks.sort(key=lambda task: task.dtime, reverse=False)
         
         # Look for an available server to process the task
         for target_server in tasks[0].mean_service_time_list:
