@@ -45,20 +45,58 @@ def max_length(G, node_run):
 
     return max_path_length
 
-class MetaTask(object):
+###############################################################################
+# This class represents a 'task' that is processed in the queuing system.     #                                           #
+###############################################################################
+class TASK:
 
     def __init__(self, tid):
-        self.tid = int(tid)# task id - this is unique
-        self.rank = -1 # This is updated during the 'Task Prioritisation' phase
-        self.processor = -1
-        self.ast = 0
-        self.aft = 0
-        self.scheduled = 0
-        self.R_its_k_heft= 0.31
-        self.est = 0
-        self.eft = 0
-        self.subD = 0
-        self.lst = 0
+
+        self.tid                        = int(tid)# task id - this is unique
+        self.dag_id                     = None
+        self.scheduled                  = 0
+		
+        self.rank                       = -1 # This is updated during the 'Task Prioritisation' phase
+        self.processor                  = -1
+        self.ast                        = 0
+        self.aft                        = 0
+        self.R_its_k_heft               = 0.31
+        self.est                        = 0
+        self.eft                        = 0
+        self.subD                       = 0
+        self.lst                        = 0
+        
+
+
+    def init_task(self, arrival_time, dag_id, tid, type, params, priority, deadline):
+        self.dag_id                     = dag_id
+        self.tid                        = tid
+        self.type                       = type  # The task type
+        self.priority                   = priority  # Task input priority
+        self.deadline                   = deadline  # Task input deadline
+        self.mean_service_time_dict     = params['mean_service_time']
+        self.mean_service_time_list     = sorted(params['mean_service_time'].items(), key=operator.itemgetter(1))
+        self.stdev_service_time_dict    = params['stdev_service_time']
+        self.stdev_service_time_list    = sorted(params['stdev_service_time'].items(), key=operator.itemgetter(1))
+        self.arrival_time               = arrival_time
+        self.noaffinity_time            = 0
+        self.departure_time             = None
+        self.per_server_services        = []    # Holds ordered list of service times
+        self.per_server_service_dict    = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
+        self.task_service_time          = None  # To be set upon scheduling, since it depends on the target server
+        self.task_lifetime              = None  # To be set upon finishing; includes time span from arrival to departure
+        self.trace_id                   = None
+        self.wpower                     = None
+        self.current_time               = 0
+        self.possible_server_idx        = None
+        self.peid                       = None
+        self.parent_data                = []
+        self.server_type                = None
+
+
+    def __str__(self):
+        return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
+
 
     def __repr__(self):
         return str(self.tid)
@@ -72,7 +110,7 @@ class MetaTask(object):
 
     def __eq__(self, task):
         if isinstance(task, self.__class__):
-            return self.tid == task.tid
+            return (self.tid == task.tid and self.dag_id == task.dag_id)
         return NotImplemented
 
 
@@ -179,7 +217,7 @@ class META:
                     atime = int(int(tmp.pop(0))*self.params['simulation']['arrival_time_scale'])
                     dag_id = int(tmp.pop(0))
                     dag_type = tmp.pop(0)
-                    graph = nx.read_graphml("inputs/random_dag_{0}.graphml".format(dag_type), MetaTask)
+                    graph = nx.read_graphml("inputs/random_dag_{0}.graphml".format(dag_type), TASK)
 
                     #### AFFINITY ####
                     # Add matrix to maintain parent node id's
@@ -345,7 +383,7 @@ class META:
                             atime = the_dag_sched.arrival_time
                         else:
                             atime = the_dag_sched.ready_time
-                        task = the_dag_sched.comp[node.tid][0]
+                        task_type = the_dag_sched.comp[node.tid][0]
                         priority = the_dag_sched.priority
                         deadline = int(the_dag_sched.slack)
                         if (self.params['simulation']['sched_policy_module'].startswith("policies.ms1")):
@@ -378,8 +416,17 @@ class META:
                         # Dynamic Rank Assignment
                         self.meta_policy.meta_dynamic_rank(self.stomp, node, the_dag_sched.comp, max_time, min_time, deadline, priority)
 
-                        task_entry.append((atime,task,dag_id,node.tid,priority,deadline,int(the_dag_sched.dtime),node.rank,node.est,node.eft,node.subD,node.lst,the_dag_sched.policy_variables.ftsched))
-                        task_entry.append(stimes)
+                        # def init_task(self, arrival_time, dag_id, tid, type, params, priority, deadline):
+                        node.init_task(atime, dag_id, node.tid, task_type, self.params['simulation']['tasks'][task_type], priority, deadline)
+                        node.dtime = int(the_dag_sched.dtime)
+                        node.ftsched = the_dag_sched.policy_variables.ftsched
+                        
+                        for time_entry in stimes:
+                            server_type  = time_entry[0]
+                            service_time = time_entry[1]
+                            node.per_server_services.append(service_time)
+                            if (service_time != "None" ):
+                                node.per_server_service_dict[server_type] = round(float(service_time))
 
                         #### AFFINITY ####
                         # Pass parent id and HW id of parents with task
@@ -387,10 +434,10 @@ class META:
                         parent_data = []
                         for parent in the_dag_sched.parent_dict[node.tid]:
                             parent_data.append((parent,the_dag_sched.completed_peid[parent]))
-                        task_entry.append(parent_data)
+                        node.parent_data = parent_data
 
                         ## Ready task found, push into temp ready task queue
-                        temp_task_trace.append(task_entry)
+                        temp_task_trace.append(node)
                         node.scheduled = 1
 
             end = datetime.now()
@@ -400,12 +447,12 @@ class META:
             self.stomp.lock.acquire()
             ## Push all ready tasks in the order of their arrival time ##
             while (len(temp_task_trace)):
-                # logging.info('Inserting : %d,DAG:%d,TID:%d' % (temp_task_trace[0][0][0],temp_task_trace[0][0][2],temp_task_trace[0][0][3]))
+                # logging.info('Inserting : %d,DAG:%d,TID:%d' % (temp_task_trace[0].arrival_time,temp_task_trace[0].dag_id,temp_task_trace[0].tid))
                 self.stomp.global_task_trace.append(temp_task_trace.pop(0))
-                self.stomp.global_task_trace.sort(key=lambda tr_entry: tr_entry[0][0], reverse=False)
+                self.stomp.global_task_trace.sort(key=lambda tr_entry: tr_entry.arrival_time, reverse=False)
 
-            if (len(self.stomp.global_task_trace) and (self.stomp.next_cust_arrival_time != self.stomp.global_task_trace[0][0][0])):
-                self.stomp.next_cust_arrival_time = self.stomp.global_task_trace[0][0][0]
+            if (len(self.stomp.global_task_trace) and (self.stomp.next_cust_arrival_time != self.stomp.global_task_trace[0].arrival_time)):
+                self.stomp.next_cust_arrival_time = self.stomp.global_task_trace[0].arrival_time
 
             self.stomp.tlock.acquire()
             if(self.stomp.task_completed_flag == 1 and (len(self.stomp.tasks_completed) == 0)):

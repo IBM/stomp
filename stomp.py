@@ -31,47 +31,7 @@ import datetime
 
 import threading
 
-###############################################################################
-# This class represents a 'task' that is processed in the queuing system.     #
-# Its 'service time' is determined from a specified probability distribution  #
-# (exponential, normal or uniform).                                           #
-###############################################################################
-class Task:
-
-    def __init__(self, sim_time, dag_id, tid, id, type, params):
-
-        # Obtain a service time for the new task
-        #service_time = numpy.random.normal(loc=mean, scale=stdev, size=1)
-
-        self.type                       = type  # The task type
-        self.dag_id                     = dag_id
-        self.tid                        = tid
-        self.priority                   = params['priority']  # Task input priority
-        self.deadline                   = params['deadline']  # Task input deadline
-        self.mean_service_time_dict     = params['mean_service_time']
-        self.mean_service_time_list     = sorted(params['mean_service_time'].items(), key=operator.itemgetter(1))
-        self.stdev_service_time_dict    = params['stdev_service_time']
-        self.stdev_service_time_list    = sorted(params['stdev_service_time'].items(), key=operator.itemgetter(1))
-        self.arrival_time               = sim_time
-        self.noaffinity_time            = 0
-        #self.curr_arrival_time         = sim_time
-        self.departure_time             = None
-        self.per_server_services        = []    # Holds ordered list of service times
-        self.per_server_service_dict    = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
-        self.task_service_time          = None  # To be set upon scheduling, since it depends on the target server
-        self.task_lifetime              = None  # To be set upon finishing; includes time span from arrival to departure
-        self.trace_id                   = id
-        #self.run_pos                   = 0
-        self.wpower                     = None
-        self.current_time               = 0
-        self.possible_server_idx        = None
-        self.rank                       = 0
-        self.peid                       = None
-        self.parent_data                = []
-        self.server_type        = None
-
-    def __str__(self):
-        return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
+from meta import TASK
 
 ###############################################################################
 # This class represents a 'server' in the system; i.e. an entity that can     #
@@ -377,49 +337,32 @@ class STOMP:
                 tr_entry = self.global_task_trace.pop(0)
             self.lock.release()
             # logging.info('ARR_TR : %s' % tr_entry)
-            task_atime = tr_entry[0][0]
-            task = tr_entry[0][1]
-            dag_id = tr_entry[0][2]
-            tid = tr_entry[0][3]
-            priority = tr_entry[0][4]
-            deadline = tr_entry[0][5]
-            dtime = tr_entry[0][6]
-            rank = tr_entry[0][7]
-            est = tr_entry[0][8]
-            eft = tr_entry[0][9]
-            subD = tr_entry[0][10]
-            lst = tr_entry[0][11]
-            ftsched = tr_entry[0][12]
 
-            logging.debug('[%10ld] Setting next task type from TRACE to %s' % (self.sim_time, task))
+            # #logging.info('   PSD : %s' % the_task.per_server_service_dict)
+
+            the_task = tr_entry
+            the_task.trace_id = task_num
+            task = the_task.type
+			
+			# logging.debug('[%10ld] Setting next task type from TRACE to %s' % (self.sim_time, task))
 
 
-            the_task = Task(task_atime, dag_id, tid, task_num, task, self.params['simulation']['tasks'][task])
-            the_task.priority = priority
-            the_task.deadline = deadline
-            the_task.dtime = dtime
-            the_task.rank = rank
-            the_task.est  = est
-            the_task.eft  = eft
-            the_task.subD  = subD
-            the_task.lst  = lst
-            the_task.ftsched = ftsched
+            # print("Task:")
+            # print(the_task.dag_id,
+            #     the_task.tid,
+            #     the_task.priority,
+            #     the_task.deadline,
+            #     the_task.dtime,
+            #     the_task.rank,
+            #     the_task.est,
+            #     the_task.eft,
+            #     the_task.subD,
+            #     the_task.lst,
+            #     the_task.ftsched)
+            # print(the_task.per_server_services)
 
-            # Set up the per-server-type execution times for this task...
-            # The service times are given (per-server-type) in the global_task_trace
-            stimes = tr_entry[1]
-            for time_entry in stimes:
-                #logging.info('   %s %s' % (time_entry[0], time_entry[1]))
-                server_type  = time_entry[0]
-                service_time = time_entry[1]
-                the_task.per_server_services.append(service_time)
-                if (service_time != "None" ):
-                    the_task.per_server_service_dict[server_type] = round(float(service_time))
-
-            #logging.info('   PSD : %s' % the_task.per_server_service_dict)
-
-            parent_data = tr_entry[2]
-            the_task.parent_data = parent_data
+            # for serv in self.servers:
+            #     print(serv.type,the_task.per_server_service_dict[serv.type])
 
             # logging.info("Task rank: %d,%d,%d,%d,%d" % (the_task.rank, the_task.priority, the_task.deadline, sum_time, num_servers))
             self.tasks.append(the_task)
@@ -806,7 +749,7 @@ class STOMP:
                     self.lock.acquire()
                     tmp = self.global_task_trace[0]
                     self.lock.release()
-                    if (self.sim_time == int(tmp[0][0])):
+                    if (self.sim_time == int(tmp.arrival_time)):
                         # Customer (task) arrival...
                         # self.sim_time = self.next_cust_arrival_time
                         # logging.info("B: " + str(self.sim_time))
@@ -814,16 +757,16 @@ class STOMP:
                         if (self.generate_n_enqueue_new_task(self.num_tasks_generated)):
                             self.num_tasks_generated += 1
                     else:
-                        if(self.next_cust_arrival_time > int(tmp[0][0])):
-                            # self.sim_time = int(tmp[0][0]) - 1
-                            self.next_cust_arrival_time = int(tmp[0][0]) - 1
+                        if(self.next_cust_arrival_time > int(tmp.arrival_time)):
+                            # self.sim_time = int(tmp.arrival_time) - 1
+                            self.next_cust_arrival_time = int(tmp.arrival_time) - 1
                             # print("SB: " + str(self.next_cust_arrival_time))
                             # logging.info("C: " + str(self.sim_time))
-                    # self.next_cust_arrival_time = int(tmp[0][0])
-                    logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp[0][0]))
+                    # self.next_cust_arrival_time = int(tmp.arrival_time)
+                    logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp.arrival_time))
 
                     if (len(self.global_task_trace)):
-                            self.next_cust_arrival_time = int(self.global_task_trace[0][0][0])
+                            self.next_cust_arrival_time = int(self.global_task_trace[0].arrival_time)
                             # print("SC: " + str(self.next_cust_arrival_time))
 
 
