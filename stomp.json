@@ -23,6 +23,7 @@
         "max_queue_size":      1000000,
         "arrival_time_scale":  1.0,
         "stdev_factor":     0.01,
+        "progress_intvl_f":     10,
 
         "policies": {
             "ms1" : {

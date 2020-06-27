@@ -186,6 +186,7 @@ class STOMP:
         self.working_dir  = self.params['general']['working_dir']
         self.basename     = self.params['general']['basename']
         self.num_tasks_generated = 0
+        self.time_since_last_completed = 0
 
         logging.basicConfig(level=eval('logging.' + self.params['general']['logging_level']), format="%(message)s")
 
@@ -218,6 +219,7 @@ class STOMP:
         self.stats['Avg Resp Time per Type']  = {}    # Per task type
         self.stats['Met Deadline']            = 0     # Overall for all tasks
         self.stats['Met Deadline per Type']   = {}    # Per task type
+
         # Histograms
         self.bin_size                         = 1
         self.num_bins                         = 12
@@ -343,8 +345,8 @@ class STOMP:
             the_task = tr_entry
             the_task.trace_id = task_num
             task = the_task.type
-			
-			# logging.debug('[%10ld] Setting next task type from TRACE to %s' % (self.sim_time, task))
+
+            # logging.debug('[%10ld] Setting next task type from TRACE to %s' % (self.sim_time, task))
 
 
             # print("Task:")
@@ -399,6 +401,8 @@ class STOMP:
         self.task_completed_flag = 1
         # print('Task completed : %d,%d,%d' % (self.sim_time,server.task.dag_id,server.task.tid)) #Aporva
         # self.next_cust_arrival_time = int(round(self.sim_time))
+        self.time_since_last_completed = 0
+
         self.tlock.release()
 
 
@@ -839,8 +843,17 @@ class STOMP:
             # print("%d CAT: %lf, NSET: %lf" % (count,self.next_cust_arrival_time,self.next_serv_end_time)) #Aporva
             while(self.task_completed_flag == 1):
                 pass
-            if(self.next_cust_arrival_time > self.sim_time and self.next_serv_end_time > self.sim_time):
+            if self.next_cust_arrival_time > self.sim_time and \
+                self.next_serv_end_time > self.sim_time:
+
                 self.sim_time += 1
+                self.time_since_last_completed += 1
+                if self.time_since_last_completed > self.params['simulation']['progress_intvl_f'] * \
+                    self.params['simulation']['mean_arrival_time'] * \
+                    self.params['simulation']['arrival_time_scale']:
+                    logging.warning('[%10ld] WARNING: No completed activity since last %u timesteps' %
+                        (self.sim_time, self.time_since_last_completed))
+
                 # print("Time:" + str(self.sim_time)) #Aporva
             self.next_event = STOMP.E_NOTHING
             self.next_task_event = STOMP.E_NOTHING

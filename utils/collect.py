@@ -41,15 +41,15 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-#from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP
+from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP
 
 extra = False
 #POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2']
-POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2', 'simple_policy_ver5', 'edf', 'edf_ver5', 'ms1_update2', 'ms2_update2', 'ms3_update2'] # This is default
-ARRIVE_SCALE = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2]
-PROB         = [0.5, 0.3, 0.2, 0.1]
-DROP         = [True, False]
-STDEV_FACTOR = [0.01]
+# POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2', 'simple_policy_ver5', 'edf', 'edf_ver5', 'ms1_update2', 'ms2_update2', 'ms3_update2'] # This is default
+# ARRIVE_SCALE = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2]
+# PROB         = [0.5, 0.3, 0.2, 0.1]
+# DROP         = [True, False]
+# STDEV_FACTOR = [0.01]
 
 
 
