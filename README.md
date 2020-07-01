@@ -51,10 +51,14 @@ python3 utils/stomp-viz.py
 STOMP-viz takes as inputs:
   - CSV dump file produced during STOMP’s execution
   - Start and stop timesteps from the user (optional)
+
 STOMP-viz outputs different views of tasks' execution over time
   - Grouped by server type (e.g. CPU, GPU, accelerator)
   - Grouped by arrival time (chronologically)
   - Server utilization view
+
+A screenshot of the output of STOMP-viz on an example trace execution is shown below.
+![](stomp-viz-example.png)
 
 ## Contributors and Current Maintainers
 
