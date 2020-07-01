@@ -1,0 +1,225 @@
+#-*- mode: org; coding: utf-8-unix -*-
+* Configuration OrgMode										  :no_gantt:
+#+TITLE: example.org
+#+STARTUP: content logdone hidestars
+#+TAGS: ress1(1) ress2(2) ress3(3) grp1(g)
+#+TAGS: no_gantt(0)
+#+DRAWERS: PROPERTIES NOTE LOGBOOK
+#+OPTIONS: ^:{}
+#+EXCLUDE_TAGS: no_gantt
+#+SEQ_TODO: TODO(t) STARTED(s) WAITING(w) MILESTONE(m) | DONE(d) CANCELED(c)
+* CONFIGURATION
+:PROPERTIES:
+:start_date: -3w
+:end_date: +3w
+:today: [2015-01-01 Thu]
+:one_line_for_tasks: nil
+:color_TODO: #FFFF90
+:color_DONE: #90FF90
+:color_STARTED: #FFA0FF
+:color_CANCELED: #FF9090
+:color_WAITING: #FFFF00
+:END:
+* RESOURCES
+** Group 1
+:PROPERTIES:
+:resource_id: grp1
+:END:
+- [2015-01-01 jeu.]--[2015-02-03 mar.]
+*** Resource 1
+:PROPERTIES:
+:resource_id: ress1
+:END:
+- [2015-01-05 lun.]--[2015-01-09 ven.]
+- [2015-01-15 jeu.]--[2015-01-18 dim.]
+- [2015-01-12 lun.]
+*** Resource 2
+:PROPERTIES:
+:resource_id: ress2
+:END:
+** Resource 3
+:PROPERTIES:
+:resource_id: ress3
+:END:
+- [2014-12-17 Wed]--[2014-12-22 Mon]
+** Group 2
+:PROPERTIES:
+:resource_id: grp2
+:END:
+*** Resource 4
+:PROPERTIES:
+:resource_id: ress4
+:END:
+** Resource 5
+:PROPERTIES:
+:resource_id: ress5
+:END:
+* VACATIONS
+- [2015-01-01 jeu.]
+- [2014-12-25 jeu.]
+* Project 1
+:PROPERTIES:
+:ORDERED: nil
+:END:
+** DONE Task 1                                                  :ress1:
+SCHEDULED: <2014-12-15 lun.>
+:PROPERTIES:
+:Effort:   2d
+:task_id: task1
+:END:
+** TODO Task 2                                       :grp1:
+SCHEDULED: <2014-12-21 dim.>
+:PROPERTIES:
+:Effort:   6d
+:task_id: task2
+:BLOCKER: task1
+:PercentDone: 40
+:END:
+** TODO Task 3                                                  :ress2:
+SCHEDULED: <2015-01-05 lun.>
+:PROPERTIES:
+:Effort:   3d
+:PercentDone: 50
+:task_id: task3
+:END:
+** TODO Task 5                                                  :ress3:
+DEADLINE: <2014-12-22 lun.>
+:PROPERTIES:
+:Effort:   3d
+:task_id: task5
+:END:
+** MILESTONE  Milestone
+:PROPERTIES:
+:BLOCKER: task1 task2 task3 task5
+:task_id: ms1
+:END:
+** TODO Task 6                                                  :ress3:
+SCHEDULED: <2014-12-26 ven.> DEADLINE: <2015-01-13 mar.>
+:PROPERTIES:
+:BLOCKER: task5
+:task_id: task6
+:END:
+** TODO Task 4                                                   :ress1:
+SCHEDULED: <2015-01-10 lun.>
+:PROPERTIES:
+:Effort:   4d
+:BLOCKER: task6 ms1
+:task_id: task4
+:END:
+* Project 2
+:PROPERTIES:
+:task_id: prj2
+:END:
+** TODO Task 7                                                  :ress2:
+DEADLINE: <2014-12-24 mer.> 
+:PROPERTIES:
+:Effort:   6d
+:task_id: task7
+:END:
+** TODO Task 8                                                  :ress1:
+DEADLINE: <2015-01-10 sam.> SCHEDULED: <2014-12-31 mer.>
+:PROPERTIES:
+:task_id: task8
+:END:
+** TODO Task 9                                                  :ress2:
+SCHEDULED: <2015-01-09 ven.>
+:PROPERTIES:
+:Effort:   5d
+:BLOCKER: task7 task8
+:task_id: task9
+:END:
+** TODO Task 10                                                       :grp1:
+SCHEDULED: <2014-12-22 lun.>
+:PROPERTIES:
+:Effort:   3d
+:task_id: task10
+:END:
+** TODO Task 11                                                        :ress1:
+SCHEDULED: <2014-12-22 lun.>
+:PROPERTIES:
+:Effort:   3d
+:task_id: task11
+:END:
+** TODO Task 12                                                       :ress1:
+:PROPERTIES:
+:Effort:   3d
+:BLOCKER: task11
+:task_id: task12
+:END:
+* Project 3
+:PROPERTIES:
+:task_id: prj3
+:END:
+** TODO Task 13                                                      :ress1:
+:PROPERTIES:
+:Effort:   3d
+:BLOCKER: task12
+:task_id: task13
+:END:
+* Project 4 :ress2:
+:PROPERTIES:
+:ORDERED: t
+:color: #ff80Ff
+:task_id: prj4
+:END:
+** TODO task 41
+SCHEDULED: <2015-01-01 Thu>
+:PROPERTIES:
+:Effort:   2d
+:task_id: task41
+:END:
+** Project 4b                                                        :ress1:
+:PROPERTIES:
+:color: #4040ff
+:END:
+*** TODO task 4B1
+:PROPERTIES:
+:Effort:   2d
+:task_id: task4b1
+:END:
+*** TODO task 4B2
+:PROPERTIES:
+:Effort:   2d
+:task_id:  task4b2
+:END:
+** TODO task 42
+:PROPERTIES:
+:Effort:   4d
+:task_id: task42
+:END:
+* Sub tasks                                                           :ress1:
+:PROPERTIES:
+:ORDERED: t
+:END:
+** TODO task alone
+SCHEDULED: <2014-12-17 Wed>
+:PROPERTIES:
+:Effort:   2d
+:allocate: ress3 ress1
+:END:
+*** TODO sub task alone                                             :ress2:
+SCHEDULED: <2014-12-29 Mon>
+:PROPERTIES:
+:Effort:   3d
+:END:
+** TODO task one week                                                 :ress2:
+SCHEDULED: <2015-01-06 Tue>
+:PROPERTIES:
+:Effort:   1w
+:END:
+* Test Group
+** TODO task g1                                                        :grp1:
+SCHEDULED: <2014-12-15 Mon>
+:PROPERTIES:
+:Effort:   1d
+:END:
+** TODO task g2                                                        :grp1:
+SCHEDULED: <2014-12-16 Tue>
+:PROPERTIES:
+:Effort:   1d
+:END:
+** TODO task g2r2                                                     :ress2:
+SCHEDULED: <2014-12-16 Tue>
+:PROPERTIES:
+:Effort:   1d
+:END:

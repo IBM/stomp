@@ -1,4 +1,4 @@
-# STOMP: Scheduling Techniques Optimization in heterogeneous Multi-Processors 
+# STOMP: Scheduling Techniques Optimization in heterogeneous Multi-Processors
 
 STOMP is a simple yet powerful queue-based **discrete-event** simulator that enables fast implementation and evaluation of OS scheduling policies in multi-core/multi-processor systems. It implements a convenient interface to allow users and researchers to _plug in_ new scheduling policies in a simple manner and without the need to touch the STOMP code.
 
@@ -31,7 +31,9 @@ STOMP requires:
  - Python modules
     - numpy
     - networkx
-
+STOMP-viz requires:
+ - Python modules
+    - pandas
 
 ## Running STOMP
 
@@ -41,6 +43,18 @@ STOMP can be configured using the `stomp.json` file. To run it:
 ./stomp_main.py
 ```
 
+## STOMP-Viz
+STOMP-Viz is a utility based on the [Python-Gantt](https://pypi.org/project/python-gantt) project.
+```
+python3 utils/stomp-viz.py
+```
+STOMP-viz takes as inputs:
+  - CSV dump file produced during STOMP’s execution
+  - Start and stop timesteps from the user (optional)
+STOMP-viz outputs different views of tasks' execution over time
+  - Grouped by server type (e.g. CPU, GPU, accelerator)
+  - Grouped by arrival time (chronologically)
+  - Server utilization view
 
 ## Contributors and Current Maintainers
 

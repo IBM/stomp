@@ -1,0 +1,117 @@
+#+PROPERTY: Effort_ALL 2d 5d 10d 20d 30d 35d 50d 
+#+PROPERTY: allocate_ALL dev doc test
+#+COLUMNS: %30ITEM(Task) %Effort %allocate %BLOCKER %ORDERED
+
+* Accounting Software          
+
+** Milestones
+*** TODO Project start
+SCHEDULED: <2015-01-09 Fri>
+    :PROPERTIES:
+    :task_id:  start
+:Effort: 1d
+    :END:
+
+*** TODO Technology Preview
+    :PROPERTIES:
+    :BLOCKER:  back_end
+:Effort: 1d
+    :END:
+
+*** TODO Beta version
+    :PROPERTIES:
+    :BLOCKER:  alpha
+:Effort: 1d
+    :END:
+
+*** TODO Ship Product to Customer
+    :PROPERTIES:
+    :BLOCKER:  beta manual
+:Effort: 1d
+    :END:
+
+** TODO Specification
+   :PROPERTIES:
+   :Effort:   20d
+   :BLOCKER:  start
+   :allocate: dev
+   :END:
+
+** Software Development
+   :PROPERTIES:
+   :ORDERED:  t
+   :BLOCKER:  previous-sibling
+   :priority: 1000
+   :allocate: dev
+   :END:
+
+*** TODO Database coupling
+    :PROPERTIES:
+    :Effort:   20d
+    :END:
+
+*** TODO Back-End Functions
+    :PROPERTIES:
+    :Effort:   30d
+    :task_id:  back_end
+    :END:
+
+*** TODO Graphical User Interface
+    :PROPERTIES:
+    :Effort:   35d
+    :allocate: paul, seb
+    :END:
+
+** Software testing
+   :PROPERTIES:
+   :ORDERED:  t
+   :BLOCKER:  previous-sibling
+   :allocate: test
+   :END:
+*** TODO Alpha Test
+    :PROPERTIES:
+    :Effort:   5d
+    :task_id:  alpha
+    :END:
+
+*** TODO Beta Test
+    :PROPERTIES:
+    :Effort:   20d
+    :task_id:  beta
+    :allocate: test, paul
+    :END:
+
+** TODO Manual
+   :PROPERTIES:
+   :Effort:   50d
+   :task_id:  manual
+   :BLOCKER:  start
+   :allocate: doc
+   :END:
+
+* RESOURCES                    
+** Developers
+   :PROPERTIES:
+   :resource_id: dev
+   :END:
+*** Paul Smith
+    :PROPERTIES:
+    :resource_id: paul
+    :END:
+*** Sébastien Bono
+    :PROPERTIES:
+    :resource_id: seb
+    :END:
+*** Klaus Müller
+
+** Others
+*** Peter Murphy
+    :PROPERTIES:
+    :resource_id: doc
+    :limits:   { dailymax 6.4h }
+    :END:
+*** Dim Sung
+    :PROPERTIES:
+    :resource_id: test
+    :END:
+

@@ -1,0 +1,90 @@
+#+TITLE: TODOLIST
+#+STARTUP: overview logdone hidestars
+#+DRAWERS: PROPERTIES NOTE LOGBOOK
+#+OPTIONS: ^:{}
+#+SEQ_TODO: TODO(t) STARTED(s) WAITING(w) SOMEDAY(y) | DONE(d) CANCELED(c)
+* DONE installation bug :
+- State "DONE"       from "TODO"       [2015-01-07 Wed 19:22]
+- Note taken on [2015-01-06 mar. 18:19] \\
+  pandoc could be installed as a binary
+- Note taken on [2015-01-06 mar. 17:13] \\
+  Add README.txt to the distribution
+#+begin_src shell-script
+$ sudo python setup.py install
+Traceback (most recent call last):
+  File "setup.py", line 32, in <module>
+    long_description=open('README.txt').read(),
+IOError: [Errno 2] No such file or directory: 'README.txt'
+AN05392S@U1404:/media/sf_Personnel/ESPACE_KM/python-gantt
+#+end_src
+* DONE Group of tasks + inheritance for members if not overided (duration, resources, ordered)
+CLOSED: [2015-01-09 Fri 23:08]
+- Group have children
+- Task do not have children
+* DONE Bugs : Empty lines in project when not on screen
+- State "DONE"       from "TODO"       [2015-01-09 Fri 22:41]
+* DONE :no_gantt: tag inheritance
+CLOSED: [2015-01-10 Sat 10:20]
+* DONE Support common tags with http://orgmode.org/worg/org-tutorials/org-taskjuggler.html
+CLOSED: [2015-01-11 Sun 10:26]
+** DONE Resources ID
+** DONE Task ID
+- State "DONE"       from "TODO"       [2015-01-06 mar. 17:04]
+** DONE Dependencies
+- State "DONE"       from "TODO"       [2015-01-09 Fri 22:40]
+- The ORDERED property which allows you to state that the child tasks have to be
+  completed in the order they appear (top most first).
+- The BLOCKER property which allows you to state that a task depends on either a
+  previous sibling ("previous-sibling") or any other task by stating the task_id
+  property of the predecessor
+** DONE Group of resources
+CLOSED: [2015-01-11 Sun 10:25]
+*** DONE for each group, check that nb of assigned task <= nb of members
+CLOSED: [2015-01-11 Sun 10:25]
+in example : tasks 11, 2, 7, 10
+* TODO check for orgfile consistency and error reporting
+** TODO missing mandatory properties
+- [ ] Effort
+- [ ] task_id
+- [ ] resource_id
+- [X] scheduling / dependencies / deadline / effort
+** DONE duplicate ID on resources
+- State "DONE"       from "TODO"       [2015-01-06 mar. 17:40]
+** DONE duplicate ID on tasks
+- State "DONE"       from "TODO"       [2015-01-06 mar. 17:40]
+* DONE make a function to get if a resource or a resource in a group is available on a timeframe
+CLOSED: [2015-01-11 Sun 20:08]
+maybe a shell ? or option for the generated script ?
+* STARTED let change scale (display of weeks instead of days)
+** DONE Week
+** DONE Month
+** TODO Vacations are only drawn for daily scale
+** TODO Quaterly
+* SOMEDAY Support repetitive vacations (ie SCHEDULED DATE +1w or ++1w, +1y)
+use yield ?
+* DONE disconnect blocker assignation from task creation
+CLOSED: [2015-01-11 Sun 10:49]
+in order to have a task defined after.
+* DONE option to align task titles on the left
+CLOSED: [2015-06-06 Sat 23:54]
+> just an additional recommendation: For longer Task titles, they don't fit well into the barchart itself.
+> This is in particular the case when times are short (few months in my case). It would be therefore best,
+> if all Task names would be simply aligned as a list left to the actual diagram (like a row label).
+> Hope you understand what I mean.
+* TODO is there a way to adapt the font properties of the Task descriptions?
+* STARTED Milestones
+is there a way to specify a special class of Tasks, namely a milestone?
+Typically these are shown as diamonds.
+
+Started : a milestone is on 3 lines.
+** TODO duration of 1 is a problem for linked tasks (one day is lost)
+** TODO draw dependency lines using blank lines before and after
+- for milestone itself
+- for task depending on milestone
+* TODO change to the code for the horizontal alignment of the text
+I changed "tx = 5" to "tx = 20". I would suggest to make this horizontal offset
+an attribute of the project class. Then one can specify it as a property of each
+project.
+* TODO mode for showing critical path and tasks that can be moved without incidence
+exemple : http://www.4csys.com/images/gantt_chart_2.jpg / http://www.4csys.com/gantt_chart.htm
+* TODO use Pendulum : https://pendulum.eustace.io/
