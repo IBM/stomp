@@ -193,14 +193,13 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             server_idx = target_servers.index(min(target_servers))
 
             if (not self.servers[server_idx].busy):
-                # Pop task in queue's head and assign it to server
-                ttask = window.pop(tidx);
-                tasks.remove(ttask)
-                if (ttask.priority > 1):
+                # Pop task in queue and assign it to server
+                tasks.remove(task)
+                if (task.priority > 1):
                     num_critical_tasks -= 1
-                logging.debug('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s' % (sim_time, ttask.dag_id, ttask.tid, tidx, ttask.type, server_idx, self.servers[server_idx].type))
+                logging.debug('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s' % (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type))
                 
-                self.servers[server_idx].assign_task(sim_time, ttask)
+                self.servers[server_idx].assign_task(sim_time, task)
                 bin = int(tidx / self.bin_size)        
                 if (bin >= len(self.stats['Task Issue Posn'])):
                     bin = len(self.stats['Task Issue Posn']) - 1

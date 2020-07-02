@@ -110,12 +110,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         for task in window:
 
             if (not self.servers[task.server_idx].busy):
-                # Pop task in queue's head and assign it to server
-                ttask = window.pop(tidx);
-                tasks.remove(ttask)
-                # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, ttask.type, task.server_idx, self.servers[task.server_idx].type))
+                # Pop task in queue and assign it to server
+                tasks.remove(task)
+                # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, task.type, task.server_idx, self.servers[task.server_idx].type))
                 
-                self.servers[task.server_idx].assign_task(sim_time, ttask)
+                self.servers[task.server_idx].assign_task(sim_time, task)
                 bin = int(tidx / self.bin_size)        
                 if (bin >= len(self.stats['Task Issue Posn'])):
                     bin = len(self.stats['Task Issue Posn']) - 1
