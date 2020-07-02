@@ -46,7 +46,7 @@ CONF_FILE    = './stomp.json'
 PROMOTE = True
 POLICY       = ['ms1'] # , 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2', 'heft', 'rheft']
 STDEV_FACTOR = [0.01] # percentages
-ARRIVE_SCALE = [0.8] # , 1.0, 1.2, 1.4] # percentages
+ARRIVE_SCALE = [1.0, 1.5, 2.0] # , 1.0, 1.2, 1.4] # percentages
 PROB         = [0.5] # , 0.4, 0.3, 0.2, 0.1]
 DROP         = [True] # , False]
 folder = "MS"
@@ -145,6 +145,10 @@ def main(argv):
         for prob in PROB:
             for arr_scale in ARRIVE_SCALE:
 
+                if arr_scale < 1:
+                    print("Error: for arr_scale: %d. Arrival_scale less than 1 is not supported" %(arr_scale))
+                    break
+
                 sim_output[arr_scale] = {}
                 stomp_params['simulation']['arrival_time_scale'] = arr_scale
 
@@ -171,8 +175,7 @@ def main(argv):
                             stdev_service_time = (stdev_factor*mean_service_time)
                             stomp_params['simulation']['tasks'][task]['stdev_service_time'][server] = stdev_service_time
 
-                    stomp_params['general']['basename'] = 'policy:' + policy \
-                                                    + '__stdev_factor:' + str(stdev_factor)
+                    stomp_params['general']['basename'] = policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob)
                     conf_str = json.dumps(stomp_params)
 
                     ###########################################################################################

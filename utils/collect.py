@@ -99,7 +99,7 @@ def main(argv):
                     header1 = "ACCEL_COUNT,DROP,PROB,ARR_SCALE"
                     out1 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale)
                     for policy in POLICY:
-                        header = header1 + ",Policy,Mission time,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Energy"
+                        header = header1 + ",Policy,Mission time,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Dropped Cnt,Energy"
                         if (extra):
                             header = header + "," + policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
                         priority_1_slack[policy]        = 0
@@ -215,7 +215,7 @@ def main(argv):
                             mission_completed[policy] = 1.0;
 
                         out = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy)
-                        out += ((",%lf,%lf,%lf,%lf,%d,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],total_energy[policy]))
+                        out += ((",%lf,%lf,%lf,%lf,%d,%d,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],cnt_dropped_1[policy],total_energy[policy]))
                         if(extra):
                             out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
 

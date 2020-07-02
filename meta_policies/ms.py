@@ -55,7 +55,7 @@ class MetaPolicy(BaseMetaPolicy):
         # logging.info("Task rank: %d,%d,%d,%d,%d" % (task.rank, priority, deadline, sum, (len(stomp.servers) - none)))
 
     def dropping_policy(self, dag, task_node): 
-        ex_time = max_length(dag.graph, task_node)
+        ex_time = max_length(dag.graph, task_node) #BCET of critical path
         if(dag.slack - ex_time < 0 and dag.priority == 1):
 
             dag.dropped = 1

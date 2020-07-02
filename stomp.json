@@ -18,12 +18,12 @@
         "total_ptoks": 1000,
         "promote": true,
         "max_tasks_simulated": 10000,
-        "mean_arrival_time":   25,
+        "mean_arrival_time":   2,
         "power_mgmt_enabled":  false,
         "max_queue_size":      1000000,
         "arrival_time_scale":  1.0,
         "stdev_factor":     0.01,
-        "progress_intvl_f":     10,
+        "progress_intvl_f":     1000,
 
         "policies": {
             "ms1" : {
