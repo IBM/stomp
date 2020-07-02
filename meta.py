@@ -322,6 +322,14 @@ class META:
                 for dag_id in self.dag_id_list:
                     the_dag_sched = self.dag_dict[dag_id]
 
+                    if dag_id in self.stomp.drop_hint_list: # or the_dag_sched.priority == 1:
+                        # print("[ID: %d]Dropping based on hint from task scheduler" %(dag_id))
+                        dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
+                        self.stomp.dags_dropped.append(dag_id)
+                        dropped_list.append(dropped_entry)
+                        dropped_dag_id_list.append(dag_id)
+                        continue 
+
                     for node,deg in the_dag_sched.graph.in_degree():
                         if deg == 0:
                             ##### DROPPED ##########
@@ -337,6 +345,7 @@ class META:
 
                             if node.scheduled == 0:
                                 if(self.meta_policy.dropping_policy(the_dag_sched, node)):
+                                    # print("Dropping [%d.[%d]" % (dag_id, node.tid))
                                     dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
                                     self.stomp.dags_dropped.append(dag_id)
                                     dropped_list.append(dropped_entry)
@@ -371,7 +380,7 @@ class META:
                             if (the_dag_sched.arrival_time > time_interval + promote_interval and the_dag_sched.priority == 1 and node.tid != 0):
                                 # print("%d: DAG id: %d, atime: %d, completed DAGs: %d\n" % (self.stomp.sim_time, dag_id, the_dag_sched.arrival_time, dags_completed_per_interval))
                                 if dags_completed_per_interval <= 0: 
-                                    the_dag_sched.priority = 2
+                                    the_dag_sched.priority = 3
                                     # print("%d: Dag promoted\n" %(self.stomp.sim_time))
                                 dags_completed_per_interval = 0
                                 time_interval = the_dag_sched.arrival_time
@@ -417,6 +426,7 @@ class META:
                         self.meta_policy.meta_dynamic_rank(self.stomp, node, the_dag_sched.comp, max_time, min_time, deadline, priority)
 
                         # def init_task(self, arrival_time, dag_id, tid, type, params, priority, deadline):
+                        # print("[%d.%d] creating task for dag type: %s  deadline: %d" %(dag_id, node.tid, the_dag_sched.dag_type, deadline))
                         node.init_task(atime, dag_id, node.tid, task_type, self.params['simulation']['tasks'][task_type], priority, deadline)
                         node.dtime = int(the_dag_sched.dtime)
                         node.ftsched = the_dag_sched.policy_variables.ftsched

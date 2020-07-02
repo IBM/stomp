@@ -146,7 +146,7 @@ class BaseSchedulingPolicy:
     def init(self, servers, stomp_stats, stomp_params): pass
 
     @abstractmethod
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped): pass
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped, drop_hint_list): pass
 
     @abstractmethod
     def remove_task_from_server(self, sim_time, server): pass
@@ -196,6 +196,7 @@ class STOMP:
         logging.info("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
 
         self.tasks                            = []   # Main queue
+        self.num_critical_tasks               = 0
         self.servers                          = []
         self.tasks_to_servers                 = {}   # Maps task type to target servers
         #self.supported_servers               = []
@@ -255,6 +256,7 @@ class STOMP:
         self.task_assign_trace.write('Time\tResponse time (avg)\n')
 
         self.dags_dropped                     = []
+        self.drop_hint_list                   = []
         self.tasks_completed                  = []
         self.next_event                       = STOMP.E_NOTHING
         self.next_task_event                  = STOMP.E_NOTHING
@@ -367,6 +369,9 @@ class STOMP:
             #     print(serv.type,the_task.per_server_service_dict[serv.type])
 
             # logging.info("Task rank: %d,%d,%d,%d,%d" % (the_task.rank, the_task.priority, the_task.deadline, sum_time, num_servers))
+            if (the_task.priority > 1):
+                self.num_critical_tasks += 1
+
             self.tasks.append(the_task)
             self.stats['Tasks Generated'] += 1
 
@@ -806,7 +811,7 @@ class STOMP:
             ######################################################################
             # 3) Make scheduling decisions                                       #
             ######################################################################
-            server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks, self.dags_dropped)
+            server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks, self.dags_dropped, self.drop_hint_list, self.num_critical_tasks)
             self.ta_time = self.sched_policy.ta_time
             self.to_time = self.sched_policy.to_time
 
