@@ -36,6 +36,8 @@
 #
 
 
+# MS3 Update 2 + power constraints + DVFS + reserving task for originally selected server overriding power constraints
+
 from stomp import BaseSchedulingPolicy
 import logging
 import numpy
@@ -110,7 +112,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             #     ptoks))
         return mean_service_time, ptoks, clk_scale
 
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped, drop_hint_list, num_critical_tasks):
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
@@ -120,8 +122,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             if task.dag_id in dags_dropped:
                 # print("Removing dropped dag")
                 tasks.remove(task)
-                if (task.priority > 1):
-                    num_critical_tasks -= 1
 
         if (len(tasks) > max_task_depth_to_check):
             window_len = max_task_depth_to_check
@@ -129,8 +129,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             window_len = len(tasks)
 
         start = datetime.now()
-
-
         for t in tasks:
             max_time = 0
             min_time = 100000
@@ -146,59 +144,22 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
 
             if ((t.deadline -(sim_time-t.arrival_time) - (max_time)) < 0):
-
-                # 
-                #     slack = 1 - 0.99/((sim_time-t.arrival_time) + max_time - t.deadline)
-                #     t.rank = int((100000 * (10*t.priority))/slack)
-                # else:
-                if (t.priority > 1):
+                if(t.priority > 1):
+                    slack = 1 - 0.99/((sim_time-t.arrival_time) + max_time - t.deadline)
+                    t.rank = int((100000 * (10*t.priority))/slack)
+                else:
                     if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
                         slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
-                        t.rank = int((100000 * (100*t.priority))/slack)
-                        # print("[%d] [%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
-                        #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
-                        
+                        t.rank = int((100000 * (t.priority))/slack)
                     else:
-                        slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
-                        t.rank = int((100000 * (10000*t.priority))/slack)
-                        # print("[%d] [%d,%d] Deadline passed deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
-                        #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
-                        
-                else:
-                    if (num_critical_tasks > 0):
                         t.rank = 0
-                        drop_hint_list.append(t.dag_id)
-                    else:
-                        if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
-                            slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
-                            t.rank = int((100000 * (10*t.priority))/slack)
-                            # print("[%d] [%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
-                            #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
-                            
-                        else:
-                            # print("[%d] [%d,%d] Min deadline doesnt exist/priority 1 type:%s with no max deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
-                            #     (sim_time, t.dag_id, t.tid, t.type, t.deadline, slack, t.arrival_time, max_time, min_time))
-                            t.rank = 0
-                            drop_hint_list.append(t.dag_id)
-
             else:
                 slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))
-                t.rank = int((100000 * (t.priority))/slack)
-                # print("[%d] [%d,%d] Max deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
-                #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
+                t.rank = int((100000 * (10*t.priority))/slack)
 
             # logging.info("%d: [READY QUEUE TASKS] [%d.%d]" %(sim_time, t.dag_id, t.tid))
 
         tasks.sort(key=lambda task: task.rank, reverse=True)
-        
-        # print("Start")
-        # for t in tasks:
-        #     print("[%d] [%d,%d] deadline:%d, atime:%d, max_time: %d, min_time: %d" % 
-        #         (sim_time, t.dag_id, t.tid, t.deadline, t.arrival_time, max_time, min_time))
-            
-        #     print("[%d]: [%d.%d] Rank: %d, PSI: %s" % (sim_time, t.dag_id, t.tid, t.rank, t.possible_server_idx))
-        # print("End")
-
         end = datetime.now()
         self.to_time += end - start
         # print(("TO: %d")%(self.to_time.microseconds))
@@ -217,44 +178,48 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         for task in window:
             # logging.debug('[%10ld] Attempting to schedule task %2d : %s' % (sim_time, tidx, task.type))
 
-            # Compute execution times for each target server, factoring in
-            # the remaining execution time of tasks already running.
-            target_servers = []
-            for server in self.servers:
+            if task.reserved_server_id == None:
+                # Compute execution times for each target server, factoring in
+                # the remaining execution time of tasks already running.
+                target_servers = []
+                for server in self.servers:
 
-                # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
-                if (server.type in task.mean_service_time_dict):
+                    # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
+                    if (server.type in task.mean_service_time_dict):
 
-                    mean_service_time = task.mean_service_time_dict[server.type]
-                    if self.dvfs:
-                        mean_service_time, ptoks, clk_scale = self.apply_dvfs(
-                            sim_time, task, mean_service_time, task.power_dict[server.type])
+                        mean_service_time = task.mean_service_time_dict[server.type]
+                        if self.dvfs:
+                            mean_service_time, ptoks, clk_scale = self.apply_dvfs(
+                                sim_time, task, mean_service_time, task.power_dict[server.type])
 
-                    if (server.busy):
-                        remaining_time  = server.curr_job_end_time - sim_time
-                        for stask in window:
-                            if(stask == task):
-                                break
-                            if (self.servers.index(server) == stask.possible_server_idx):
-                                assert stask.possible_mean_service_time != None
-                                # print("[%10u][%u.%u] stask[%u.%u] reserved for server %u; mean_service_time = %u (dict=%u)" %
-                                #     (sim_time, task.dag_id, task.tid, stask.dag_id, stask.tid, stask.possible_server_idx,
-                                #         stask.possible_mean_service_time, stask.mean_service_time_dict[server.type]))
-                                remaining_time += stask.possible_mean_service_time # set when server for stask is reserved
-                                # assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
+                        if (server.busy):
+                            remaining_time  = server.curr_job_end_time - sim_time
+                            for stask in window:
+                                if(stask == task):
+                                    break
+                                if (self.servers.index(server) == stask.possible_server_idx):
+                                    assert stask.possible_mean_service_time != None
+                                    # print("[%10u][%u.%u] stask[%u.%u] reserved for server %u; mean_service_time = %u (dict=%u)" %
+                                    #     (sim_time, task.dag_id, task.tid, stask.dag_id, stask.tid, stask.possible_server_idx,
+                                    #         stask.possible_mean_service_time, stask.mean_service_time_dict[server.type]))
+                                    remaining_time += stask.possible_mean_service_time # set when server for stask is reserved
+                                    # assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
+                        else:
+                            remaining_time  = 0
+                        actual_service_time = mean_service_time + remaining_time
+
+                        logging.debug('[%10ld] Server %s : mst %d ast %d ' %
+                            (sim_time, server.type, mean_service_time, actual_service_time))
+                        target_servers.append(actual_service_time)
                     else:
-                        remaining_time  = 0
-                    actual_service_time = mean_service_time + remaining_time
+                        target_servers.append(float("inf"))
 
-                    logging.debug('[%10ld] Server %s : mst %d ast %d ' %
-                        (sim_time, server.type, mean_service_time, actual_service_time))
-                    target_servers.append(actual_service_time)
-                else:
-                    target_servers.append(float("inf"))
+                # Look for the server with smaller actual_service_time
+                # and check if it's available
+                server_idx = target_servers.index(min(target_servers))
+            else:
+                server_idx = task.reserved_server_id
 
-            # Look for the server with smaller actual_service_time
-            # and check if it's available
-            server_idx = target_servers.index(min(target_servers))
             server = self.servers[server_idx]
 
             rqstd_ptoks = task.power_dict[server.type]
@@ -270,39 +235,45 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     clk_scale = 1.
 
                 if rqstd_ptoks <= self.avail_ptoks:         # Have sufficient power tokens.
-                    # Pop task in queue's head and assign it to server
-                    # ttask = window.pop(tidx);
-                    # tasks.remove(ttask)
-                    # print("TASK %u.%u" % (task.dag_id, task.tid))
-                    tasks.remove(task)
-                    if (task.priority > 1):
-                        num_critical_tasks -= 1
-                    logging.debug('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s' % (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type))
-                    task.ptoks_used = rqstd_ptoks
-                    # print("TASK %u.%u" % (task.dag_id, task.tid))
+                    if not server.reserved or \
+                        task.reserved_server_id == server_idx:   # Server is not reserved OR reserved for this task.
+                        # Clear reserved bit and invalidate reserved_for_task.
+                        server.reserved = False
 
-                    # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, ttask.type, server_idx, self.servers[server_idx].type))
+                        # Pop task in queue's head and assign it to server
+                        # ttask = window.pop(tidx);
+                        # tasks.remove(ttask)
+                        # print("TASK %u.%u" % (task.dag_id, task.tid))
+                        tasks.remove(task)
+                        task.ptoks_used = rqstd_ptoks
+                        # print("TASK %u.%u" % (task.dag_id, task.tid))
 
-                    # Embed the actual ptoks used by task into its object
-                    server.assign_task(sim_time, task, 1 / clk_scale)
-                    self.avail_ptoks -= task.ptoks_used
-                    # if sim_time >= 12000:
-                    # logging.info("[%10u] [%u.%u] rqstd_ptoks = %d, avail_ptoks now is = %d, server assigned: %d" %
-                    #     (sim_time, task.dag_id, task.tid, task.ptoks_used, self.avail_ptoks, server.id))
-                    bin = int(tidx / self.bin_size)
-                    if (bin >= len(self.stats['Task Issue Posn'])):
-                        bin = len(self.stats['Task Issue Posn']) - 1
-                    # logging.debug('[          ] Set BIN from %d / %d to %d vs %d = %d' % (tidx, self.bin_size, int(tidx / self.bin_size), len(self.stats['Task Issue Posn']), bin))
-                    self.stats['Task Issue Posn'][bin] += 1
-                    end = datetime.now()
-                    self.ta_time += end - start
-                    # print(("TA: %d")%(self.ta_time.microseconds))
-                    return server
+                        # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, ttask.type, server_idx, self.servers[server_idx].type))
+
+                        # Embed the actual ptoks used by task into its object
+                        server.assign_task(sim_time, task, 1 / clk_scale)
+                        self.avail_ptoks -= task.ptoks_used
+                        # if sim_time >= 12000:
+                        # logging.info("[%10u] [%u.%u] rqstd_ptoks = %d, avail_ptoks now is = %d, server assigned: %d" %
+                        #     (sim_time, task.dag_id, task.tid, task.ptoks_used, self.avail_ptoks, server.id))
+                        bin = int(tidx / self.bin_size)
+                        if (bin >= len(self.stats['Task Issue Posn'])):
+                            bin = len(self.stats['Task Issue Posn']) - 1
+                        # logging.debug('[          ] Set BIN from %d / %d to %d vs %d = %d' % (tidx, self.bin_size, int(tidx / self.bin_size), len(self.stats['Task Issue Posn']), bin))
+                        self.stats['Task Issue Posn'][bin] += 1
+                        end = datetime.now()
+                        self.ta_time += end - start
+                        # print(("TA: %d")%(self.ta_time.microseconds))
+                        return server
+                    else:
+                        pass
+                        # print("[%10u] Else case: [%u.%u] want server: %d" % (sim_time, task.dag_id, task.tid, server.id))
                 else:   # Not enough tokens, reserve server for later.
-                    # assert False, "=====================XXXXXXXX========================"
                     # if sim_time >= 12000:
                     # logging.info("[%10u] [%u.%u] Stalling because not enough power tokens (rqstd=%u, avail=%u), reserving server: %d" %
                     #     (sim_time, task.dag_id, task.tid, rqstd_ptoks, self.avail_ptoks, server.id))
+                    server.reserved                 = True
+                    task.reserved_server_id         = server_idx
                     task.possible_server_idx        = server_idx    # Used by other tasks to calculate best finish time
                     task.possible_mean_service_time = mean_service_time
             else:

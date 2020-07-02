@@ -65,20 +65,18 @@ class Server:
 
         logging.debug('Server %d of type %s created' % (self.id, self.type))
 
-
     def reset(self):
 
         self.busy                   = False
+        self.reserved               = False
         self.curr_service_time      = None
         self.curr_job_start_time    = None
         self.curr_job_end_time      = None
         self.last_usage_started_at  = None
         self.task                   = None
+        self.curr_job_ptoks         = 0
 
-
-
-    def assign_task(self, sim_time, task):
-
+    def assign_task(self, sim_time, task, service_time_scale=None):
         # At this moment, we know the target server where the task will run.
         # Therefore, we can compute the task's service time
         task_dag_id                     = task.dag_id
@@ -88,11 +86,16 @@ class Server:
         mean_service_time               = task.mean_service_time_dict[self.type]
         stdev_service_time              = task.stdev_service_time_dict[self.type]
         service_time                    = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
+        if service_time_scale != None:
+            service_time_new            = service_time * service_time_scale
+            # assert service_time == service_time_new, "==================xxxxxxxxxxxxxx=================="
+            service_time = service_time_new
+            # print("service_time=%u, service_time_scale=%u" % (service_time, service_time_scale))
         noaffinity_time                 = 0
         #service_time                     = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
         # Ensure that the random service time is a positive value...
         if (service_time <= 0):
-            service_time                    = 1
+            service_time = 1
 
         #### AFFINITY ####
         # Maintain dag_id + task id of last executed task
@@ -110,9 +113,9 @@ class Server:
                 # print("No Affinity for parent %lf" % (noaffinity_time))
         task.noaffinity_time = int(noaffinity_time)
         task.server_type = self.type
-
-
         task.task_service_time              = service_time + task.noaffinity_time
+        # print("service_time=%u, task_service_time=%u" % (service_time, task.task_service_time))
+
         self.busy                           = True
         self.curr_service_time              = task.task_service_time
         self.curr_job_start_time            = sim_time
@@ -125,6 +128,8 @@ class Server:
         self.busy_time                      += self.curr_service_time
         self.last_dag_id                    = task_dag_id
         self.last_task_id                   = task_tid
+
+        self.curr_job_ptoks                 = task.ptoks_used
 
         logging.debug("[%10ld] Assigned task %d %s : srv %d st %d end %d est %d" % (sim_time, task.trace_id, task.type, self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
 
@@ -188,7 +193,9 @@ class STOMP:
         self.num_tasks_generated = 0
         self.time_since_last_completed = 0
 
-        logging.basicConfig(level=eval('logging.' + self.params['general']['logging_level']), format="%(message)s")
+        logging.basicConfig(level=eval('logging.' + self.params['general']['logging_level']),
+                            format="%(message)s",
+                            stream=sys.stdout)
 
         numpy.random.seed(self.params['general']['random_seed'])
 
@@ -391,8 +398,6 @@ class STOMP:
 
         return True
 
-
-
     def release_server(self, server):
 
         # Update statistics
@@ -404,9 +409,14 @@ class STOMP:
         self.tlock.acquire()
         self.tasks_completed.append(server.task)
         self.task_completed_flag = 1
-        # print('Task completed : %d,%d,%d' % (self.sim_time,server.task.dag_id,server.task.tid)) #Aporva
-        # self.next_cust_arrival_time = int(round(self.sim_time))
-        self.time_since_last_completed = 0
+        self.next_cust_arrival_time = int(round(self.sim_time))
+        assert server.curr_job_ptoks != 0
+        self.sched_policy.avail_ptoks += server.curr_job_ptoks
+        # logging.info('[%10d][%d.%d] restored %u ptoks, current available ptoks = %u, releasing server = %d' % 
+            # (self.sim_time, server.task.dag_id, server.task.tid, server.curr_job_ptoks, 
+            #  self.sched_policy.avail_ptoks, server.id)) #Aporva
+        if self.params['simulation']['no_completed_activity_check']:
+            self.time_since_last_completed = 0
 
         self.tlock.release()
 
@@ -440,6 +450,8 @@ class STOMP:
         self.stats['Available Servers'][server.type]     += 1
         self.next_serv_end_time                           = float("inf")
         self.next_serv_end                                = None
+
+        self.curr_job_ptoks = 0
 
         avg_resp_time = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
         self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%d,%d,%d,%d,%s,%d,%d,%d\n' % (
@@ -677,6 +689,8 @@ class STOMP:
     def run(self):
 
         logging.info('\nRunning STOMP simulation...')
+        # print("**Testing warning**\n", file=sys.stderr)
+        # print("**Testing error**\n", file=sys.stderr)
 
         # This is because some scheduling policies may need to know about
         # the existent servers in order to make scheduling decisions
@@ -852,12 +866,13 @@ class STOMP:
                 self.next_serv_end_time > self.sim_time:
 
                 self.sim_time += 1
-                self.time_since_last_completed += 1
-                if self.time_since_last_completed > self.params['simulation']['progress_intvl_f'] * \
-                    self.params['simulation']['mean_arrival_time'] * \
-                    self.params['simulation']['arrival_time_scale']:
-                    logging.warning('[%10ld] WARNING: No completed activity since last %u timesteps' %
-                        (self.sim_time, self.time_since_last_completed))
+                if self.params['simulation']['no_completed_activity_check']:
+                    self.time_since_last_completed += 1
+                    if self.time_since_last_completed > self.params['simulation']['progress_intvl_f'] * \
+                        self.params['simulation']['mean_arrival_time'] * \
+                        self.params['simulation']['arrival_time_scale']:
+                        print('[%10ld] WARNING: No completed activity since last %u timesteps' % 
+                            (self.sim_time, self.time_since_last_completed), file=sys.stderr)
 
                 # print("Time:" + str(self.sim_time)) #Aporva
             self.next_event = STOMP.E_NOTHING

@@ -41,7 +41,7 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-from run_all_2 import POLICY, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP
+from run_all_2 import POLICY, SLACK_PERC, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP, PTOKS
 
 extra = False
 #POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2']
@@ -50,10 +50,6 @@ extra = False
 # PROB         = [0.5, 0.3, 0.2, 0.1]
 # DROP         = [True, False]
 # STDEV_FACTOR = [0.01]
-
-
-
-
 
 conf_file    = './stomp.json'
 
@@ -72,158 +68,187 @@ stdev_factor = STDEV_FACTOR[0]
 def main(argv):
     sim_dir = argv
     first = 1
-    for drop in DROP:
-        for prob in PROB:
-            for arr_scale in ARRIVE_SCALE:
-                for accel_count in range(5,6):
-                    cnt_1                   = {}
-                    cnt_dropped_1           = {}
-                    priority_1_slack        = {}
-                    priority_1_met          = {}
-                    priority_1_noaff_per    = {}
+    for slack_perc in SLACK_PERC:
+        for drop in DROP:
+            for prob in PROB:
+                for arr_scale in ARRIVE_SCALE:
+                    for ptoks in PTOKS:
+                        for accel_count in range(5,6):
+                            cnt_1                   = {}
+                            cnt_dropped_1           = {}
+                            priority_1_slack        = {}
+                            priority_1_met          = {}
+                            priority_1_noaff_per    = {}
 
-                    cnt_2                   = {}
-                    cnt_dropped_2           = {}
-                    priority_2_slack        = {}
-                    priority_2_met          = {}
-                    priority_2_noaff_per    = {}
+                            cnt_2                   = {}
+                            cnt_dropped_2           = {}
+                            priority_2_slack        = {}
+                            priority_2_met          = {}
+                            priority_2_noaff_per    = {}
 
-                    mission_time            = {}
-                    mission_completed       = {}
-                    total_energy            = {}
-                    ctime                   = {}
-                    rtime                   = {}
-                    ta_time                 = {}
-                    to_time                 = {}
+                            mission_time            = {}
+                            mission_completed       = {}
+                            total_energy            = {}
+                            ctime                   = {}
+                            rtime                   = {}
+                            ta_time                 = {}
+                            to_time                 = {}
 
-                    header1 = "ACCEL_COUNT,DROP,PROB,ARR_SCALE"
-                    out1 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale)
-                    for policy in POLICY:
-                        header = header1 + ",Policy,Mission time,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Dropped Cnt,Energy"
-                        if (extra):
-                            header = header + "," + policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
-                        priority_1_slack[policy]        = 0
-                        priority_1_met[policy]          = 0
-                        cnt_1[policy]                   = 0
-                        priority_2_slack[policy]        = 0
-                        priority_2_met[policy]          = 0
-                        cnt_2[policy]                   = 0
-                        cnt_dropped_1[policy]           = 0
-                        cnt_dropped_2[policy]           = 0
-                        priority_1_noaff_per[policy]    = 0
-                        priority_2_noaff_per[policy]    = 0
-                        mission_time[policy]            = 0
-                        mission_completed[policy]       = 0
-                        mission_failed                  = 0
-                        total_energy[policy]            = 0
+                            header1 = "ACCEL_COUNT,SLACK_PERC,DROP,PROB,ARR_SCALE,PTOKS"
+                            out1 = str(accel_count) + "," + \
+                                str(slack_perc) + "," + \
+                                str(drop) + "," + \
+                                str(prob) + "," + \
+                                str(arr_scale) + "," + \
+                                str(ptoks)
+                            for policy in POLICY:
+                                header = header1 + ",Policy,Mission time,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Dropped Cnt,Energy"
+                                if (extra):
+                                    header = header + "," + policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
+                                priority_1_slack[policy]        = 0
+                                priority_1_met[policy]          = 0
+                                cnt_1[policy]                   = 0
+                                priority_2_slack[policy]        = 0
+                                priority_2_met[policy]          = 0
+                                cnt_2[policy]                   = 0
+                                cnt_dropped_1[policy]           = 0
+                                cnt_dropped_2[policy]           = 0
+                                priority_1_noaff_per[policy]    = 0
+                                priority_2_noaff_per[policy]    = 0
+                                mission_time[policy]            = 0
+                                mission_completed[policy]       = 0
+                                mission_failed                  = 0
+                                total_energy[policy]            = 0
 
-                        ctime[policy]                   = 0
-                        rtime[policy]                   = 0
-                        ta_time[policy]                 = 0
-                        to_time[policy]                 = 0
+                                ctime[policy]                   = 0
+                                rtime[policy]                   = 0
+                                ta_time[policy]                 = 0
+                                to_time[policy]                 = 0
 
-                        flag = 0
-                        # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
-                        # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
-                        #fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'
-                        fname = str(sim_dir) + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out'
-                        if os.path.exists(fname):
-                            pass
-                        else:
+                                flag = 0
+                                # print((str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'))
+                                # with open(str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor)  + '_cpu_' + str(accel_count) + '.out','r') as fp:
+                                #fname = str(sim_dir) + '/run_stdout_' + policy + "_arr_" + str(arr_scale) + '_stdvf_' + str(stdev_factor) + '.out'
+                                fname = str(sim_dir) + '/run_stdout_' + policy + \
+                                    "_slack_perc_" + str(slack_perc) + \
+                                    "_drop_" + str(drop) + \
+                                    "_arr_" + str(arr_scale) + \
+                                    '_prob_' + str(prob) + \
+                                    '_ptoks_' + str(ptoks) + \
+                                    '.out'
+                                # print(fname)
+                                if os.path.exists(fname):
+                                    pass
+                                else:
 
-                            out2 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy)
-                            print(out2 + ",NodataYet")
-                            continue
-                        with open(fname,'r') as fp:
-                            line = fp.readline()
-                            while(line):
-                                line = fp.readline()
-                                if not line:
-                                    break
-                                if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy\n"):
-                                    flag = 1
+                                    out2 = str(accel_count) + "," + \
+                                        str(slack_perc) + "," + \
+                                        str(drop) + "," + \
+                                        str(prob) + "," + \
+                                        str(arr_scale) + "," + \
+                                        str(ptoks) + "," + \
+                                        str(policy)
+                                    print(out2 + ",NodataYet")
                                     continue
+                                with open(fname,'r') as fp:
+                                    line = fp.readline()
+                                    while(line):
+                                        line = fp.readline()
+                                        if not line:
+                                            break
+                                        if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy\n"):
+                                            flag = 1
+                                            continue
 
-                                if (line.startswith("Time")):
-                                    flag = 0
-                                    #Time: C, R, TA, TO
-                                    theader,data = line.split(':')
-                                    #print(data)
-                                    ct, rt, ta_t, to_t = data.split(',')
+                                        if (line.startswith("Time")):
+                                            flag = 0
+                                            #Time: C, R, TA, TO
+                                            theader,data = line.split(':')
+                                            #print(data)
+                                            ct, rt, ta_t, to_t = data.split(',')
 
-                                    ctime[policy]       = float(ct)
-                                    rtime[policy]       = float(rt)
-                                    ta_time[policy]     = float(ta_t)
-                                    to_time[policy]     = float(to_t)
-                                    #print(ctime[policy],rtime[policy],ta_time[policy],to_time[policy])
+                                            ctime[policy]       = float(ct)
+                                            rtime[policy]       = float(rt)
+                                            ta_time[policy]     = float(ta_t)
+                                            to_time[policy]     = float(to_t)
+                                            #print(ctime[policy],rtime[policy],ta_time[policy],to_time[policy])
 
 
-                                if (flag):
-                                    if(cnt_1[policy] + cnt_2[policy] >= 1000):
-                                        break
-                                    # print(line)
-                                    dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.split(',')
-                                    total_energy[policy] = int(energy)
-                                    if priority == '1':
-                                        cnt_1[policy] += 1
-                                        if (int(dropped) == 1):
-                                            cnt_dropped_1[policy] += 1
-                                        else:
-                                            if dag_type == '5':
-                                                priority_1_slack[policy] += float(slack)/deadline_5
-                                            else:
-                                                if dag_type == '7':
-                                                    priority_1_slack[policy] += float(slack)/deadline_7
+                                        if (flag):
+                                            if(cnt_1[policy] + cnt_2[policy] >= 1000):
+                                                break
+                                            # print(line)
+                                            # print(line.rstrip().split(','))
+                                            if line.count(',') != 7:
+                                                continue
+                                            dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.rstrip().split(',')
+                                            total_energy[policy] = float(energy)
+                                            if priority == '1':
+                                                cnt_1[policy] += 1
+                                                if (int(dropped) == 1):
+                                                    cnt_dropped_1[policy] += 1
                                                 else:
-                                                    priority_1_slack[policy] += float(slack)/deadline_10
-                                            if(float(slack) >= 0):
-                                                priority_1_met[policy] += 1
-                                            priority_1_noaff_per[policy] += float(noafftime)/float(resp)
-                                    else:
-                                        cnt_2[policy] += 1
-                                        if (int(dropped) == 1):
-                                            cnt_dropped_2[policy] += 1
-                                        else:
-                                            if dag_type == '5':
-                                                priority_2_slack[policy] += float(slack)/deadline_5
+                                                    if dag_type == '5':
+                                                        priority_1_slack[policy] += float(slack)/deadline_5
+                                                    else:
+                                                        if dag_type == '7':
+                                                            priority_1_slack[policy] += float(slack)/deadline_7
+                                                        else:
+                                                            priority_1_slack[policy] += float(slack)/deadline_10
+                                                    if(float(slack) >= 0):
+                                                        priority_1_met[policy] += 1
+                                                    priority_1_noaff_per[policy] += float(noafftime)/float(resp)
                                             else:
-                                                if dag_type == '7':
-                                                    priority_2_slack[policy] += float(slack)/deadline_7
+                                                cnt_2[policy] += 1
+                                                if (int(dropped) == 1):
+                                                    cnt_dropped_2[policy] += 1
                                                 else:
-                                                    priority_2_slack[policy] += float(slack)/deadline_10
-                                            if(float(slack) >= 0):
-                                                priority_2_met[policy] += 1
-                                            elif(mission_failed != 1):
-                                                mission_failed = 1
-                                                mission_completed[policy] = priority_2_met[policy]
-                                            priority_2_noaff_per[policy] += float(noafftime)/float(resp)
-                                            mission_time[policy] += float(resp)
+                                                    if dag_type == '5':
+                                                        priority_2_slack[policy] += float(slack)/deadline_5
+                                                    else:
+                                                        if dag_type == '7':
+                                                            priority_2_slack[policy] += float(slack)/deadline_7
+                                                        else:
+                                                            priority_2_slack[policy] += float(slack)/deadline_10
+                                                    if(float(slack) >= 0):
+                                                        priority_2_met[policy] += 1
+                                                    elif(mission_failed != 1):
+                                                        mission_failed = 1
+                                                        mission_completed[policy] = priority_2_met[policy]
+                                                    priority_2_noaff_per[policy] += float(noafftime)/float(resp)
+                                                    mission_time[policy] += float(resp)
 
-                        if(cnt_1[policy] != cnt_dropped_1[policy]):
-                            priority_1_slack[policy] = float(priority_1_slack[policy])/(cnt_1[policy]-cnt_dropped_1[policy])
-                            priority_1_noaff_per[policy] = priority_1_noaff_per[policy]/(cnt_1[policy]-cnt_dropped_1[policy])
-                        priority_2_slack[policy] = float(priority_2_slack[policy])/(cnt_2[policy]-cnt_dropped_2[policy])
-                        priority_1_met[policy] = float(priority_1_met[policy])/cnt_1[policy]
-                        priority_2_met[policy] = float(priority_2_met[policy])/cnt_2[policy]
+                                if(cnt_1[policy] != cnt_dropped_1[policy]):
+                                    priority_1_slack[policy] = float(priority_1_slack[policy])/(cnt_1[policy]-cnt_dropped_1[policy])
+                                    priority_1_noaff_per[policy] = priority_1_noaff_per[policy]/(cnt_1[policy]-cnt_dropped_1[policy])
+                                priority_2_slack[policy] = float(priority_2_slack[policy])/(cnt_2[policy]-cnt_dropped_2[policy])
+                                priority_1_met[policy] = float(priority_1_met[policy])/cnt_1[policy]
+                                priority_2_met[policy] = float(priority_2_met[policy])/cnt_2[policy]
 
 
-                        priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])
+                                priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])
 
-                        mission_time[policy] += arr_scale*mean_arrival_time*1000
-                        mission_completed[policy] = float(mission_completed[policy])/cnt_2[policy]
-                        if mission_failed == 0:
-                            mission_completed[policy] = 1.0;
+                                mission_time[policy] += arr_scale*mean_arrival_time*1000
+                                mission_completed[policy] = float(mission_completed[policy])/cnt_2[policy]
+                                if mission_failed == 0:
+                                    mission_completed[policy] = 1.0;
 
-                        out = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy)
-                        out += ((",%lf,%lf,%lf,%lf,%d,%d,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],cnt_dropped_1[policy],total_energy[policy]))
-                        if(extra):
-                            out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
+                                out = str(accel_count) + "," + \
+                                    str(slack_perc) + "," + \
+                                    str(drop) + "," + \
+                                    str(prob) + "," + \
+                                    str(arr_scale) + "," + \
+                                    str(ptoks) + "," + \
+                                    str(policy)
+                                out += ((",%lf,%lf,%lf,%lf,%d,%d,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],cnt_dropped_1[policy],total_energy[policy]))
+                                if(extra):
+                                    out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
 
-                        if(first):
-                            print(header)
-                            first = 0
-                        print(out)
-                    #print(out)
+                                if(first):
+                                    print(header)
+                                    first = 0
+                                print(out)
+                            #print(out)
 
 
 

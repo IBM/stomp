@@ -55,7 +55,7 @@ class TASK:
         self.tid                        = int(tid)# task id - this is unique
         self.dag_id                     = None
         self.scheduled                  = 0
-		
+
         self.rank                       = -1 # This is updated during the 'Task Prioritisation' phase
         self.processor                  = -1
         self.ast                        = 0
@@ -65,8 +65,6 @@ class TASK:
         self.eft                        = 0
         self.subD                       = 0
         self.lst                        = 0
-        
-
 
     def init_task(self, arrival_time, dag_id, tid, type, params, priority, deadline):
         self.dag_id                     = dag_id
@@ -89,14 +87,21 @@ class TASK:
         self.wpower                     = None
         self.current_time               = 0
         self.possible_server_idx        = None
+        self.possible_mean_service_time = None
         self.peid                       = None
         self.parent_data                = []
         self.server_type                = None
+        self.ptoks_used                 = None  # Power consumed during actual execution on servers[server_type]
+        self.power_dict                 = params['power']
 
+        self.reserved_server_id         = None
+
+    def calc_slack(self, sim_time, service_time):
+        # print("[%10u][%u.%u] Deadline: %u" % (sim_time, self.dag_id, self.tid, self.arrival_time + self.deadline))
+        return self.arrival_time + self.deadline - sim_time - service_time
 
     def __str__(self):
         return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
-
 
     def __repr__(self):
         return str(self.tid)
@@ -272,7 +277,7 @@ class META:
                 ## If the task belongs to a non-dropped DAG ##
                 if dag_id_completed in self.dag_dict:
                     dag_completed = self.dag_dict[dag_id_completed]
-                    # logging.info('Task completed : %d,%d,%d' % ((task_completed.arrival_time + task_completed.task_lifetime),dag_id_completed,task_completed.tid))
+                    # logging.info('[%10d]Task completed : %d,%d,%d' % (self.stomp.sim_time,(task_completed.arrival_time + task_completed.task_lifetime),dag_id_completed,task_completed.tid))
 
                     ## Remove completed task from parent DAG and update meta-info ##
                     for node in dag_completed.graph.nodes():
@@ -290,9 +295,11 @@ class META:
                             # print("Completed: %d,%d,%d,%d,%d,%d" % (dag_id_completed,task_completed.tid,dag_completed.slack,dag_completed.deadline,task_completed.arrival_time,task_completed.task_lifetime))
 
                             task = dag_completed.comp[task_completed.tid][0]
-                            power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
+                            assert task_completed.ptoks_used
+                            # power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
                             #print(task,power,task_completed.task_lifetime)
-                            dag_completed.energy +=(task_completed.task_lifetime*power)
+                            dag_completed.energy += task_completed.task_service_time * \
+                                    task_completed.ptoks_used
                             dag_completed.graph.remove_node(node)
                             break;
 
@@ -300,8 +307,8 @@ class META:
                     ## Update stats if DAG has finished execution ##
                     if (len(dag_completed.graph.nodes()) == 0):
                         dags_completed += 1
+                        # logging.info("%d: DAG id: %d completed" %(self.stomp.sim_time, dag_id_completed))
                         if(dag_completed.priority == 1 and dag_id_completed >= last_promoted_id):
-                            # print("%d: DAG id: %d completed" %(self.stomp.sim_time, dag_id_completed))
                             dags_completed_per_interval += 1
                         ## Calculate stats for the DAG
                         # logging.info(str(self.params['simulation']['sched_policy_module'].split('.')[-1].split('_')[-1]) + ',' + str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
@@ -316,7 +323,7 @@ class META:
 
 
             start = datetime.now()
-            
+
             # Check for DAGs to be dropped
             if(self.params['simulation']['drop'] == True):
                 for dag_id in self.dag_id_list:
@@ -345,13 +352,13 @@ class META:
 
                             if node.scheduled == 0:
                                 if(self.meta_policy.dropping_policy(the_dag_sched, node)):
-                                    # print("Dropping [%d.[%d]" % (dag_id, node.tid))
+                                    # logging.info("%d: [DROPPED] DAG id: %d dropped" %(self.stomp.sim_time, dag_id))
                                     dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
                                     self.stomp.dags_dropped.append(dag_id)
                                     dropped_list.append(dropped_entry)
                                     dropped_dag_id_list.append(dag_id)
                                     break
-                
+
                 # Remove Dropped DAGs from active DAG list
                 for dag_id_dropped in dropped_dag_id_list:
                     self.dag_id_list.remove(dag_id_dropped)
@@ -430,7 +437,7 @@ class META:
                         node.init_task(atime, dag_id, node.tid, task_type, self.params['simulation']['tasks'][task_type], priority, deadline)
                         node.dtime = int(the_dag_sched.dtime)
                         node.ftsched = the_dag_sched.policy_variables.ftsched
-                        
+
                         for time_entry in stimes:
                             server_type  = time_entry[0]
                             service_time = time_entry[1]
@@ -447,6 +454,7 @@ class META:
                         node.parent_data = parent_data
 
                         ## Ready task found, push into temp ready task queue
+                        # logging.info("%d: [READY TASK] [%d.%d] Pushed" %(self.stomp.sim_time, dag_id, node.tid))
                         temp_task_trace.append(node)
                         node.scheduled = 1
 
@@ -484,14 +492,14 @@ class META:
         end_list.sort(key=lambda end_entry: end_entry[0], reverse=False)
         while(len(end_list)):
             end_entry = end_list.pop(0)
-            print("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + ',' + str(end_entry[6]))
+            logging.info("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + ',' + str(end_entry[6]))
             # end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
 
         dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
         while(len(dropped_list)):
             dropped_entry = dropped_list.pop(0)
-            print("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5])  + ',' + str(end_entry[6]))
+            logging.info("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5])  + ',' + str(end_entry[6]))
 
         #(Processing time for completed task, ready task time, task assignment, task ordering)
-        print(("Time: %d, %d, %d, %d")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
+        logging.info(("Time: %d, %d, %d, %d")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
 
