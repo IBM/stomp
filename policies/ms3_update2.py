@@ -94,11 +94,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
 
             if ((t.deadline -(sim_time-t.arrival_time) - (max_time)) < 0):
-
-                # 
-                #     slack = 1 - 0.99/((sim_time-t.arrival_time) + max_time - t.deadline)
-                #     t.rank = int((100000 * (10*t.priority))/slack)
-                # else:
                 if (t.priority > 1):
                     if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
                         slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
@@ -113,7 +108,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
                         
                 else:
-                    if (num_critical_tasks > 0):
+                    if (num_critical_tasks > 0 and self.stomp_params['simulation']['drop'] == True):
                         t.rank = 0
                         drop_hint_list.append(t.dag_id)
                     else:
@@ -126,8 +121,13 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         else:
                             # print("[%d] [%d,%d] Min deadline doesnt exist/priority 1 type:%s with no max deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
                             #     (sim_time, t.dag_id, t.tid, t.type, t.deadline, slack, t.arrival_time, max_time, min_time))
-                            t.rank = 0
-                            drop_hint_list.append(t.dag_id)
+                            if(self.stomp_params['simulation']['drop']== True):
+                                t.rank = 0
+                                drop_hint_list.append(t.dag_id)
+                            else:
+                                slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
+                                t.rank = int((100000 * (100*t.priority))/slack)
+
 
             else:
                 slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))

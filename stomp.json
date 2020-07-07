@@ -18,43 +18,62 @@
         "total_ptoks": 1000,
         "promote": true,
         "max_tasks_simulated": 10000,
-        "mean_arrival_time":   2,
+        "mean_arrival_time":   5,
         "power_mgmt_enabled":  false,
         "max_queue_size":      1000000,
         "arrival_time_scale":  1.0,
-        "stdev_factor":     0.01,
-        "progress_intvl_f":     1000,
+        "deadline_scale":      10,
+        "stdev_factor":        0.01,
+        "progress_intvl_f":    1000,
 
         "policies": {
             "ms1" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "policy": "ms"
             },
             "ms2" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "policy": "ms"
             },
             "ms3" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "policy": "ms"
             },
             "ms1_update2" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "policy": "ms_update"
             },
             "ms2_update2" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "policy": "ms_update"
             },
             "ms3_update2" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "policy": "ms_update"
             },
             "heft" : {
-                "meta_policy" : "heft" 
+                "meta_policy" : "heft",
+                "policy": "heft"
             },
             "rheft" : {
-                "meta_policy" : "rheft" 
+                "meta_policy" : "rheft",
+                "policy": "rheft" 
             },
             "edf" : {
-                "meta_policy" : "edf" 
+                "meta_policy" : "edf",
+                "policy": "edf" 
             },
             "edf_ver5" : {
-                "meta_policy" : "edf" 
+                "meta_policy" : "edf",
+                "policy": "edf_ver5" 
+            },
+            "simple_policy_ver2": {
+                "meta_policy" : "edf",
+                "policy": "simple_policy_ver2" 
+            },
+            "simple_policy_ver5": {
+                "meta_policy" : "edf",
+                "policy": "simple_policy_ver5" 
             }
         },
 

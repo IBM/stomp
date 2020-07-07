@@ -64,17 +64,22 @@ with open(conf_file) as conf_file:
 mean_arrival_time = stomp_params['simulation']['mean_arrival_time']
 
 
-deadline_5 = 537
-deadline_7 = 428
-deadline_10 = 1012
+
 stdev_factor = STDEV_FACTOR[0]
 
 def main(argv):
+    deadline_5 = 537
+    deadline_7 = 428
+    deadline_10 = 1012
+    
     sim_dir = argv
     first = 1
     for drop in DROP:
         for prob in PROB:
             for arr_scale in ARRIVE_SCALE:
+                deadline_5 = deadline_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                deadline_7 = deadline_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                deadline_10 = deadline_10 * (arr_scale * stomp_params['simulation']['deadline_scale'])
                 for accel_count in range(5,6):
                     cnt_1                   = {}
                     cnt_dropped_1           = {}
@@ -135,12 +140,12 @@ def main(argv):
                             print(out2 + ",NodataYet")
                             continue
                         with open(fname,'r') as fp:
-                            line = fp.readline()
-                            while(line):
+                            while(1):
                                 line = fp.readline()
                                 if not line:
                                     break
                                 if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy\n"):
+                                    # print("Found line")
                                     flag = 1
                                     continue
 

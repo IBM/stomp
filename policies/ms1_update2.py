@@ -58,7 +58,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.to_time      = timedelta(microseconds=0)
 
 
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped):
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped, drop_hint_list, num_critical_tasks):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
@@ -68,6 +68,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             if task.dag_id in dags_dropped:
                 # print("Removing dropped dag")
                 tasks.remove(task)
+                if (task.priority > 1):
+                    num_critical_tasks -= 1
 
         if (len(tasks) > max_task_depth_to_check):
             window_len = max_task_depth_to_check
@@ -75,6 +77,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             window_len = len(tasks)
 			
         start = datetime.now()
+
+
         for t in tasks:
             max_time = 0
             min_time = 100000
@@ -90,20 +94,57 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
 
             if ((t.deadline -(sim_time-t.arrival_time) - (max_time)) < 0):
-                if(t.priority > 1):
-                    slack = 1 - 0.99/((sim_time-t.arrival_time) + max_time - t.deadline)
-                    t.rank = int((100000 * (10*t.priority))/slack)
-                else:
+                if (t.priority > 1):
                     if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
                         slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
-                        t.rank = int((100000 * (t.priority))/slack)
+                        t.rank = int((100000 * (100*t.priority))/slack)
+                        # print("[%d] [%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
+                        #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
+                        
                     else:
+                        slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
+                        t.rank = int((100000 * (10000*t.priority))/slack)
+                        # print("[%d] [%d,%d] Deadline passed deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
+                        #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
+                        
+                else:
+                    if (num_critical_tasks > 0 and self.stomp_params['simulation']['drop'] == True):
                         t.rank = 0
+                        drop_hint_list.append(t.dag_id)
+                    else:
+                        if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
+                            slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
+                            t.rank = int((100000 * (10*t.priority))/slack)
+                            # print("[%d] [%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
+                            #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
+                            
+                        else:
+                            # print("[%d] [%d,%d] Min deadline doesnt exist/priority 1 type:%s with no max deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
+                            #     (sim_time, t.dag_id, t.tid, t.type, t.deadline, slack, t.arrival_time, max_time, min_time))
+                            if(self.stomp_params['simulation']['drop']== True):
+                                t.rank = 0
+                                drop_hint_list.append(t.dag_id)
+                            else:
+                                slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
+                                t.rank = int((100000 * (100*t.priority))/slack)
+
+
             else:
                 slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))
-                t.rank = int((100000 * (10*t.priority))/slack)
+                t.rank = int((100000 * (t.priority))/slack)
+                # print("[%d] [%d,%d] Max deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" % 
+                #     (sim_time, t.dag_id, t.tid, t.deadline, slack, t.arrival_time, max_time, min_time))
 
         tasks.sort(key=lambda task: task.rank, reverse=True)
+        
+        # print("Start")
+        # for t in tasks:
+        #     print("[%d] [%d,%d] deadline:%d, atime:%d, max_time: %d, min_time: %d" % 
+        #         (sim_time, t.dag_id, t.tid, t.deadline, t.arrival_time, max_time, min_time))
+            
+        #     print("[%d]: [%d.%d] Rank: %d, PSI: %s" % (sim_time, t.dag_id, t.tid, t.rank, t.possible_server_idx))
+        # print("End")
+
         end = datetime.now()
         self.to_time += end - start
         # print(("TO: %d")%(self.to_time.microseconds))
@@ -152,9 +193,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             server_idx = target_servers.index(min(target_servers))
 
             if (not self.servers[server_idx].busy):
-                # Pop task in queue's head and assign it to server
+                # Pop task in queue and assign it to server
                 tasks.remove(task)
-                # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, task.type, server_idx, self.servers[server_idx].type))
+                if (task.priority > 1):
+                    num_critical_tasks -= 1
+                logging.debug('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s' % (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type))
                 
                 self.servers[server_idx].assign_task(sim_time, task)
                 bin = int(tidx / self.bin_size)        

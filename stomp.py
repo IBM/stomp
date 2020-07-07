@@ -176,6 +176,7 @@ class STOMP:
     E_META_START        = 0
     E_META_DONE         = 0
 
+    E_TSCHED_START      = 0
     E_TSCHED_DONE       = 0
 
 
@@ -688,6 +689,9 @@ class STOMP:
         self.next_serv_end_time      = float("inf")
         self.next_serv_end           = None
 
+
+        # STOMP variables are initialized, start meta
+        self.E_TSCHED_START = 1
         ######################################################################
         # MAIN SIMULATION: Generate 'max_tasks_simulated' and service them   #
         ######################################################################

@@ -208,6 +208,9 @@ class META:
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
 
+        while(self.stomp.E_TSCHED_START == 0):
+            pass
+
         ## Read trace file and populate DAG information ##
         with open(in_trace_name, 'r') as input_trace:
             line_count = 0;
@@ -232,7 +235,7 @@ class META:
 
                     comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
                     priority = int(tmp.pop(0))
-                    deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale'])
+                    deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale']*self.params['simulation']['deadline_scale'])
                     dtime = atime + deadline
 
 
@@ -247,7 +250,6 @@ class META:
 
             line_count += 1
 
-        logging.info("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy")
         ctime = timedelta(microseconds = 0)
         rtime = timedelta(microseconds = 0)
 
@@ -454,6 +456,7 @@ class META:
             rtime += end - start
 
 
+
             self.stomp.lock.acquire()
             ## Push all ready tasks in the order of their arrival time ##
             while (len(temp_task_trace)):
@@ -480,18 +483,23 @@ class META:
             if(len(self.dag_id_list) == 0):
                 self.stomp.E_META_DONE = 1
                 # logging.info("META completed")
+				
+        # Open output file and write DAG stats
+        fho = open(self.params['general']['working_dir'] + '/run_stdout_' + self.params['general']['basename'] + '.out', 'w')
+        fho.write("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy\n")
 
         end_list.sort(key=lambda end_entry: end_entry[0], reverse=False)
         while(len(end_list)):
             end_entry = end_list.pop(0)
-            print("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + ',' + str(end_entry[6]))
+            fho.write("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + ',' + str(end_entry[6]) + '\n')
             # end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
 
         dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
         while(len(dropped_list)):
             dropped_entry = dropped_list.pop(0)
-            print("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5])  + ',' + str(end_entry[6]))
+            fho.write("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5])  + ',' + str(end_entry[6]) + '\n')
 
         #(Processing time for completed task, ready task time, task assignment, task ordering)
-        print(("Time: %d, %d, %d, %d")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
-
+        fho.write(("Time: %d, %d, %d, %d\n")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
+		
+        fho.close()

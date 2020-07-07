@@ -44,11 +44,13 @@ from __builtin__ import str
 
 CONF_FILE    = './stomp.json'
 PROMOTE = True
-POLICY       = ['ms1'] # , 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2', 'heft', 'rheft']
+POLICY_SOTA      = ['heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
+POLICY_NEW       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2']
+POLICY = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR = [0.01] # percentages
-ARRIVE_SCALE = [1.0, 1.5, 2.0] # , 1.0, 1.2, 1.4] # percentages
-PROB         = [0.5] # , 0.4, 0.3, 0.2, 0.1]
-DROP         = [True] # , False]
+ARRIVE_SCALE = [0.1, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0] # percentages
+PROB         = [0.1, 0.2, 0.3] 
+DROP         = [True, False]
 folder = "MS"
 
 
@@ -138,14 +140,15 @@ def main(argv):
 
     stomp_params['general']['working_dir'] = os.getcwd() + '/' + sim_dir
 
-
+    process = []
+    run_count = 0
     ###############################################################################################
     # MAIN LOOP
     for drop in DROP:
         for prob in PROB:
             for arr_scale in ARRIVE_SCALE:
 
-                if arr_scale < 1:
+                if arr_scale < 0.1:
                     print("Error: for arr_scale: %d. Arrival_scale less than 1 is not supported" %(arr_scale))
                     break
 
@@ -153,6 +156,11 @@ def main(argv):
                 stomp_params['simulation']['arrival_time_scale'] = arr_scale
 
                 for policy in POLICY:
+                    if (policy in POLICY_SOTA and drop == True):
+                        print("No dropping for SOTA", policy)
+                        continue
+
+                    run_count += 1
                     sim_output[arr_scale][policy] = {}
 
                     stdev_factor = STDEV_FACTOR[0]
@@ -209,53 +217,60 @@ def main(argv):
                         print('Running', command_str)
 
                     sys.stdout.flush()
-                    output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
+                    # output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
+                    stdout_fname="out" + str(run_count)
+                    with open(stdout_fname, 'wb') as out:
+                        p = subprocess.Popen(command_str, stdout=out, stderr=out, shell=True)
+                        process.append(p)
+    
+    for p in process:
+        p.wait()
+                    # if (save_stdout):
+                    #     fh = open(sim_dir + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out', 'w')
 
-                    if (save_stdout):
-                        fh = open(sim_dir + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out', 'w')
+                    # ###########################################################################################
+                    # # Parse the output line by line
+                    # output_list = output.splitlines()
+                    # i = 0
+                    # for i in range(len(output_list)):
+                    #     if (save_stdout):
+                    #         fh.write('%s\n' % (output_list[i]))
+                    #     if output_list[i].strip() == "Response time (avg):":
+                    #         for j in range(i+1, len(output_list)):
+                    #             line = output_list[j]
+                    #             if not line.strip():
+                    #                 break
+                    #             (key, value) = line.split(':')
+                    #             sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'][key.strip()] = value.strip()
+                    #             #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
 
-                    ###########################################################################################
-                    # Parse the output line by line
-                    output_list = output.splitlines()
-                    i = 0
-                    for i in range(len(output_list)):
-                        if (save_stdout):
-                            fh.write('%s\n' % (output_list[i]))
-                        if output_list[i].strip() == "Response time (avg):":
-                            for j in range(i+1, len(output_list)):
-                                line = output_list[j]
-                                if not line.strip():
-                                    break
-                                (key, value) = line.split(':')
-                                sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'][key.strip()] = value.strip()
-                                #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
-
-                        elif output_list[i].strip() == "Met Deadline:":
-                            for j in range(i+1, len(output_list)):
-                                line = output_list[j]
-                                if not line.strip():
-                                    break
-                                (key, value) = line.split(':')
-                                sim_output[arr_scale][policy][stdev_factor]['met_deadline'][key.strip()] = value.strip()
-                                #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
+                    #     elif output_list[i].strip() == "Met Deadline:":
+                    #         for j in range(i+1, len(output_list)):
+                    #             line = output_list[j]
+                    #             if not line.strip():
+                    #                 break
+                    #             (key, value) = line.split(':')
+                    #             sim_output[arr_scale][policy][stdev_factor]['met_deadline'][key.strip()] = value.strip()
+                    #             #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
 
 
-                        elif output_list[i].strip() == "Histograms:":
-                            line = output_list[i+1]
-                            histogram = line.split(':')[1]
-                            sim_output[arr_scale][policy][stdev_factor]['queue_size_hist'] = histogram.strip()
+                    #     elif output_list[i].strip() == "Histograms:":
+                    #         line = output_list[i+1]
+                    #         histogram = line.split(':')[1]
+                    #         sim_output[arr_scale][policy][stdev_factor]['queue_size_hist'] = histogram.strip()
 
-                        elif "Total simulation time:" in output_list[i].strip():
-                            elems = output_list[i].split(":")
-                            #stdout.write('HERE: %s : %s : %s\n' % (str(policy), str(stdev_factor), elems[1]))
-                            #stdout.write('%s\n' % (output_list[i].strip()))
-                            #sys.stdout.flush()
-                            sim_output[arr_scale][policy][stdev_factor]['total_sim_time'] = elems[1]
+                    #     elif "Total simulation time:" in output_list[i].strip():
+                    #         elems = output_list[i].split(":")
+                    #         #stdout.write('HERE: %s : %s : %s\n' % (str(policy), str(stdev_factor), elems[1]))
+                    #         #stdout.write('%s\n' % (output_list[i].strip()))
+                    #         #sys.stdout.flush()
+                    #         sim_output[arr_scale][policy][stdev_factor]['total_sim_time'] = elems[1]
 
-                    if (save_stdout):
-                        fh.close()
-                    num_executions += 1
-                    time.sleep(1)
+                    # if (save_stdout):
+                    #     fh.close()
+                    # num_executions += 1
+                    # time.sleep(1)
+
 
 
     # ###############################################################################################
