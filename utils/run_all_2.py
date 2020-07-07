@@ -45,12 +45,12 @@ from __builtin__ import str
 CONF_FILE    = './stomp.json'
 PROMOTE = True
 POLICY_SOTA      = ['heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
-POLICY_NEW       = ['ms1', 'ms1_update2', 'ms2', 'ms2_update2', 'ms3', 'ms3_update2']
+POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update']
 POLICY = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR = [0.01] # percentages
 ARRIVE_SCALE = [0.1, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0] # percentages
 PROB         = [0.1, 0.2, 0.3] 
-DROP         = [True, False]
+DROP         = [False, True]
 folder = "MS"
 
 
@@ -175,7 +175,8 @@ def main(argv):
                     ###########################################################################################
                     # Update the simulation configuration by updating
                     # the specific parameters in the input JSON data
-                    stomp_params['simulation']['sched_policy_module'] = 'policies.' + policy
+                    stomp_params['simulation']['policy'] = policy
+                    stomp_params['simulation']['sched_policy_module'] = 'policies.' + stomp_params['simulation']["policies"][policy]['tsched_policy']
                     stomp_params['simulation']['meta_policy_module'] = 'meta_policies.' + stomp_params['simulation']["policies"][policy]['meta_policy']
                     for task in stomp_params['simulation']['tasks']:
                         # Set the stdev for the service time

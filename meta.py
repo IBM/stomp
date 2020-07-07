@@ -232,8 +232,9 @@ class META:
                             parent_list.append(pred_node.tid)
                         parent_dict[node.tid] = parent_list
                         # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
-
                     comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
+                    # if (self.params['simulation']['policy'].startswith("ms3")):
+                    #     comp = read_matrix("inputs/random_comp_{0}_{1}_slack.txt".format(dag_type, self.stdev_factor))
                     priority = int(tmp.pop(0))
                     deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale']*self.params['simulation']['deadline_scale'])
                     dtime = atime + deadline
@@ -397,11 +398,11 @@ class META:
                         task_type = the_dag_sched.comp[node.tid][0]
                         priority = the_dag_sched.priority
                         deadline = int(the_dag_sched.slack)
-                        if (self.params['simulation']['sched_policy_module'].startswith("policies.ms1")):
+                        if (self.params['simulation']['policy'].startswith("ms1")):
                             deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[node.tid][1]))
-                        if (self.params['simulation']['sched_policy_module'].startswith("policies.ms3")):
+                        if (self.params['simulation']['policy'].startswith("ms3")):
                             deadline = int(deadline*float(the_dag_sched.comp[node.tid][1]))
-                        if (self.params['simulation']['sched_policy_module'].startswith("policies.edf")):
+                        if (self.params['simulation']['policy'].startswith("edf")):
                             deadline = int(the_dag_sched.dtime)
 
                         stimes = []
