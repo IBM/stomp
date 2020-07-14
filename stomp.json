@@ -6,7 +6,7 @@
       "working_dir":   		".",
       "basename":      		"",
       "pre_gen_arrivals":	false,
-      "input_trace_file":	"",
+      "input_trace_file":	"user_traces/user_gen_trace.trc",
       "output_trace_file":	""
   },
   
