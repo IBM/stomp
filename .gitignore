@@ -3,6 +3,7 @@
 *.pyc
 *.trace
 *.txt
+*.csv
 sim_*
 val_*
 datasets
