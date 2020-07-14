@@ -4,6 +4,7 @@
 *.trace
 *.txt
 sim_*
+val_*
 datasets
 .DS_Store
 .global.atrace
