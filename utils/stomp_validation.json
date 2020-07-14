@@ -1,0 +1,40 @@
+{
+
+  "general" : {
+      "logging_level": 		"INFO",
+      "random_seed":   		0,
+      "working_dir":   		".",
+      "basename":      		"",
+      "pre_gen_arrivals":	false,
+      "input_trace_file":	"",
+      "output_trace_file":	""
+  },
+  
+  "simulation" : {
+      "sched_policy_module": "policies.simple_policy_ver2",
+      "max_tasks_simulated": 100000,
+      "mean_arrival_time":   50,
+      "power_mgmt_enabled":  false,
+      "max_queue_size":      1000000,
+      "arrival_time_scale":  1.0,
+
+      "servers": {
+          "dummy_server" : {
+              "count" : 1
+          }
+      },
+
+      "tasks": {
+          "dummy_task" : {
+              "mean_service_time" : {
+                  "dummy_server"  : 10
+              },
+              "stdev_service_time" : {
+                  "dummy_server"  : 0.1
+              }
+          }
+      }
+      
+  }
+
+}
