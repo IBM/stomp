@@ -123,7 +123,12 @@ class META:
 
         self.dag_dict                       = {}
         self.dag_id_list                    = []
-        self.server_types                   = ["cpu_core", "gpu", "accel"]
+        self.server_types                   = []
+        for type_count in range(0,len(self.params['simulation']['servers'])):
+            for server_type in self.params['simulation']['servers']:
+                if(self.params['simulation']['servers'][server_type]['id'] == type_count):
+                    self.server_types.append(server_type)
+                    break
 
     def process_comp_time(self, dag, tid):
         stimes = []

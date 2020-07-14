@@ -25,12 +25,15 @@
 
       "servers": {
           "cpu_core" : {
+              "id"    : 0,
               "count" : 8
           },
           "gpu" : {
+              "id"    : 1,
               "count" : 2
           },
           "accel"     : {
+              "id"    : 2,
               "count" : 1
           }
       },
