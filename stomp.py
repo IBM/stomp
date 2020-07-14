@@ -106,11 +106,18 @@ class Server:
         # Therefore, we can compute the task's service time
         mean_service_time                = task.mean_service_time_dict[self.type]
         stdev_service_time               = task.stdev_service_time_dict[self.type]
-        service_time                     = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
-        #service_time                     = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
+        #service_time                    = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
+        #service_time                    = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
+        
         # Ensure that the random service time is a positive value...
-        if (service_time <= 0): 
-            service_time = 1;
+        while True:
+            service_time                 = int(round(numpy.random.normal(loc=mean_service_time, scale=stdev_service_time, size=1)))
+            if (service_time > 0):
+                break
+        
+        # Ensure that the random service time is a positive value...
+        #if (service_time <= 0):
+        #    service_time = 1;
         task.task_service_time           = service_time
         
         self.busy                        = True
@@ -184,35 +191,37 @@ class STOMP:
         #pprint.pprint(self.params)
         logging.info("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         
-        self.tasks                            = []   # Main queue
-        self.servers                          = []
-        self.tasks_to_servers                 = {}   # Maps task type to target servers
-        #self.supported_servers               = []
+        self.tasks                              = []   # Main queue
+        self.servers                            = []
+        self.tasks_to_servers                   = {}   # Maps task type to target servers
+        #self.supported_servers                 = []
 
-        self.intrace_server_order             = []
+        self.intrace_server_order               = []
         
-        self.sim_time                         = 0    # Simulation time
+        self.sim_time                           = 0    # Simulation time
         
         # Global stats
-        self.stats                            = {}
-        self.stats['Running Tasks']           = 0
-        self.stats['Busy Servers']            = 0
-        self.stats['Available Servers']       = {}
-        self.stats['Tasks Generated']         = 0
-        self.stats['Tasks Serviced']          = 0
-        self.stats['Tasks Serviced per Type'] = {}
-        self.stats['Avg Resp Time']           = 0     # Overall for all tasks
-        self.stats['Avg Resp Time per Type']  = {}    # Per task type
+        self.stats                              = {}
+        self.stats['Running Tasks']             = 0
+        self.stats['Busy Servers']              = 0
+        self.stats['Available Servers']         = {}
+        self.stats['Tasks Generated']           = 0
+        self.stats['Tasks Serviced']            = 0
+        self.stats['Tasks Serviced per Type']   = {}
+        self.stats['Avg Resp Time']             = 0     # Overall for all tasks
+        self.stats['Avg Resp Time per Type']    = {}    # Per task type
+        self.stats['Avg Waiting Time']          = 0     # Overall for all tasks
+        self.stats['Avg Waiting Time per Type'] = {}    # Per task type
         
         # Histograms
-        self.bin_size                         = 1
-        self.num_bins                         = 12
-        self.last_size_change_time            = self.sim_time
-        self.stats['Queue Size Histogram']    = numpy.zeros(self.num_bins, dtype=int)  # N-bin histogram
-        self.stats['Max Queue Size']          = 0
+        self.bin_size                           = 1
+        self.num_bins                           = 12
+        self.last_size_change_time              = self.sim_time
+        self.stats['Queue Size Histogram']      = numpy.zeros(self.num_bins, dtype=int)  # N-bin histogram
+        self.stats['Max Queue Size']            = 0
         
-        self.task_trace_files                 = {}   # Per task type
-        self.task_trace_file                  = open(self.working_dir + '/' + self.basename + '.global.trace', 'w')
+        self.task_trace_files                   = {}   # Per task type
+        self.task_trace_file                    = open(self.working_dir + '/' + self.basename + '.global.trace', 'w')
         self.task_trace_file.write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         self.task_trace_file.write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         self.task_trace_file.write('Time\tResponse time (avg)\n')
@@ -407,8 +416,9 @@ class STOMP:
 
                 
         if not task in self.stats['Avg Resp Time per Type']:
-            self.stats['Avg Resp Time per Type'][task]  = 0
-            self.stats['Tasks Serviced per Type'][task] = 0
+            self.stats['Avg Resp Time per Type'][task]    = 0
+            self.stats['Avg Waiting Time per Type'][task] = 0
+            self.stats['Tasks Serviced per Type'][task]   = 0
             self.task_trace_files[task] = open(self.working_dir + '/' + self.basename + '.' + task + '.' + self.params['simulation']['sched_policy_module'].split('.')[-1] + '.trace', 'w')
             
             self.task_trace_files[task].write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
@@ -424,6 +434,7 @@ class STOMP:
         task_type = server.task.type
 
         resp_time = (self.sim_time - server.task.arrival_time)
+        wait_time = resp_time - server.task.task_service_time
         server.task.task_lifetime = resp_time
         
         if not task_type in server.stats['Avg Resp Time per Type']:
@@ -438,8 +449,10 @@ class STOMP:
         server.stats['Tasks Serviced per Type'][task_type] += 1
         server.stats['Service Time per Type'][task_type].append(server.task.task_service_time)
         server.stats['Lifetime per Type'][task_type].append(server.task.task_lifetime)
-        self.stats['Avg Resp Time']                     += resp_time
-        self.stats['Avg Resp Time per Type'][task_type] += resp_time
+        self.stats['Avg Resp Time']                        += resp_time
+        self.stats['Avg Resp Time per Type'][task_type]    += resp_time
+        self.stats['Avg Waiting Time']                     += wait_time
+        self.stats['Avg Waiting Time per Type'][task_type] += wait_time
         #avg_serv_time       = (avg_serv_time * (num_tasks_serviced - 1) + server_entry['task']['task_service_time']) / num_tasks_serviced
         #int_resp_time  = (int_resp_time*(int_num_tasks_serviced-1) +
         #                 (SIM_TIME-server[SERVER_ID].cust.arrival_time)) / int_num_tasks_serviced
@@ -473,7 +486,8 @@ class STOMP:
         
     def print_stats(self):
         
-        self.stats['Avg Resp Time'] = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
+        self.stats['Avg Resp Time']    = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
+        self.stats['Avg Waiting Time'] = self.stats['Avg Waiting Time'] / self.stats['Tasks Serviced']
         
         # Final histogram update
         queue_size  = len(self.tasks)
@@ -500,35 +514,44 @@ class STOMP:
         logging.info('')
         
         logging.info(' Response time (avg):')
-        logging.info('   %12s : %8.2f over %8d tasks' % ("global", self.stats['Avg Resp Time'], self.stats['Tasks Serviced']))
+        logging.info('   %12s : %8.4f over %8d tasks' % ("global", self.stats['Avg Resp Time'], self.stats['Tasks Serviced']))
         for task in self.stats['Avg Resp Time per Type']:
             if (self.stats['Tasks Serviced per Type'][task] > 0):
-                logging.info('   %12s : %8.2f over %8d tasks' % (task, self.stats['Avg Resp Time per Type'][task]/self.stats['Tasks Serviced per Type'][task], self.stats['Tasks Serviced per Type'][task]))
+                logging.info('   %12s : %8.4f over %8d tasks' % (task, self.stats['Avg Resp Time per Type'][task]/self.stats['Tasks Serviced per Type'][task], self.stats['Tasks Serviced per Type'][task]))
             else:
-                logging.info('   %12s : %8,2f over %8d tasks' % (task, 0.0, 0))
+                logging.info('   %12s : %8.4f over %8d tasks' % (task, 0.0, 0))
+        logging.info('')
+
+        logging.info(' Waiting time (avg):')
+        logging.info('   %12s : %8.4f over %8d tasks' % ("global", self.stats['Avg Waiting Time'], self.stats['Tasks Serviced']))
+        for task in self.stats['Avg Waiting Time per Type']:
+            if (self.stats['Tasks Serviced per Type'][task] > 0):
+                logging.info('   %12s : %8.4f over %8d tasks' % (task, self.stats['Avg Waiting Time per Type'][task]/self.stats['Tasks Serviced per Type'][task], self.stats['Tasks Serviced per Type'][task]))
+            else:
+                logging.info('   %12s : %8.4f over %8d tasks' % (task, 0.0, 0))
         logging.info('')
 
         logging.info(' Server Response time (avg):')
         for server in self.servers:
             if (server.stats['Tasks Serviced'] > 0):
                 server.stats['Avg Resp Time'] = server.stats['Avg Resp Time'] / server.stats['Tasks Serviced']
-                logging.info('   Server %3d : %12s : %8.2f over %8d tasks' % (server.id, "global", server.stats['Avg Resp Time'], server.stats['Tasks Serviced']))
+                logging.info('   Server %3d : %12s : %8.4f over %8d tasks' % (server.id, "global", server.stats['Avg Resp Time'], server.stats['Tasks Serviced']))
             else:
-                logging.info('   Server %3d : %12s : %8.2f over %8d tasks' % (server.id, "global", 0.0, 0))
+                logging.info('   Server %3d : %12s : %8.4f over %8d tasks' % (server.id, "global", 0.0, 0))
 
         logging.info('')
         for server in self.servers:
             for task in server.stats['Avg Resp Time per Type']:
                 if (server.stats['Tasks Serviced per Type'][task] > 0):
-                    logging.info('   Server %3d : %12s : %8.2f over %8d tasks' % (server.id, task, server.stats['Avg Resp Time per Type'][task]/server.stats['Tasks Serviced per Type'][task], server.stats['Tasks Serviced per Type'][task]))
+                    logging.info('   Server %3d : %12s : %8.4f over %8d tasks' % (server.id, task, server.stats['Avg Resp Time per Type'][task]/server.stats['Tasks Serviced per Type'][task], server.stats['Tasks Serviced per Type'][task]))
                 else:
-                    logging.info('   Server %3d : %12s : %8.2f over %8d tasks' % (server.id, task, 0.0, 0))
+                    logging.info('   Server %3d : %12s : %8.4f over %8d tasks' % (server.id, task, 0.0, 0))
         logging.info('')
 
         logging.info(' Busy time and Utilization:')
         logging.info('                %12s  : %10s  %5s' % ("Server Type", "Busy Time", "Util."))
         for server in self.servers:
-            logging.info('   Server %3d ( %12s ): %10ld  %5.2f' % (server.id, server.type, server.busy_time, numpy.around(100 * server.busy_time / total_time, decimals=2)))
+            logging.info('   Server %3d ( %12s ): %10ld  %5.4f' % (server.id, server.type, server.busy_time, numpy.around(100 * server.busy_time / total_time, decimals=2)))
         logging.info('')
 
         #logging.info(' Utilization:')
