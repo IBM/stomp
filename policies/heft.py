@@ -44,7 +44,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.to_time      = timedelta(microseconds=0)
 
 
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped, drop_hint_list, num_critical_tasks):
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped, drop_hint_list, stomp_obj):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve

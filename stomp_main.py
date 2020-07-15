@@ -103,6 +103,7 @@ def main(argv):
     # Instantiate and run STOMP, print statistics
     stomp_sim = STOMP(stomp_params, sched_policy_module.SchedulingPolicy())
     meta_sim = META(stomp_params,stomp_sim, meta_policy_module.MetaPolicy())
+    stomp_sim.meta = meta_sim
 
     thread1 = threading.Thread(target=meta_sim.run)
     thread2 = threading.Thread(target=stomp_sim.run)
@@ -115,7 +116,7 @@ def main(argv):
     # meta_sim.run()
     # stomp_sim.run()
     
-   # stomp_sim.print_stats()
+    stomp_sim.print_stats()
 
 
 if __name__ == "__main__":

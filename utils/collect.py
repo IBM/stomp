@@ -68,18 +68,19 @@ mean_arrival_time = stomp_params['simulation']['mean_arrival_time']
 stdev_factor = STDEV_FACTOR[0]
 
 def main(argv):
-    deadline_5 = 537
-    deadline_7 = 428
-    deadline_10 = 1012
+    DL_5 = 537
+    DL_7 = 428
+    DL_10 = 1012
     
     sim_dir = argv
     first = 1
     for drop in DROP:
         for prob in PROB:
             for arr_scale in ARRIVE_SCALE:
-                deadline_5 = deadline_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
-                deadline_7 = deadline_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
-                deadline_10 = deadline_10 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                deadline_5 = DL_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                deadline_7 = DL_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                deadline_10 = DL_10 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                # print(deadline_5, deadline_7, deadline_10)
                 for accel_count in range(5,6):
                     cnt_1                   = {}
                     cnt_dropped_1           = {}
@@ -94,6 +95,7 @@ def main(argv):
                     priority_2_noaff_per    = {}
 
                     mission_time            = {}
+                    mission_time1           = {}
                     mission_completed       = {}
                     total_energy            = {}
                     ctime                   = {}
@@ -104,7 +106,7 @@ def main(argv):
                     header1 = "ACCEL_COUNT,DROP,PROB,ARR_SCALE"
                     out1 = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale)
                     for policy in POLICY:
-                        header = header1 + ",Policy,Mission time,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Dropped Cnt,Energy"
+                        header = header1 + ",Policy,Mission time,Mission time1,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Dropped Cnt,Energy"
                         if (extra):
                             header = header + "," + policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
                         priority_1_slack[policy]        = 0
@@ -118,6 +120,7 @@ def main(argv):
                         priority_1_noaff_per[policy]    = 0
                         priority_2_noaff_per[policy]    = 0
                         mission_time[policy]            = 0
+                        mission_time1[policy]           = 0
                         mission_completed[policy]       = 0
                         mission_failed                  = 0
                         total_energy[policy]            = 0
@@ -167,6 +170,7 @@ def main(argv):
                                     if(cnt_1[policy] + cnt_2[policy] >= 1000):
                                         break
                                     # print(line)
+                                    line = line.strip()
                                     dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.split(',')
                                     total_energy[policy] = int(energy)
                                     if priority == '1':
@@ -188,14 +192,19 @@ def main(argv):
                                         cnt_2[policy] += 1
                                         if (int(dropped) == 1):
                                             cnt_dropped_2[policy] += 1
+                                            print("Dropped", tid)
                                         else:
+                                            deadline = 0
                                             if dag_type == '5':
                                                 priority_2_slack[policy] += float(slack)/deadline_5
+                                                deadline = deadline_5
                                             else:
                                                 if dag_type == '7':
                                                     priority_2_slack[policy] += float(slack)/deadline_7
+                                                    deadline = deadline_7
                                                 else:
                                                     priority_2_slack[policy] += float(slack)/deadline_10
+                                                    deadline = deadline_10
                                             if(float(slack) >= 0):
                                                 priority_2_met[policy] += 1
                                             elif(mission_failed != 1):
@@ -203,6 +212,8 @@ def main(argv):
                                                 mission_completed[policy] = priority_2_met[policy]
                                             priority_2_noaff_per[policy] += float(noafftime)/float(resp)
                                             mission_time[policy] += float(resp)
+                                            mission_time1[policy] += deadline
+                                            # print(resp, deadline)
 
                         if(cnt_1[policy] != cnt_dropped_1[policy]):
                             priority_1_slack[policy] = float(priority_1_slack[policy])/(cnt_1[policy]-cnt_dropped_1[policy])
@@ -215,12 +226,13 @@ def main(argv):
                         priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])
 
                         mission_time[policy] += arr_scale*mean_arrival_time*1000
+                        mission_time1[policy] += arr_scale*mean_arrival_time*1000
                         mission_completed[policy] = float(mission_completed[policy])/cnt_2[policy]
                         if mission_failed == 0:
                             mission_completed[policy] = 1.0;
 
                         out = str(accel_count) + "," + str(drop) + "," + str(prob) + "," + str(arr_scale) + "," + str(policy)
-                        out += ((",%lf,%lf,%lf,%lf,%d,%d,%d") % (mission_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],cnt_dropped_1[policy],total_energy[policy]))
+                        out += ((",%d,%d,%lf,%lf,%lf,%d,%d,%d") % (mission_time[policy], mission_time1[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],cnt_dropped_1[policy],total_energy[policy]))
                         if(extra):
                             out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
 

@@ -2,18 +2,24 @@
 from meta import BaseMetaPolicy
 from meta import max_length
 
-class PolicyVariables:
-    def __init__(self, R_its_k_heft, ftsched):
-        self.ftsched = ftsched
-        self.R_its_k_heft = R_its_k_heft
+class TaskVariables:
+    def __init__(self):
+        pass
+
+class DAGVariables:
+    def __init__(self):
+        pass
 
 class MetaPolicy(BaseMetaPolicy):
 
     def init(self, policy):
         pass
 
-    def set_policy_variables(self, dag):
-        return PolicyVariables(None, None)
+    def set_task_variables(self, dag, task_node):
+        return None
+
+    def set_dag_variables(self, dag):
+        return None
 
     def meta_static_rank(self, stomp, dag):
         pass

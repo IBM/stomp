@@ -48,7 +48,7 @@ POLICY_SOTA      = ['heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 's
 POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update']
 POLICY = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR = [0.01] # percentages
-ARRIVE_SCALE = [0.1, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0] # percentages
+ARRIVE_SCALE = [0.1, 0.5, 0.7, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0] # percentages
 PROB         = [0.1, 0.2, 0.3] 
 DROP         = [False, True]
 folder = "MS"
@@ -148,9 +148,9 @@ def main(argv):
         for prob in PROB:
             for arr_scale in ARRIVE_SCALE:
 
-                if arr_scale < 0.1:
-                    print("Error: for arr_scale: %d. Arrival_scale less than 1 is not supported" %(arr_scale))
-                    break
+                # if arr_scale < (1/stomp_params['simulation']['deadline_scale']):
+                #     print("Error: for arr_scale: %d. Arrival_scale less than 1 is not supported" %(arr_scale))
+                #     break
 
                 sim_output[arr_scale] = {}
                 stomp_params['simulation']['arrival_time_scale'] = arr_scale
@@ -219,7 +219,7 @@ def main(argv):
 
                     sys.stdout.flush()
                     # output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
-                    stdout_fname="out" + str(run_count)
+                    stdout_fname=sim_dir + "/out" + str(run_count) + "_" + stomp_params['general']['basename']
                     with open(stdout_fname, 'wb') as out:
                         p = subprocess.Popen(command_str, stdout=out, stderr=out, shell=True)
                         process.append(p)
