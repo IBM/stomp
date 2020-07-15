@@ -87,7 +87,7 @@ class Server:
         stdev_service_time              = task.stdev_service_time_dict[self.type]
         service_time                    = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
         if service_time_scale != None:
-            service_time_new            = service_time * service_time_scale
+            service_time_new            = round(service_time * service_time_scale)
             # assert service_time == service_time_new, "==================xxxxxxxxxxxxxx=================="
             service_time = service_time_new
             # print("service_time=%u, service_time_scale=%u" % (service_time, service_time_scale))

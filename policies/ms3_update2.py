@@ -71,8 +71,10 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.dvfs         = stomp_params["simulation"]["dvfs"]
 
         self.base_clk     = stomp_params["simulation"]["base_clk"]
+        self.min_clk_f    = stomp_params["simulation"]["min_clk_f"]
         self.v_nom        = stomp_params["simulation"]["v_nom"]
         self.v_th         = stomp_params["simulation"]["v_th"]
+        self.v_min        = stomp_params["simulation"]["v_min"]
         self.power_scale  = stomp_params["simulation"]["power_scale"]
 
     # Return scaled number of power tokens.
@@ -81,7 +83,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         v_new = self.v_th / (1 - ((clk / 1.) ** 0.5) * (1 - self.v_th / self.v_nom))
         # Clamp to within 10% of Vth. TODO: parameterize.
-        clamp(v_new, self.v_th * 1.1)
+        v_new = clamp(v_new, self.v_min)
         # print("v_th = %f, v_nom = %f, v_new = %f, clk_new = %f, clk_orig = %f" \
         #     " power_scale = %f" % (self.v_th, self.v_nom, v_new, clk, 1, self.power_scale))
         return ptoks * (v_new / self.v_nom) ** self.power_scale
@@ -94,20 +96,26 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         orig_service_time = mean_service_time
         slack = task.calc_slack(sim_time, orig_service_time)
         usable_slack = slack * self.slack_perc / 100.
+        # print("slack = %u, usable_slack = %u" % (slack, usable_slack))
         if usable_slack > 0:
             mean_service_time = round(usable_slack + orig_service_time)
             # print("orig_service_time = %u, slack = %u, scaled_service_time = %u" %
             #     (orig_service_time, slack, mean_service_time))
             clk_scale = orig_service_time / mean_service_time
+            clk_scale = clamp(clk_scale, self.min_clk_f)
+
             new_clk = self.base_clk * clk_scale
             orig_rqstd_ptoks = ptoks
             ptoks = self.get_scaled_power(orig_rqstd_ptoks, new_clk)
 
-            # Update service time
-            # task.task_service_time = mean_service_time
-            # assert window[0].task_service_time == head_task.task_service_time
             # print("orig_rqstd_ptoks = %u, scaled_rqstd_ptoks = %u" % (orig_rqstd_ptoks,
             #     ptoks))
+            # print("orig_service_time = %u, mean_service_time = %u" % (orig_service_time, 
+            #     mean_service_time))
+            # print("clk_scale = %f" % (clk_scale))
+        else:
+            pass
+            # print("no usable slack")
         return mean_service_time, ptoks, clk_scale
 
     def assign_task_to_server(self, sim_time, tasks, dags_dropped, drop_hint_list, num_critical_tasks):
@@ -264,6 +272,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
             if not server.busy:           # Server is not busy.
                 if self.dvfs:
+                    # logging.info('[%10ld] [%d.%d] Applying dvfs ' % (sim_time, task.dag_id, task.tid))
                     mean_service_time, rqstd_ptoks, clk_scale = self.apply_dvfs(
                         sim_time, task, mean_service_time, rqstd_ptoks)
                 else:

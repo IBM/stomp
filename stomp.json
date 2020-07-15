@@ -18,12 +18,14 @@
 
         "total_ptoks": 1000,
         "slack_perc": 0,
-        "dvfs": 0,
+        "dvfs": 1,
 
         "base_clk" : 1.0,
+        "min_clk_f" : 0.5,
         "v_nom" : 0.80,
         "v_th"  : 0.35,
-        "power_scale" : 2,
+        "v_min" : 0.45,
+        "power_scale" : 2.5,
         "no_completed_activity_check": true,
 
         "promote": true,
@@ -33,7 +35,7 @@
         "max_queue_size":      1000000,
         "arrival_time_scale":  1.0,
         "stdev_factor":     0.01,
-        "progress_intvl_f":     10,
+        "progress_intvl_f":     100,
 
         "policies": {
             "ms1" : {

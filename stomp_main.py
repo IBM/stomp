@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright 2018 IBM
-# 
+#
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
 import sys, getopt
 import importlib
@@ -83,7 +83,7 @@ def main(argv):
         # We update configuration parameters with JSON
         # values received through the command line
         update(stomp_params, conf_json)
-    
+
     # Dynamically import the scheduling policy class
     sched_policy_module = importlib.import_module(stomp_params['simulation']['sched_policy_module'])
 
@@ -95,7 +95,7 @@ def main(argv):
 
     if (pre_gen):
         stomp_params['general']['pre_gen_arrivals'] = True
-        
+
     #print('Setting input_arr_tr file to %s and output_tr_file to %s\n' % (input_trace_file, output_trace_file))
     stomp_params['general']['input_trace_file'] = input_trace_file
     stomp_params['general']['output_trace_file'] = output_trace_file
@@ -114,8 +114,8 @@ def main(argv):
     thread2.join()
     # meta_sim.run()
     # stomp_sim.run()
-    
-   # stomp_sim.print_stats()
+
+    stomp_sim.print_stats()
 
 
 if __name__ == "__main__":

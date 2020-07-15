@@ -46,14 +46,12 @@ CONF_FILE    = './stomp.json'
 PROMOTE      = True
 POLICY       = ['ms3_update2'] # ['simple_policy_ver2']
 STDEV_FACTOR = [0.01] # percentages
-ARRIVE_SCALE = [1.5]# [0.5] #, 0.7, 0.9] # percentages
+ARRIVE_SCALE = [1.4]# [0.5] #, 0.7, 0.9] # percentages
 PROB         = [0.1]
-DROP         = [True]
-PTOKS        = [100000]
-# PTOKS        = [6500, 7000, 7500, 8000, 8500, 100000]
-SLACK_PERC   = [0] # np.arange(0, 101, 10) # [0] # , 100] # [0, 50, 100]
-# PTOKS        = np.arange(10500, 6499, -1000).tolist()
-# SLACK_PERC   = np.arange(0, 101, 50).tolist()
+DROP         = [False]
+# PTOKS        = [100000]
+PTOKS        = [100000] # [6500, 7000, 7500, 8000, 8500, 100000]
+SLACK_PERC   = [0] # np.arange(50, 101, 50).tolist()
 folder = "MS"
 
 # POLICY       = ['edf_ver5']
@@ -213,10 +211,10 @@ def main(argv):
                                 else:
                                     command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
 
-                            if (use_user_input_trace):
-                                command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc'
                             if trace_debug:
                                 command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc.trim'
+                            elif use_user_input_trace:
+                                command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc'
 
                             command_str += " | tee out.log"
 
@@ -225,7 +223,7 @@ def main(argv):
 
                             sys.stdout.flush()
                             # output = subprocess.check_output(
-                            #     command_str, stderr=subprocess.PIPE, 
+                            #     command_str, stderr=subprocess.PIPE,
                             #     shell=True)
                             # subprocess.call(command_str, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                             process = subprocess.Popen(command_str,
