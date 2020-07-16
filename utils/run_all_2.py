@@ -26,9 +26,6 @@
 #   format, automatically converting the outputs to be comma-separated
 #   and to be written into files ending in .csv
 #
-
-
-
 from __future__ import print_function
 import os
 import subprocess
@@ -42,6 +39,7 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
+JOBS_LIM = 8
 CONF_FILE    = './stomp.json'
 PROMOTE = True
 POLICY = ['ms3_update']
@@ -244,6 +242,10 @@ def main(argv):
                                 with open(stdout_fname, 'wb') as out:
                                     p = subprocess.Popen(command_str, stdout=out, stderr=out, shell=True)
                                     process.append(p)
+                                    if len(process) >= JOBS_LIM:
+                                        for p in process:
+                                            p.wait()
+                                        process.clear()
 
                 for p in process:
                     p.wait()
