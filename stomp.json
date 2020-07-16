@@ -14,14 +14,16 @@
   "simulation" : {
         "meta_policy_module": "meta_policies.ms",
         "sched_policy_module": "policies.simple_policy_ver2",
+        "policy": "ms1",
         "drop": false,
 
+        "pwr_mgmt": false,
         "total_ptoks": 1000,
         "slack_perc": 0,
         "dvfs": 1,
 
         "base_clk" : 1.0,
-        "min_clk_f" : 0.5,
+        "min_clk_f" : 0.1,
         "v_nom" : 0.80,
         "v_th"  : 0.35,
         "v_min" : 0.45,
@@ -30,43 +32,62 @@
 
         "promote": true,
         "max_tasks_simulated": 10000,
-        "mean_arrival_time":   2,
+        "mean_arrival_time":   10,
         "power_mgmt_enabled":  false,
         "max_queue_size":      1000000,
         "arrival_time_scale":  1.0,
-        "stdev_factor":     0.01,
-        "progress_intvl_f":     100,
+        "deadline_scale":      1,
+        "stdev_factor":        0.01,
+        "progress_intvl_f":    1000,
 
         "policies": {
             "ms1" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "tsched_policy": "ms"
             },
             "ms2" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "tsched_policy": "ms"
             },
             "ms3" : {
-                "meta_policy" : "ms"
+                "meta_policy" : "ms",
+                "tsched_policy": "ms"
             },
-            "ms1_update2" : {
-                "meta_policy" : "ms"
+            "ms1_update" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_update"
             },
-            "ms2_update2" : {
-                "meta_policy" : "ms"
+            "ms2_update" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_update"
             },
-            "ms3_update2" : {
-                "meta_policy" : "ms"
+            "ms3_update" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_update"
             },
             "heft" : {
-                "meta_policy" : "heft" 
+                "meta_policy" : "heft",
+                "tsched_policy": "heft"
             },
             "rheft" : {
-                "meta_policy" : "rheft" 
+                "meta_policy" : "rheft",
+                "tsched_policy": "rheft"
             },
             "edf" : {
-                "meta_policy" : "edf" 
+                "meta_policy" : "edf",
+                "tsched_policy": "edf"
             },
             "edf_ver5" : {
-                "meta_policy" : "edf" 
+                "meta_policy" : "edf",
+                "tsched_policy": "edf_ver5"
+            },
+            "simple_policy_ver2": {
+                "meta_policy" : "edf",
+                "tsched_policy": "simple_policy_ver2"
+            },
+            "simple_policy_ver5": {
+                "meta_policy" : "edf",
+                "tsched_policy": "simple_policy_ver5"
             }
         },
 

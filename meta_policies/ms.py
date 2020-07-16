@@ -2,57 +2,61 @@
 from meta import BaseMetaPolicy
 from meta import max_length
 
-class PolicyVariables:
-    def __init__(self, R_its_k_heft, ftsched):
-        self.ftsched = ftsched
-        self.R_its_k_heft = R_its_k_heft
+class TaskVariables:
+    def __init__(self):
+        pass
+
+class DAGVariables:
+    def __init__(self):
+        pass
 
 class MetaPolicy(BaseMetaPolicy):
 
     def init(self, policy):
         pass
 
-    def set_policy_variables(self, dag):
-        return PolicyVariables(None, None)
+    def set_task_variables(self, dag, task_node):
+        return None
+
+    def set_dag_variables(self, dag):
+        return None
 
     def meta_static_rank(self, stomp, dag):
         pass
 
     def meta_dynamic_rank(self, stomp, task, comp, max_time, min_time, deadline, priority): 
 
-        sum=0
-        none = 0
-        for server in stomp.servers:
-            if server.type == "cpu_core":
-                sum+=int(comp[task.tid][2])
-            if server.type == "gpu":
-                sum+=int(comp[task.tid][3])
-            if server.type == "fft_accel":
-                if comp[task.tid][4]=="None":
-                    none+=1
+
+        if ((deadline - (max_time)) < 0):
+            if (priority > 1):
+                if((deadline - (min_time)) >= 0):
+                    slack = 1 + (deadline - (min_time))
+                    task.rank = int((100000 * (1000000*priority))/slack)
+                    task.rank_type = 4 
                 else:
-                    sum+=int(comp[task.tid][4])
+                    slack = 1 - 0.99/( min_time - deadline)
+                    task.rank = int((100000 * (10000000*priority))/slack)
+                    task.rank_type = 5 
 
-
-
-        if ((deadline - (sum/(len(stomp.servers) - none))) == 0):
-            slack = 1
-        else:
-            if ((deadline - (sum/(len(stomp.servers) - none))) < 0):
-                slack = 1/((sum/(len(stomp.servers) - none)) - deadline)
             else:
-                slack = 1 + (deadline - (sum/(len(stomp.servers) - none)))
-
-        if ((deadline - (max_time)) == 0):
-            slack_max = 1
+                if((deadline - (min_time)) >= 0):
+                    slack = 1 + (deadline - (min_time))
+                    task.rank = int((100000 * (100*priority))/slack) 
+                    task.rank_type = 1                       
+                else:
+                    slack = 1 - 0.99/( min_time - deadline)
+                    task.rank = int((100000 * (1*priority))/slack)
+                    task.rank_type = 0
         else:
-            if ((deadline - (max_time)) < 0):
-                slack_max = 1/((max_time) - deadline)
+            slack = 1 + (deadline - (max_time))
+            task.rank = int((100000 * (priority))/slack)
+            if (task.priority > 1):
+                task.rank = int((100000 * (10000*priority))/slack)
+                task.rank_type = 3 
             else:
-                slack_max = 1 + (deadline - (max_time))
-        
-        task.rank = int(100000 * ((priority)/slack_max))
-        # logging.info("Task rank: %d,%d,%d,%d,%d" % (task.rank, priority, deadline, sum, (len(stomp.servers) - none)))
+                task.rank = int((100000 * (1000*priority))/slack)
+                task.rank_type = 2  
+        # print("[%d.%d] Pre Task rank: %d,%d,%d,%d" % (task.dag_id, task.tid, task.rank, priority, deadline, max_time))
 
     def dropping_policy(self, dag, task_node): 
         ex_time = max_length(dag.graph, task_node) #BCET of critical path

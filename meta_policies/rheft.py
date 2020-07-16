@@ -1,10 +1,21 @@
 
 from meta import BaseMetaPolicy
 
-class PolicyVariables:
+class TaskVariables:
+    def __init__(self, ftsched, R_its_k_heft, est, eft, subD, lst, rld):
+        self.ftsched        = ftsched
+        self.R_its_k_heft   = R_its_k_heft
+        self.est            = est 
+        self.eft            = eft 
+        self.subD           = subD
+        self.lst            = lst 
+        self.rld            = rld 
+
+
+class DAGVariables:
     def __init__(self, R_its_k_heft, ftsched):
-        self.ftsched = ftsched
-        self.R_its_k_heft = R_its_k_heft
+        self.ftsched        = ftsched
+        self.R_its_k_heft   = R_its_k_heft
 
 
 class MetaPolicy(BaseMetaPolicy):
@@ -19,7 +30,7 @@ class MetaPolicy(BaseMetaPolicy):
                     temp = line.strip().split(' ')
                     self.pre_schd_data[dag_type].append(temp)
 
-    def set_policy_variables(self, dag):
+    def set_dag_variables(self, dag):
 
         ## calculate sub dealine
         graph = dag.graph
@@ -30,15 +41,33 @@ class MetaPolicy(BaseMetaPolicy):
         max_v = 0
         for node in graph.nodes():
             #print(node.tid,data[node.tid][0])
-            node.est = int(data[node.tid][1])
-            node.eft = int(data[node.tid][2]) + node.est
-            node.subD = deadline - node.est
-            node.lst = deadline - node.eft
-            if max_v < node.eft:
-                max_v = node.eft 
+            est = int(data[node.tid][1])
+            eft = int(data[node.tid][2]) + est
+            subD = deadline - est
+            lst = deadline - eft
+            if max_v < eft:
+                max_v = eft 
 
-        return PolicyVariables(0.31, max_v)
+        return DAGVariables(0.31, max_v)
+   
+    def set_task_variables(self, dag, task_node):
 
+        ## calculate sub dealine
+        graph = dag.graph
+        deadline = dag.deadline
+        dag_type = dag.dag_type
+        data = self.pre_schd_data[dag_type]
+
+        ftsched        = dag.dag_variables.ftsched
+        R_its_k_heft   = dag.dag_variables.R_its_k_heft
+        
+        est = int(data[task_node.tid][1])
+        eft = int(data[task_node.tid][2]) + est
+        subD = deadline - est
+        lst = deadline - eft
+        rld = (lst - ftsched)/(eft)
+
+        return TaskVariables(ftsched, R_its_k_heft, est, eft, subD, lst, rld)
 
     def meta_static_rank(self, stomp, dag):
         graph = dag.graph
@@ -79,7 +108,6 @@ class MetaPolicy(BaseMetaPolicy):
 
                         node.rank = sum/(len(stomp.servers)-none) + max(parent_rank)       
                         parents[node.tid] = node.rank
-
 
     def meta_dynamic_rank(self, stomp, task, comp, max_time, min_time, deadline, priority):
         pass  

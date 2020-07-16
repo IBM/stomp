@@ -151,7 +151,7 @@ class BaseSchedulingPolicy:
     def init(self, servers, stomp_stats, stomp_params): pass
 
     @abstractmethod
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped, drop_hint_list): pass
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj): pass
 
     @abstractmethod
     def remove_task_from_server(self, sim_time, server): pass
@@ -181,17 +181,19 @@ class STOMP:
     E_META_START        = 0
     E_META_DONE         = 0
 
+    E_TSCHED_START      = 0
     E_TSCHED_DONE       = 0
 
 
     def __init__(self, stomp_params, sched_policy):
 
         self.params       = stomp_params
+        self.meta         = None
         self.sched_policy = sched_policy
         self.working_dir  = self.params['general']['working_dir']
         self.basename     = self.params['general']['basename']
         self.num_tasks_generated = 0
-        self.time_since_last_completed = 0
+        # self.time_since_last_completed = 0
 
         logging.basicConfig(level=eval('logging.' + self.params['general']['logging_level']),
                             format="%(message)s",
@@ -204,6 +206,7 @@ class STOMP:
 
         self.tasks                            = []   # Main queue
         self.num_critical_tasks               = 0
+        self.num_critical_dags                = 0
         self.servers                          = []
         self.tasks_to_servers                 = {}   # Maps task type to target servers
         #self.supported_servers               = []
@@ -276,6 +279,7 @@ class STOMP:
         self.global_task_trace = []
         self.lock = threading.Lock()        #For safe access of global_task_trace
         self.tlock = threading.Lock()       #For safe access of tasks_completed and task_completed_flag
+        self.dlock = threading.Lock()
         self.task_completed_flag = 0
         self. random = 0
         if (stomp_params['general']['input_trace_file']):
@@ -379,6 +383,9 @@ class STOMP:
             if (the_task.priority > 1):
                 self.num_critical_tasks += 1
 
+            # if (the_task.priority > 1 and the_task.tid == 0):
+            #     self.num_critical_dags += 1
+
             self.tasks.append(the_task)
             self.stats['Tasks Generated'] += 1
 
@@ -406,17 +413,27 @@ class STOMP:
         resp_time = (self.sim_time - server.task.arrival_time)
         server.task.task_lifetime = resp_time
         server.task.peid = server.id
+
+
+        # self.dlock.acquire()
+        # if(len(self.meta.dag_dict[server.task.dag_id].graph.nodes()) == 1):
+        #     self.num_critical_dags -= 1
+        # self.dlock.release()
+
         self.tlock.acquire()
         self.tasks_completed.append(server.task)
         self.task_completed_flag = 1
         self.next_cust_arrival_time = int(round(self.sim_time))
-        assert server.curr_job_ptoks != 0
-        self.sched_policy.avail_ptoks += server.curr_job_ptoks
-        # logging.info('[%10d][%d.%d] restored %u ptoks, current available ptoks = %u, releasing server = %d' % 
-            # (self.sim_time, server.task.dag_id, server.task.tid, server.curr_job_ptoks, 
+        assert server.curr_job_ptoks != 0 and server.curr_job_ptoks != None
+
+        # Return the freed up power tokens to the pool of available power tokens.
+        if self.params['simulation']['pwr_mgmt']:
+            self.sched_policy.avail_ptoks += server.curr_job_ptoks
+        # logging.info('[%10d][%d.%d] restored %u ptoks, current available ptoks = %u, releasing server = %d' %
+            # (self.sim_time, server.task.dag_id, server.task.tid, server.curr_job_ptoks,
             #  self.sched_policy.avail_ptoks, server.id)) #Aporva
-        if self.params['simulation']['no_completed_activity_check']:
-            self.time_since_last_completed = 0
+        # if self.params['simulation']['no_completed_activity_check']:
+            # self.time_since_last_completed = 0
 
         self.tlock.release()
 
@@ -477,6 +494,7 @@ class STOMP:
 
         self.sched_policy.remove_task_from_server(self.sim_time, server)
 
+        # print("[%d] [%d,%d] Releasing server: %d" %(self.sim_time, server.task.dag_id, server.task.tid, server.id))
         server.reset()
         server.last_stopped_at = self.sim_time
 
@@ -702,6 +720,9 @@ class STOMP:
         self.next_serv_end_time      = float("inf")
         self.next_serv_end           = None
 
+
+        # STOMP variables are initialized, start meta
+        self.E_TSCHED_START = 1
         ######################################################################
         # MAIN SIMULATION: Generate 'max_tasks_simulated' and service them   #
         ######################################################################
@@ -709,7 +730,9 @@ class STOMP:
         while(self.E_META_START == 0):
             pass
             # logging.info("Waiting for tasks to be generated")
-        count = 0
+        event_count_arrival = 0
+        event_count_release = 0
+        sim_count = 0
         while ((len(self.tasks) > 0) or              # There are tasks in the queue, waiting to be served
               (self.stats['Busy Servers'] > 0) or   # There are tasks being served in the servers
               (self.E_META_DONE == 0)):             # Meta scheduler has pushed all ready tasks
@@ -730,12 +753,12 @@ class STOMP:
 
             else:
                 if ((self.stats['Tasks Generated by META']) and
-                     (self.next_cust_arrival_time == self.sim_time)):
+                     (self.next_cust_arrival_time <= self.next_serv_end_time) and (self.next_cust_arrival_time != float("inf"))):
                     # Next event is a task arrival
                     self.next_task_event = STOMP.E_TASK_ARRIVAL
 
 
-                if ((self.next_serv_end_time == self.sim_time)):
+                if (self.next_serv_end_time <= self.next_cust_arrival_time and self.next_serv_end_time != float("inf")):
 
                     # Next event is a server finishing the execution of its assigned task
                     self.next_server_event = STOMP.E_SERVER_FINISHES
@@ -758,35 +781,30 @@ class STOMP:
                 logging.warning('[%10ld] Power management not yet supported...' % (self.sim_time))
 
             if (self.next_task_event == STOMP.E_TASK_ARRIVAL):
-                if (self.next_cust_arrival_time < self.sim_time):
-                    logging.info('WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
-
-
-
-
                 # logging.info(self.sim_time, len(self.global_task_trace))
 
                 # Customer (task) arrival...
                 if (len(self.global_task_trace)):
 
                     self.lock.acquire()
-                    tmp = self.global_task_trace[0]
+                    task_pop = self.global_task_trace[0]
                     self.lock.release()
-                    if (self.sim_time == int(tmp.arrival_time)):
+                    if (self.sim_time == int(task_pop.arrival_time)):
                         # Customer (task) arrival...
                         # self.sim_time = self.next_cust_arrival_time
                         # logging.info("B: " + str(self.sim_time))
                         # Add task to queue
                         if (self.generate_n_enqueue_new_task(self.num_tasks_generated)):
+                            event_count_arrival += 1
                             self.num_tasks_generated += 1
                     else:
-                        if(self.next_cust_arrival_time > int(tmp.arrival_time)):
-                            # self.sim_time = int(tmp.arrival_time) - 1
-                            self.next_cust_arrival_time = int(tmp.arrival_time) - 1
+                        if(self.next_cust_arrival_time > int(task_pop.arrival_time)):
+                            # self.sim_time = int(task_pop.arrival_time) - 1
+                            self.next_cust_arrival_time = int(task_pop.arrival_time) - 1
                             # print("SB: " + str(self.next_cust_arrival_time))
                             # logging.info("C: " + str(self.sim_time))
-                    # self.next_cust_arrival_time = int(tmp.arrival_time)
-                    logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp.arrival_time))
+                    # self.next_cust_arrival_time = int(task_pop.arrival_time)
+                    logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, task_pop.arrival_time))
 
                     if (len(self.global_task_trace)):
                             self.next_cust_arrival_time = int(self.global_task_trace[0].arrival_time)
@@ -797,24 +815,23 @@ class STOMP:
                     #     logging.info('Random WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
                 else:
                 # if (self.task_completed_flag != 1):
-                    self.next_cust_arrival_time = int(round(self.next_cust_arrival_time + 1))
+					# Should only happen of all tid 0 of dags are processed
+                    self.next_cust_arrival_time = float("inf")
                     # print("SD: " + str(self.next_cust_arrival_time))
                         # self.next_cust_arrival_time = None
-                logging.debug('[%10ld] Task enqueued. Next task will arrive at time %ld' % (self.sim_time, self.next_cust_arrival_time))
+                logging.debug('[%10ld] Task enqueued. Next task will arrive at time %s' % (self.sim_time, self.next_cust_arrival_time))
                 logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
 
 
             if (self.next_server_event == STOMP.E_SERVER_FINISHES):
                 # logging.info("NSE:" + str(self.next_serv_end))
-                if (self.next_serv_end_time < self.sim_time):
-                    logging.info('WARNING: SERVER_FINISH Time Moving Backward: sim_time %ld but smaller next_serv_end_time %ld' % (self.sim_time, self.next_serv_end_time))
-
 
                 # Service completion (next_cust_arrival_time >= next_serv_end_time)
                 # self.sim_time = self.next_serv_end_time
                 # logging.info("D: " + str(self.sim_time))
 
                 assert(not self.next_serv_end is None);
+                event_count_release += 1
                 self.release_server(self.next_serv_end)
                 self.stats['Running Tasks'] -= 1
 
@@ -825,60 +842,83 @@ class STOMP:
             ######################################################################
             # 3) Make scheduling decisions                                       #
             ######################################################################
-            server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks, self.dags_dropped, self.drop_hint_list, self.num_critical_tasks)
-            self.ta_time = self.sched_policy.ta_time
-            self.to_time = self.sched_policy.to_time
-
-            #print(server)
-            if server is not None:
-                if server.curr_job_end_time < self.next_serv_end_time:
-                    self.next_serv_end_time = server.curr_job_end_time
-                    self.next_serv_end      = server
-
-                self.stats['Running Tasks']                  += 1
-                self.stats['Busy Servers']                   += 1
-                self.stats['Available Servers'][server.type] -= 1
-
-                self.task_assign_trace.write('%ld,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, server.task.trace_id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
-
-                # Update histogram
-                queue_size  = len(self.tasks) + 1  # +1 because the task was already removed
-                if (self.stats['Max Queue Size'] < queue_size):
-                    self.stats['Max Queue Size'] = queue_size
-                bin         = int(queue_size / self.bin_size)
-                time_period = self.sim_time - self.last_size_change_time
-                if (bin >= len(self.stats['Queue Size Histogram'])):
-                    bin = len(self.stats['Queue Size Histogram']) - 1
-                self.stats['Queue Size Histogram'][bin] += time_period
-                self.last_size_change_time = self.sim_time
-
-                logging.debug('[%10ld] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
-                logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
-                logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
-
-            # ######################################################################
-            # # 4) Update sim time                                       #
-            # ######################################################################
-            # print("%d CAT: %lf, NSET: %lf" % (count,self.next_cust_arrival_time,self.next_serv_end_time)) #Aporva
             while(self.task_completed_flag == 1):
                 pass
             if self.next_cust_arrival_time > self.sim_time and \
                 self.next_serv_end_time > self.sim_time:
 
-                self.sim_time += 1
-                if self.params['simulation']['no_completed_activity_check']:
-                    self.time_since_last_completed += 1
-                    if self.time_since_last_completed > self.params['simulation']['progress_intvl_f'] * \
-                        self.params['simulation']['mean_arrival_time'] * \
-                        self.params['simulation']['arrival_time_scale']:
-                        print('[%10ld] WARNING: No completed activity since last %u timesteps' % 
-                            (self.sim_time, self.time_since_last_completed), file=sys.stderr)
+                free_server_count = 0
+                for server in self.servers:
+                    if server.busy == False:
+                        free_server_count += 1
+
+                for x in xrange(0,free_server_count):
+                    server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks, self.dags_dropped, self)
+                    if server == None:
+                        break
+                    self.ta_time = self.sched_policy.ta_time
+                    self.to_time = self.sched_policy.to_time
+
+                    # print(server)
+                    if server is not None:
+                        if server.curr_job_end_time < self.next_serv_end_time:
+                            self.next_serv_end_time = server.curr_job_end_time
+                            self.next_serv_end      = server
+
+                        self.stats['Running Tasks']                  += 1
+                        self.stats['Busy Servers']                   += 1
+                        self.stats['Available Servers'][server.type] -= 1
+
+                        self.task_assign_trace.write('%ld,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, server.task.trace_id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
+
+                        # Update histogram
+                        queue_size  = len(self.tasks) + 1  # +1 because the task was already removed
+                        if (self.stats['Max Queue Size'] < queue_size):
+                            self.stats['Max Queue Size'] = queue_size
+                        bin         = int(queue_size / self.bin_size)
+                        time_period = self.sim_time - self.last_size_change_time
+                        if (bin >= len(self.stats['Queue Size Histogram'])):
+                            bin = len(self.stats['Queue Size Histogram']) - 1
+                        self.stats['Queue Size Histogram'][bin] += time_period
+                        self.last_size_change_time = self.sim_time
+
+                        logging.debug('[%10ld] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
+                        logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
+                        logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
+
+            # ######################################################################
+            # # 4) Update sim time                                       #
+            # ######################################################################
+            # print("%d CAT: %lf, NSET: %lf" % (count,self.next_cust_arrival_time,self.next_serv_end_time)) #Aporva
+            # while(self.task_completed_flag == 1):
+            #     pass
+            if self.next_cust_arrival_time <= self.next_serv_end_time:
+                if(self.next_cust_arrival_time != float("inf")):
+                    if (self.next_cust_arrival_time < self.sim_time):
+                        logging.warning('WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
+                        assert False
+                    self.sim_time = self.next_cust_arrival_time
+                    sim_count += 1
+            else:
+                if(self.next_serv_end_time != float("inf")):
+                    if (self.next_serv_end_time < self.sim_time):
+                        logging.warning('WARNING: SERVER_FINISH Time Moving Backward: sim_time %ld but smaller next_serv_end_time %ld' % (self.sim_time, self.next_serv_end_time))
+                        assert False
+                    self.sim_time = self.next_serv_end_time
+                    sim_count += 1
+
+            # if self.params['simulation']['no_completed_activity_check']:
+            #     self.time_since_last_completed += 1
+            #     if self.time_since_last_completed > self.params['simulation']['progress_intvl_f'] * \
+            #         self.params['simulation']['mean_arrival_time'] * \
+            #         self.params['simulation']['arrival_time_scale']:
+            #         print('[%10ld] WARNING: No completed activity since last %u timesteps' %
+            #             (self.sim_time, self.time_since_last_completed), file=sys.stderr)
 
                 # print("Time:" + str(self.sim_time)) #Aporva
             self.next_event = STOMP.E_NOTHING
             self.next_task_event = STOMP.E_NOTHING
             self.next_server_event = STOMP.E_NOTHING
-            count += 1
 
             # print(("TSCHED Stats: Ready Tasks: %d, Busy Servers: %d, E_META_DONE: %d") % (len(self.tasks), self.stats['Busy Servers'], self.E_META_DONE))
 

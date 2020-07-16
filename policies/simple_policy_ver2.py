@@ -46,7 +46,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.avail_ptoks  = self.total_ptoks
         # print("Total ptoks set to %d" % (self.total_ptoks))
 
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped):
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve

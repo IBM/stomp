@@ -147,6 +147,7 @@ def gen_svg_for_group(group_by):
         dag_task_id2task[t] = exe_task
 
     # Draw
+    print("Saving .svg files in: " + trace_dir + "/")
     if group_by == 'criticality':
         p1.make_svg_for_resources(filename=trace_dir + '/' + group_by + '_group.svg', start=start_ts, end=end_ts, resources=res_names.sort())
     elif group_by == 'server_type':

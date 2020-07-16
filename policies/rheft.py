@@ -44,7 +44,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.to_time      = timedelta(microseconds=0)
 
 
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped):
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
@@ -54,26 +54,18 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             window_len = max_task_depth_to_check
         else:
             window_len = len(tasks)
-            
-        start = datetime.now()
-        tasks.sort(key=lambda task: task.rank, reverse=True)
-        end = datetime.now()
-        self.to_time += end - start
-        # print(("TO: %d")%(self.to_time.microseconds))
+        
+        tasks.sort(key=lambda task: task.rank, reverse=True)    
         window = tasks[:window_len]
 
-    
-
-        for w in window:
-            w.rld = (w.lst - (w.ftsched))/(w.eft)
-        window.sort(key=lambda task: task.rld)
-            
-
-        
+        start = datetime.now()
+        window.sort(key=lambda task: task.task_variables.rld)
+        end = datetime.now()     
+        self.to_time += end - start
+        # print(("TO: %d")%(self.to_time.microseconds))
+		        
         start = datetime.now()       
-        for task in window:
-            # logging.debug('[%10ld] Attempting to schedule task %2d : %s' % (sim_time, tidx, task.type))
-        
+        for task in window:        
             # Compute execution times for each target server, factoring in
             # the remaining execution time of tasks already running.
             target_servers = []
@@ -99,22 +91,47 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 else:
                     target_servers.append(float("inf"))
                 
-                task.subD = task.subD-min(target_servers)    
+                task.task_variables.subD = task.task_variables.subD-min(target_servers)    
+
+        window.sort(key=lambda task: task.task_variables.subD) 
+
+        tidx = 0;
+        for task in window:        
+            # Compute execution times for each target server, factoring in
+            # the remaining execution time of tasks already running.
+            target_servers = []
+            for server in self.servers:
             
+                # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
+                if (server.type in task.mean_service_time_dict):
+                
+                    mean_service_time   = task.mean_service_time_dict[server.type]
+                    if (server.busy):
+                        remaining_time  = server.curr_job_end_time - sim_time
+                        for stask in window:
+                            if(stask == task):
+                                break
+                            if (self.servers.index(server) == stask.possible_server_idx):
+                                remaining_time  += stask.mean_service_time_dict[server.type]
+                    else:
+                        remaining_time  = 0
+                    actual_service_time = mean_service_time + remaining_time
+                
+                    logging.debug('[%10ld] Server %s : mst %d ast %d ' % (sim_time, server.type, mean_service_time, actual_service_time))
+                    target_servers.append(actual_service_time)
+                else:
+                    target_servers.append(float("inf"))
+                            
             # Look for the server with smaller actual_service_time
             # and check if it's available
-            task.server_idx = target_servers.index(min(target_servers))
+            server_idx = target_servers.index(min(target_servers))
 
-        window.sort(key=lambda task: task.subD) 
-        tidx = 0;
-        for task in window:
-
-            if (not self.servers[task.server_idx].busy):
+            if (not self.servers[server_idx].busy):
                 # Pop task in queue and assign it to server
                 tasks.remove(task)
-                # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, task.type, task.server_idx, self.servers[task.server_idx].type))
+                # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, task.type, server_idx, self.servers[server_idx].type))
                 
-                self.servers[task.server_idx].assign_task(sim_time, task)
+                self.servers[server_idx].assign_task(sim_time, task)
                 bin = int(tidx / self.bin_size)        
                 if (bin >= len(self.stats['Task Issue Posn'])):
                     bin = len(self.stats['Task Issue Posn']) - 1
@@ -123,9 +140,9 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 end = datetime.now()
                 self.ta_time += end - start
                 # print(("TA: %d")%(self.ta_time.microseconds))
-                return self.servers[task.server_idx]
+                return self.servers[server_idx]
             else:
-                task.possible_server_idx = task.server_idx
+                task.possible_server_idx = server_idx
             tidx += 1  # Increment task idx
             # if (tidx >= max_task_depth_to_check):
             #     break
