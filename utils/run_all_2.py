@@ -39,7 +39,7 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-JOBS_LIM = 8
+JOBS_LIM = 32
 CONF_FILE    = './stomp.json'
 PROMOTE = True
 POLICY = ['ms3_update']
@@ -245,10 +245,10 @@ def main(argv):
                                     if len(process) >= JOBS_LIM:
                                         for p in process:
                                             p.wait()
-                                        process.clear()
+                                        del process[:]
 
-                for p in process:
-                    p.wait()
+        for p in process:
+            p.wait()
                             # if (save_stdout):
                             #     fh = open(sim_dir + '/run_stdout_' + policy + "_drop_" + str(drop) + "_arr_" + str(arr_scale) + '_prob_' + str(prob) + '.out', 'w')
 
