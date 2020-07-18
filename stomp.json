@@ -18,6 +18,7 @@
         "drop": false,
 
         "pwr_mgmt": false,
+        "pwr_model": "simple",
         "total_ptoks": 1000,
         "slack_perc": 0,
         "dvfs": 1,

@@ -65,6 +65,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         # TODO: these should probably go into stomp.py.
         self.pwr_mgmt     = stomp_params['simulation']['pwr_mgmt']
+        self.pwr_model    = stomp_params["simulation"]["pwr_model"]
         self.total_ptoks  = stomp_params['simulation']['total_ptoks']
         self.avail_ptoks  = self.total_ptoks
         # Percentage of slack to consume for DVFS.
@@ -78,16 +79,32 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.v_min        = stomp_params["simulation"]["v_min"]
         self.power_scale  = stomp_params["simulation"]["power_scale"]
 
-    # Return scaled number of power tokens.
-    def get_scaled_power(self, ptoks, clk):
-        assert clk > 0.
+    # Return scaled number of power tokens. Voltage is clamped to v_min if it falls lower than that.
+    # Clock is also clamped to the clock at v_min.
+    def get_scaled_power_clk(self, ptoks, clk_new):
+        assert clk_new > 0.
 
-        v_new = self.v_th / (1 - ((clk / 1.) ** 0.5) * (1 - self.v_th / self.v_nom))
-        # Clamp to within 10% of Vth. TODO: parameterize.
-        v_new = clamp(v_new, self.v_min)
-        # print("v_th = %f, v_nom = %f, v_new = %f, clk_new = %f, clk_orig = %f" \
-        #     " power_scale = %f" % (self.v_th, self.v_nom, v_new, clk, 1, self.power_scale))
-        return ptoks * (v_new / self.v_nom) ** self.power_scale
+        if self.pwr_model == "simple":
+            v_new = self.v_nom * clk_new / self.base_clk
+        else:
+            # v_new = self.v_th / (1 - ((clk_new / self.base_clk) ** 0.5) * (1 - self.v_th / self.v_nom))
+            assert False, "Unsupported"
+
+        v_new_clamped = clamp(v_new, self.v_min)
+
+        if v_new_clamped > v_new:
+            # Recalculate clock for clamped voltage.
+            if self.pwr_model == "simple":
+                clk_new = self.base_clk * (v_new_clamped / self.v_nom)
+            else:
+                # clk_new = self.base_clk * ((1 - self.v_th / v_new_clamped) / (1 - self.v_th / self.v_nom)) ** 2
+                assert False, "Unsupported"
+
+        v_new = v_new_clamped
+
+        # print("v_th = %f, v_nom = %f, v_new = %f, clk_old = %f, clk_new = %f, clk_new_orig = %f" \
+        #     " power_scale = %f" % (self.v_th, self.v_nom, v_new, self.base_clk, clk_new, 1, self.power_scale))
+        return ptoks * (v_new / self.v_nom) ** self.power_scale, clk_new
 
     def apply_dvfs(self, sim_time, task, mean_service_time, ptoks):
         # Scale service time based on
@@ -99,21 +116,27 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         usable_slack = slack * self.slack_perc / 100.
         # print("slack = %u, usable_slack = %u" % (slack, usable_slack))
         if usable_slack > 0:
-            mean_service_time = round(usable_slack + orig_service_time)
-            # print("orig_service_time = %u, slack = %u, scaled_service_time = %u" %
-            #     (orig_service_time, slack, mean_service_time))
-            clk_scale = orig_service_time / mean_service_time
+
+            # Assume linear relationship b/w clock and service time.
+            clk_scale = orig_service_time / (usable_slack + orig_service_time)
+            # Clamp clock to lower bound.
             clk_scale = clamp(clk_scale, self.min_clk_f)
 
             new_clk = self.base_clk * clk_scale
             orig_rqstd_ptoks = ptoks
-            ptoks = self.get_scaled_power(orig_rqstd_ptoks, new_clk)
+            ptoks, new_clk = self.get_scaled_power_clk(orig_rqstd_ptoks, new_clk)
+            clk_scale = new_clk / self.base_clk
+
+            # Now scale the service time linearly with clock scale.
+            mean_service_time = round(orig_service_time / clk_scale)
+
+            # print("orig_service_time = %u, slack = %u, usable_slack = %u, scaled_service_time = %u" %
+            #     (orig_service_time, slack, usable_slack, mean_service_time))
 
             # print("orig_rqstd_ptoks = %u, scaled_rqstd_ptoks = %u" % (orig_rqstd_ptoks,
             #     ptoks))
             # print("orig_service_time = %u, mean_service_time = %u" % (orig_service_time,
             #     mean_service_time))
-            # print("clk_scale = %f" % (clk_scale))
         else:
             pass
             # print("no usable slack")
@@ -286,7 +309,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                                     #     (sim_time, task.dag_id, task.tid, stask.dag_id, stask.tid, stask.possible_server_idx,
                                     #         stask.possible_mean_service_time, stask.mean_service_time_dict[server.type]))
                                     remaining_time += stask.possible_mean_service_time # set when server for stask is reserved
-                                    # assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
+                                    if not self.pwr_mgmt:
+                                        assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
                         else:
                             remaining_time  = 0
                         actual_service_time = mean_service_time + remaining_time
@@ -312,8 +336,12 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             if not server.busy:           # Server is not busy.
                 if self.pwr_mgmt and self.dvfs:
                     # logging.info('[%10ld] [%d.%d] Applying dvfs ' % (sim_time, task.dag_id, task.tid))
+                    orig_energy = mean_service_time * rqstd_ptoks
                     mean_service_time, rqstd_ptoks, clk_scale = self.apply_dvfs(
                         sim_time, task, mean_service_time, rqstd_ptoks)
+                    new_energy = mean_service_time * rqstd_ptoks
+                    # logging.info('[%10ld] [%d.%d] Old energy: %u, new energy: %u, clk_scale=%f' % \
+                    #         (sim_time, task.dag_id, task.tid, orig_energy, new_energy, clk_scale))
                 else:
                     clk_scale = 1.
 
