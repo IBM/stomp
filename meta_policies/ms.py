@@ -12,7 +12,7 @@ class DAGVariables:
 
 class MetaPolicy(BaseMetaPolicy):
 
-    def init(self, policy):
+    def init(self, params):
         pass
 
     def set_task_variables(self, dag, task_node):

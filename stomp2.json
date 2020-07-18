@@ -1,221 +1,333 @@
-{	
+{
 
-  "general" : {
-      "logging_level": 		"INFO",
-      "random_seed":   		0,
-      "working_dir":   		".",
-      "basename":      		"",
-      "pre_gen_arrivals":	false,
-      "input_trace_file":	"",
-      "output_trace_file":	""
+    "general" : {
+        "logging_level":        "INFO",
+        "random_seed":          0,
+        "working_dir":          ".",
+        "basename":             "",
+        "pre_gen_arrivals":     false,
+        "input_trace_file":     "",
+        "output_trace_file":    "",
+        "uot":                  "10^-3s",
+        "comment":              "Power values derived from Jetson TX1 dev board. CPU power numbers are scaled to 1/N where N is the number of cores on the TX1. Accel power values are placeholders right now and are set to 1/5th of corresponding GPU power numbers."
+    },
 
-  },
-  
-  "simulation" : {
-      "sched_policy_module": "policies.simple_policy_ver3",
-      "max_tasks_simulated": 10000,
-      "drop": false,
-      "mean_arrival_time":   50,
-      "power_mgmt_enabled":  false,
-      "max_queue_size":      1000000,
-      "arrival_time_scale":  1.0,
-      "stdev_factor":     0.01,
+    "simulation" : {
+        "application":         "ad",
+        "meta_policy_module":  "meta_policies.ms",
+        "sched_policy_module": "policies.simple_policy_ver2",
+        "policy":              "ms1",
+        "drop":                false,
+        "pwr_mgmt": false,
+        "total_ptoks": 1000,
+        "slack_perc": 0,
+        "dvfs": 1,
 
-      "servers": {
-          "cpu_core" : {
-              "count" : 8
-          },
-          "gpu" : {
-              "count" : 2
-          },
-          "loc_accel" : {
-              "count" : 1
-          },
-          "det_accel" : {
-              "count" : 1
-          },
-          "tra_accel" : {
-              "count" : 1
-          }
-      },
+        "base_clk" : 1.0,
+        "min_clk_f" : 0.1,
+        "v_nom" : 0.80,
+        "v_th"  : 0.35,
+        "v_min" : 0.45,
+        "power_scale" : 2.5,
+        "no_completed_activity_check": true,
+        "promote":             true,
+        "max_tasks_simulated": 10000,
+        "mean_arrival_time":   50,
+        "power_mgmt_enabled":  false,
+        "max_queue_size":      1000000,
+        "arrival_time_scale":  1.0,
+        "deadline_scale":      1,
+        "stdev_factor":        0.01,
+        "progress_intvl_f":    1000,
 
-      "tasks": {
- "loc" : {
-		 "mean_service_time" : {
-                  "cpu_core"  : 165,
-                  "gpu"       : 95,
-		  "loc_accel"   : 10
-              },
-              "power" : {
-                  "cpu_core"  : 6.133,
-                  "gpu"       : 4.457,
-		  "loc_accel"   : 0.02197
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 5.0,
-                  "gpu"       : 1.0,
-                  "loc_accel" : 0.1
-              },
-              "priority" : 1,
-              "deadline" : 1000
-          },          
+        "applications": {
+            "synthetic": {
+                "comp_file":           "inputs/random_comp_",
+                "graphml_file":        "inputs/random_dag_",
+                "dag_types": {
+                    "5": {},
+                    "7": {},
+                    "10": {}
+                } 
+            },
+            "ad": {
+                "comp_file":           "inputs/end_to_end/dag_",
+                "graphml_file":        "inputs/end_to_end/dag", 
+                "dag_types": {
+                    "0": {},
+                    "1": {},
+                    "2": {},
+                    "3": {}
+                }
+            },
+            "mapping": {
+                "comp_file":           "inputs/mavbench/mapping/dag_",
+                "graphml_file":        "inputs/mavbench/mapping/dag",  
+                "dag_types": {
+                    "0": {},
+                    "1": {},
+                    "2": {}
+
+                }
+            },
+            "package": {
+                "comp_file":           "inputs/mavbench/package/dag_",
+                "graphml_file":        "inputs/mavbench/package/dag", 
+                "dag_types": {
+                    "0": {},
+                    "1": {},
+                    "2": {}
+                }
+            }
+        },
+
+        "policies": {
+            "ms1" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms"
+            },
+            "ms2" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms"
+            },
+            "ms3" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms"
+            },
+            "ms1_update" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_update"
+            },
+            "ms2_update" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_update"
+            },
+            "ms3_update" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_update"
+            },
+            "heft" : {
+                "meta_policy" : "heft",
+                "tsched_policy": "heft"
+            },
+            "rheft" : {
+                "meta_policy" : "rheft",
+                "tsched_policy": "rheft" 
+            },
+            "edf" : {
+                "meta_policy" : "edf",
+                "tsched_policy": "edf" 
+            },
+            "edf_ver5" : {
+                "meta_policy" : "edf",
+                "tsched_policy": "edf_ver5" 
+            },
+            "simple_policy_ver2": {
+                "meta_policy" : "edf",
+                "tsched_policy": "simple_policy_ver2" 
+            },
+            "simple_policy_ver5": {
+                "meta_policy" : "edf",
+                "tsched_policy": "simple_policy_ver5" 
+            }
+        },
+        "servers": {
+            "cpu_core" : {
+                "id": 0,
+                "count" : 8
+            },
+            "gpu" : {
+                "id": 1,
+                "count" : 2
+            },
+            "loc_accel" : {
+                "id": 2,
+                "count" : 1
+            },
+            "det_accel" : {
+                "id": 3,
+                "count" : 1
+            },
+            "tra_accel" : {
+                "id": 4,
+                "count" : 1
+            }
+        },
+
+        "tasks": {
+            "loc" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 165,
+                    "gpu"       : 95,
+                    "loc_accel"   : 10
+                },
+                "power" : {
+                    "cpu_core"  : 6133,
+                    "gpu"       : 4457,
+                    "loc_accel"   : 22
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 5.0,
+                    "gpu"       : 1.0,
+                    "loc_accel" : 0.1
+                },
+                "priority" : 1,
+                "deadline" : 1000
+            },          
          
-                 "detect" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 3530,
-                  "gpu"       : 156,
-                  "det_accel" : 96
-              },
-              "power" : {
-                  "cpu_core"  : 3.654,
-                  "gpu"       : 0.467,
-		  "det_accel"   : 0.0278
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 2.0,
-                  "gpu"       : 1.5,
-                  "det_accel" : 0.1
-              },
-              "priority" : 2,
-              "deadline" : 1000
-          },
+            "detect" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 3530,
+                    "gpu"       : 156,
+                    "det_accel" : 96
+                },
+                "power" : {
+                    "cpu_core"  : 3654,
+                    "gpu"       : 467,
+                    "det_accel"   : 28
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 2.0,
+                    "gpu"       : 1.5,
+                    "det_accel" : 0.1
+                },
+                "priority" : 2,
+                "deadline" : 1000
+            },
       
-          "track" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 1820,
-                  "gpu"       : 17,
-		  "tra_accel" : 2
-              },
-              "power" : {
-                  "cpu_core"  : 5.6,
-                  "gpu"       : 12.79,
-		  "tra_accel" : 0.59
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 2.0,
-                  "gpu"       : 1.5,
-		  "tra_accel" : 0.1
-              },
-              "priority" : 3,
-              "deadline" : 1000
-          },
+            "track" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 1820,
+                    "gpu"       : 17,
+                    "tra_accel" : 2
+                },
+                "power" : {
+                    "cpu_core"  : 5600,
+                    "gpu"       : 12790,
+                    "tra_accel" : 590
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 2.0,
+                    "gpu"       : 1.5,
+                    "tra_accel" : 0.1
+                },
+                "priority" : 3,
+                "deadline" : 1000
+            },
 
-   	  "fusion" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 1
-              },
-              "power" : {
-                  "cpu_core"  : 0
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 2.0
-              },
-              "priority" : 4,
-              "deadline" : 1000
-          },
+            "fusion" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 1
+                },
+                "power" : {
+                    "cpu_core"  : 500
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 2.0
+                },
+                "priority" : 4,
+                "deadline" : 1000
+            },
 
-          "mission" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 0.0022
-              },
-              "power" : {
-                  "cpu_core"  : 3.534
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 2.0
-              },
-              "priority" : 5,
-              "deadline" : 1000
-          },
+            "mission" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 0.0022
+                },
+                "power" : {
+                    "cpu_core"  : 3534
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 2.0
+                },
+                "priority" : 5,
+                "deadline" : 1000
+            },
 
-           "motion" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 8
-              },
-              "power" : {
-                  "cpu_core"  : 4.222
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 2.0
-              },
-              "priority" : 6,
-              "deadline" : 1000
-          },
+            "motion" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 8
+                },
+                "power" : {
+                    "cpu_core"  : 4222
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 2.0
+                },
+                "priority" : 6,
+                "deadline" : 1000
+            },
 
- "collision" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 8
-              },
-              "power" : {
-                  "cpu_core"  : 0
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 1
-              },
-              "priority" : 7,
-              "deadline" : 1000
-          },
- "path" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 8
-              },
-              "power" : {
-                  "cpu_core"  : 0
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 1
-              },
-              "priority" : 8,
-              "deadline" : 1000
-          },
- "Frontier" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 396
-              },
-              "power" : {
-                  "cpu_core"  : 5.980
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 2.0
-              },
-              "priority" : 9,
-              "deadline" : 1000
-          },
- "map" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 973,
-                  "gpu"       : 761
-              },
-              "power" : {
-                  "cpu_core"  : 2.995,
-                  "gpu"       : 3.533
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 2.0,
-                  "gpu"       : 1.5
-              },
-              "priority" : 10,
-              "deadline" : 1000
-          },
- "sp" : {
-              "mean_service_time" : {
-                  "cpu_core"  : 1004,
-                  "gpu"       : 379
-              },
-              "power" : {
-                  "cpu_core"  : 3.302,
-                  "gpu"       : 3.533
-              },
-              "stdev_service_time" : {
-                  "cpu_core"  : 2.0,
-                  "gpu"       : 1.5
-              },
-              "priority" : 11,
-              "deadline" : 1000
-          }
-
-
-      }
-  }
-
+            "collision" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 8
+                },
+                "power" : {
+                    "cpu_core"  : 500
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 1
+                },
+                "priority" : 7,
+                "deadline" : 1000
+            },
+            "path" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 8
+                },
+                "power" : {
+                    "cpu_core"  : 500
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 1
+                },
+                "priority" : 8,
+                "deadline" : 1000
+            },
+            "Frontier" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 396
+                },
+                "power" : {
+                    "cpu_core"  : 5980
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 2.0
+                },
+                "priority" : 9,
+                "deadline" : 1000
+            },
+            "map" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 973,
+                    "gpu"       : 761
+                },
+                "power" : {
+                    "cpu_core"  : 2995,
+                    "gpu"       : 3533
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 2.0,
+                    "gpu"       : 1.5
+                },
+                "priority" : 10,
+                "deadline" : 1000
+            },
+            "sp" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 1004,
+                    "gpu"       : 379
+                },
+                "power" : {
+                    "cpu_core"  : 3302,
+                    "gpu"       : 3533
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 2.0,
+                    "gpu"       : 1.5
+                },
+                "priority" : 11,
+                "deadline" : 1000
+            }
+        }
+    }
 }

@@ -1,5 +1,5 @@
 type,P1,P2,...,Pn
-loc,0.078,165,95,10.1,None,None
+loc,0.078,165,95,10,None,None
 map,0.45,973,761,None,None,None
 collision,0.0005,1,None,None,None,None
 sp,0.47,1004,379,None,None,None

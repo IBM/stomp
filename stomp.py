@@ -267,6 +267,7 @@ class STOMP:
 
         self.dags_dropped                     = []
         self.drop_hint_list                   = []
+        self.final_drop_list                  = []
         self.tasks_completed                  = []
         self.next_event                       = STOMP.E_NOTHING
         self.next_task_event                  = STOMP.E_NOTHING
@@ -421,6 +422,8 @@ class STOMP:
         # self.dlock.release()
 
         self.tlock.acquire()
+        while(len(self.drop_hint_list)):
+            self.final_drop_list.append(self.drop_hint_list.pop(0))
         self.tasks_completed.append(server.task)
         self.task_completed_flag = 1
         self.next_cust_arrival_time = int(round(self.sim_time))

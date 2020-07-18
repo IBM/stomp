@@ -63,8 +63,9 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 # for server_stat in self.servers:
                     # if (server_stat.busy):
                     #     print('BUSY: %s,%d,%s' % (server_stat.type, server_stat.id, server_stat.busy))
-                server.assign_task(sim_time, tasks.pop(0))
-
+                task = tasks.pop(0)
+				task.ptoks_used = task.power_dict[server.type]
+				server.assign_task(sim_time, task)
                 return server
                 
         return None

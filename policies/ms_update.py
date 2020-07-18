@@ -264,9 +264,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
                 # print("[%d] [%d.%d] Params: task.priority = %d server.type = %s stomp_obj.num_critical_tasks = %d"
                 #     % (sim_time, task.dag_id, task.tid, task.priority, server.type, stomp_obj.num_critical_tasks))
-                # if ((task.priority == 1 and (server.type == "cpu_core")) or task.priority > 1):
-                if ((task.priority == 1 and (server.type == "cpu_core" or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
-
+                #if ((task.priority == 1 and (server.type == "cpu_core" or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
+                if ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
                     # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
                     if (server.type in task.mean_service_time_dict):
 
@@ -300,10 +299,13 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
             # Look for the server with smaller actual_service_time
             # and check if it's available
+            if(min(target_servers) == float("inf")):
+                break
             server_idx = target_servers.index(min(target_servers))
             server = self.servers[server_idx]
 
             rqstd_ptoks = task.power_dict[server.type]
+            # logging.info('[%10ld] [%d.%d] Requested ptoks = %f' % (sim_time, task.dag_id, task.tid, rqstd_ptoks))
             mean_service_time = task.mean_service_time_dict[server.type]
             # if (task.priority == 1 and self.servers[server_idx].type != "cpu_core"):
             #     print('[%10ld] [%d.%d] Assertion failed %2d %s to server %2d %s' % (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type))

@@ -8,21 +8,22 @@ import gantt
 import os
 
 start_ts = 0
-end_ts   = -1 #300 # 200
+#end_ts   = -1 #300 # 200
+end_ts   = -1 # 200
 group_bys = [
-    'server_type_flat',
-    'server_type',
-    'criticality',
+    #'server_type_flat',
+    # 'server_type',
+    # 'criticality',
     None
 ]
 
 colors = [
         '#e41a1c',
         '#377eb8',
-        '#4daf4a'
-        # '#a6cee3',
-        # '#1f78b4',
-        # '#b2df8a'
+        '#4daf4a',
+        '#a6cee3',
+        '#1f78b4',
+        '#b2df8a'
         ]
 server2col = {} # Map of server type to color.
 

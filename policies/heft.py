@@ -44,7 +44,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.to_time      = timedelta(microseconds=0)
 
 
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped, drop_hint_list, stomp_obj):
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
@@ -100,12 +100,15 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # Look for the server with smaller actual_service_time
             # and check if it's available
             server_idx = target_servers.index(min(target_servers))
+            server = self.servers[server_idx]
 
+            rqstd_ptoks = task.power_dict[server.type]
             if (not self.servers[server_idx].busy):
                 # Pop task in queue and assign it to server
                 tasks.remove(task)
                 # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, task.type, server_idx, self.servers[server_idx].type))
                 
+                task.ptoks_used = rqstd_ptoks
                 self.servers[server_idx].assign_task(sim_time, task)
                 bin = int(tidx / self.bin_size)        
                 if (bin >= len(self.stats['Task Issue Posn'])):

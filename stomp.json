@@ -5,14 +5,16 @@
         "random_seed":          0,
         "working_dir":          ".",
         "basename":             "",
-        "pre_gen_arrivals": false,
-        "input_trace_file": "",
+        "pre_gen_arrivals":     false,
+        "input_trace_file":     "",
         "output_trace_file":    "",
-        "comment":           "Power values derived from Jetson TX1 dev board. CPU power numbers are scaled to 1/N where N is the number of cores on the TX1. Accel power values are placeholders right now and are set to 1/5th of corresponding GPU power numbers."
+        "uot":                  "10^-5s",
+        "comment":              "Power values derived from Jetson TX1 dev board. CPU power numbers are scaled to 1/N where N is the number of cores on the TX1. Accel power values are placeholders right now and are set to 1/5th of corresponding GPU power numbers."
     },
 
-  "simulation" : {
-        "meta_policy_module": "meta_policies.ms",
+    "simulation" : {
+        "application":         "synthetic",
+        "meta_policy_module":  "meta_policies.ms",
         "sched_policy_module": "policies.simple_policy_ver2",
         "policy": "ms1",
         "drop": false,
@@ -39,6 +41,47 @@
         "deadline_scale":      1,
         "stdev_factor":        0.01,
         "progress_intvl_f":    1000,
+
+        "applications": {
+            "synthetic": {
+                "comp_file":           "inputs/random_comp_",
+                "graphml_file":        "inputs/random_dag_",
+                "dag_types": {
+                    "5": {},
+                    "7": {},
+                    "10": {}
+                } 
+            },
+            "ad": {
+                "comp_file":           "inputs/end_to_end/dag_",
+                "graphml_file":        "inputs/end_to_end/dag", 
+                "dag_types": {
+                    "0": {},
+                    "1": {},
+                    "2": {},
+                    "3": {}
+                }
+            },
+            "mapping": {
+                "comp_file":           "inputs/mavbench/mapping/dag_",
+                "graphml_file":        "inputs/mavbench/mapping/dag",  
+                "dag_types": {
+                    "0": {},
+                    "1": {},
+                    "2": {}
+
+                }
+            },
+            "package": {
+                "comp_file":           "inputs/mavbench/package/dag_",
+                "graphml_file":        "inputs/mavbench/package/dag", 
+                "dag_types": {
+                    "0": {},
+                    "1": {},
+                    "2": {}
+                }
+            }
+        },
 
         "policies": {
             "ms1" : {
@@ -93,20 +136,17 @@
 
         "servers": {
             "cpu_core" : {
-              "count" : 8
+                "id": 0,
+                "count" : 8
             },
             "gpu" : {
-              "count" : 2
+                "id": 1,
+                "count" : 2
             },
             "fft_accel" : {
-              "count" : 1
+                "id": 2,
+                "count" : 1
             }
-        },
-
-        "dag_types": {
-            "5": {},
-            "7": {},
-            "10": {}
         },
 
         "tasks": {

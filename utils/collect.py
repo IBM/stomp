@@ -51,7 +51,9 @@ extra = False
 # DROP         = [True, False]
 # STDEV_FACTOR = [0.01]
 
-conf_file    = './stomp.json'
+
+conf_file    = './stomp2.json'
+dl_scale = 2.5
 
 stomp_params = {}
 with open(conf_file) as conf_file:
@@ -69,6 +71,7 @@ def main(argv):
     DL_10 = 1012
 
     sim_dir = argv
+    sim,date,time,app = sim_dir.split('_')
     first = 1
     for pwr_mgmt in PWR_MGMT:
         if pwr_mgmt == False:
@@ -81,6 +84,11 @@ def main(argv):
             for drop in DROP:
                 for prob in PROB:
                     for arr_scale in ARRIVE_SCALE:
+                        if(app == "ad"):
+                            dl_scale = 5
+                        elif(app == "mapping" or app == "package"):
+                            dl_scale = 2.5
+                        arr_scale = arr_scale / dl_scale
                         deadline_5 = DL_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
                         deadline_7 = DL_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
                         deadline_10 = DL_10 * (arr_scale * stomp_params['simulation']['deadline_scale'])
@@ -153,8 +161,10 @@ def main(argv):
                                         '_prob_' + str(prob) + \
                                         '_ptoks_' + str(ptoks) + \
                                         '.out'
+                                    # print(fname)
                                     if os.path.exists(fname):
                                         pass
+
                                     else:
 
                                         out2 = str(accel_count) + "," + \
@@ -236,6 +246,7 @@ def main(argv):
                                                             mission_failed = 1
                                                             mission_completed[policy] = priority_2_met[policy]
                                                         priority_2_noaff_per[policy] += float(noafftime)/float(resp)
+                                                        # print(mission_time)
                                                         mission_time[policy] += float(resp)
                                                         mission_time1[policy] += deadline
                                                         # print(resp, deadline)
@@ -249,6 +260,7 @@ def main(argv):
 
 
                                     priority_2_noaff_per[policy] = priority_2_noaff_per[policy]/(cnt_2[policy]-cnt_dropped_2[policy])
+                                    # print(mission_time)
 
                                     mission_time[policy] += arr_scale*mean_arrival_time*1000
                                     mission_time1[policy] += arr_scale*mean_arrival_time*1000
