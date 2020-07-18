@@ -53,7 +53,7 @@ extra = False
 
 
 conf_file    = './stomp2.json'
-dl_scale = 2.5
+dl_scale = 1
 
 stomp_params = {}
 with open(conf_file) as conf_file:
@@ -70,8 +70,9 @@ def main(argv):
     DL_7 = 428
     DL_10 = 1012
 
-    sim_dir = argv
+    sim_dir = argv.strip('/')
     sim,date,time,app = sim_dir.split('_')
+    print(app)
     first = 1
     for pwr_mgmt in PWR_MGMT:
         if pwr_mgmt == False:
@@ -84,10 +85,12 @@ def main(argv):
             for drop in DROP:
                 for prob in PROB:
                     for arr_scale in ARRIVE_SCALE:
+                        dl_scale = 1
                         if(app == "ad"):
                             dl_scale = 5
                         elif(app == "mapping" or app == "package"):
                             dl_scale = 2.5
+                        print("dl_scale", dl_scale)
                         arr_scale = arr_scale / dl_scale
                         deadline_5 = DL_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
                         deadline_7 = DL_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
