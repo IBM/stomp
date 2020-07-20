@@ -130,7 +130,8 @@ class Server:
         self.task                        = task
         
         self.busy_time                   += self.curr_service_time
-        logging.debug("[%10ld] Assigned task %d %s : srv %d st %d end %d est %d" % (sim_time, task.id, task.type, self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
+        logging.debug("[%10ld] Assigned task %ld (%s) to server %d" % (sim_time, task.id, task.type, self.id))
+        logging.debug("               Service time: %ld, start time: %ld, end time: %ld, estimated end time: %ld" % (self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
     
     def __str__(self):
         return ('Server ' + str(self.id) + ' (' + self.type + ')\n'
@@ -523,7 +524,7 @@ class STOMP:
         logging.info('')
 
         logging.info(' Waiting time (avg):')
-        logging.info('   %12s : %8.4f over %8d tasks' % ("global", self.stats['Avg Waiting Time'], self.stats['Tasks Serviced']))
+        logging.info('   %12s : %8.8f over %8d tasks' % ("global", self.stats['Avg Waiting Time'], self.stats['Tasks Serviced']))
         for task in self.stats['Avg Waiting Time per Type']:
             if (self.stats['Tasks Serviced per Type'][task] > 0):
                 logging.info('   %12s : %8.4f over %8d tasks' % (task, self.stats['Avg Waiting Time per Type'][task]/self.stats['Tasks Serviced per Type'][task], self.stats['Tasks Serviced per Type'][task]))
@@ -752,7 +753,7 @@ class STOMP:
                 
                 # Customer (task) arrival...
                 self.sim_time = self.next_cust_arrival_time
-                
+
                 # Add task to queue
                 if (self.generate_n_enqueue_new_task(self.num_tasks_generated)):
                     self.num_tasks_generated += 1
@@ -762,10 +763,10 @@ class STOMP:
                         self.next_cust_arrival_time = int(tmp[0][0])
                         logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, tmp[0][0]))
                     else:
-                        self.next_cust_arrival_time = int(round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time']*self.params['simulation']['arrival_time_scale'], size=1)))
+                        self.next_cust_arrival_time = self.sim_time + int(round(numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time']*self.params['simulation']['arrival_time_scale'], size=1)))
 
-                logging.debug('[%10ld] Task enqueued. Next task will arrive at time %ld' % (self.sim_time, self.next_cust_arrival_time))
-                logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
+                    logging.debug('[%10ld] Task %ld enqueued. Next task will arrive at time %ld' % (self.sim_time, self.stats['Tasks Generated']-1, self.next_cust_arrival_time))
+                    logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
         
                 
             elif (next_event == STOMP.E_SERVER_FINISHES):
@@ -782,6 +783,7 @@ class STOMP:
 
                 logging.debug('[%10ld] Server finished' % (self.sim_time))
                 logging.debug('             Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
+                logging.debug('             Waiting time (accum): %ld, tasks serviced: %ld' % (self.stats['Avg Waiting Time'], self.stats['Tasks Serviced']))
         
                 
             ######################################################################
@@ -789,7 +791,6 @@ class STOMP:
             ######################################################################
             
             server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks)
-            #print(server)
             if server is not None:
                 if server.curr_job_end_time < self.next_serv_end_time:
                     self.next_serv_end_time = server.curr_job_end_time
