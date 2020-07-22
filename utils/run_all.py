@@ -44,8 +44,13 @@ from __builtin__ import str
 
 CONF_FILE    = './stomp.json'
 POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5']
-STDEV_FACTOR = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
-ARRIVE_SCALE = [ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]  # percentages
+STDEV_FACTOR = [ 0.01, 0.10, 0.50]  # percentages
+ARRIVE_SCALE = [ 1.0, 1.50, 2.0]  # percentages
+
+#CONF_FILE    = './stomp.json'
+#POLICY       = ['simple_policy_ver1', 'simple_policy_ver2', 'simple_policy_ver3', 'simple_policy_ver4', 'simple_policy_ver5']
+#STDEV_FACTOR = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # percentages
+#ARRIVE_SCALE = [ 0.1, 0.2 , 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]  # percentages
 
 
 def usage_and_exit(exit_code):
@@ -140,6 +145,8 @@ def main(argv):
 
                 sim_output[arr_scale][policy][stdev_factor] = {}
                 sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'] = {}
+                sim_output[arr_scale][policy][stdev_factor]['avg_resp_time_global'] = {}
+                sim_output[arr_scale][policy][stdev_factor]['avg_wait_time_global'] = {}
 
 
                 ###########################################################################################
@@ -200,6 +207,9 @@ def main(argv):
                     if (save_stdout):
                         fh.write('%s\n' % (output_list[i]))
                     if output_list[i].strip() == "Response time (avg):":
+                        line = output_list[i+1].strip()
+                        (key, value) = line.split(':')
+                        sim_output[arr_scale][policy][stdev_factor]['avg_resp_time_global'][key.strip()] = value.strip().split(' ')[0]
                         for j in range(i+1, len(output_list)):
                             line = output_list[j]
                             if not line.strip():
@@ -207,8 +217,10 @@ def main(argv):
                             (key, value) = line.split(':')
                             sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'][key.strip()] = value.strip()
                             #sys.stdout.write('Set sim_output[%s][%s][%s][%s][%s] = %s\n' % (arr_scale, policy, stdev_factor, 'avg_resp_time', key.strip(), value.strip()))
-
-
+                    elif output_list[i].strip() == "Waiting time (avg):":
+                        line = output_list[i+1].strip()
+                        (key, value) = line.split(':')
+                        sim_output[arr_scale][policy][stdev_factor]['avg_wait_time_global'][key.strip()] = value.strip().split(' ')[0]
                     elif output_list[i].strip() == "Histograms:":
                         line = output_list[i+1]
                         histogram = line.split(':')[1]
@@ -255,6 +267,30 @@ def main(argv):
                     for tt in tl:
                         fh.write('%s%s' % (tt, out_sep))
                 fh.write('\n')
+            fh.write('\n\n')
+    fh.close()
+
+    # Average waiting time
+    if (do_csv_output):
+        fh = open(sim_dir + '/avg_wait_time.csv', 'w')
+    else:
+        fh = open(sim_dir + '/avg_wait_time.out', 'w')
+    for arr_scale in ARRIVE_SCALE:
+        fh.write('Arrival_Scale %lf\n' % arr_scale)
+        for policy in sorted(sim_output[arr_scale].iterkeys()):
+            fh.write('%s\n' % policy)
+            first_time = True
+            for stdev_factor in sorted(sim_output[arr_scale][policy].iterkeys()):
+                if first_time:
+                    # Print header
+                    fh.write('  Arr_scale%s Policy%s Stdev_Factor%sAvg. Response Time (global)%sAvg. Waiting Time (global)\n' % (out_sep, out_sep, out_sep, out_sep))
+                    first_time = False
+                # Print values
+                fh.write('  %s%s%s%s%s%s%s%s%s\n' % (str(arr_scale), out_sep,
+                                                     policy, out_sep,
+                                                     str(stdev_factor), out_sep,
+                                                     sim_output[arr_scale][policy][stdev_factor]['avg_resp_time_global']['global'], out_sep,
+                                                     sim_output[arr_scale][policy][stdev_factor]['avg_wait_time_global']['global']))
             fh.write('\n\n')
     fh.close()
 
