@@ -41,7 +41,7 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-from run_all_2 import POLICY, PWR_MGMT, SLACK_PERC, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP, PTOKS
+from run_all_2 import POLICY, PWR_MGMT, SLACK_PERC, STDEV_FACTOR, ARRIVE_SCALE, PROB, DROP, PTOKS, POLICY_SOTA
 
 extra = False
 #POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2']
@@ -52,14 +52,7 @@ extra = False
 # STDEV_FACTOR = [0.01]
 
 
-conf_file    = './stomp2.json'
-dl_scale = 1
 
-stomp_params = {}
-with open(conf_file) as conf_file:
-    stomp_params = json.load(conf_file)
-
-mean_arrival_time = stomp_params['simulation']['mean_arrival_time']
 
 
 
@@ -70,9 +63,34 @@ def main(argv):
     DL_7 = 428
     DL_10 = 1012
 
-    sim_dir = argv.strip('/')
-    sim,date,time,app = sim_dir.split('_')
-    print(app)
+    sim_dir = argv[1].strip('/')
+    app = argv[2]
+    # app,temp = sim_dir.split('_')
+    # app = "mapping"
+    # app = "synthetic"
+    # print(app)
+
+    if(app == "synthetic"):
+        conf_file    = './stomp.json'
+    else:
+        conf_file    = './stomp2.json'
+    
+    dl_scale = 1
+    if(app == "ad"):
+        dl_scale = 5
+        mean_arrival_time = 50
+    elif(app == "mapping" or app == "package"):
+        dl_scale = 2.5
+        mean_arrival_time = 25
+
+    stomp_params = {}
+    with open(conf_file) as conf_file:
+        stomp_params = json.load(conf_file)
+
+
+
+
+
     first = 1
     for pwr_mgmt in PWR_MGMT:
         if pwr_mgmt == False:
@@ -84,50 +102,58 @@ def main(argv):
         for slack_perc in SLACK_PERC_:
             for drop in DROP:
                 for prob in PROB:
-                    for arr_scale in ARRIVE_SCALE:
-                        dl_scale = 1
-                        if(app == "ad"):
-                            dl_scale = 5
-                        elif(app == "mapping" or app == "package"):
-                            dl_scale = 2.5
-                        print("dl_scale", dl_scale)
-                        arr_scale = arr_scale / dl_scale
-                        deadline_5 = DL_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
-                        deadline_7 = DL_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
-                        deadline_10 = DL_10 * (arr_scale * stomp_params['simulation']['deadline_scale'])
-                        # print(deadline_5, deadline_7, deadline_10)
-                        for ptoks in PTOKS_:
-                            for accel_count in range(5,6):
-                                cnt_1                   = {}
-                                cnt_dropped_1           = {}
-                                priority_1_slack        = {}
-                                priority_1_met          = {}
-                                priority_1_noaff_per    = {}
 
-                                cnt_2                   = {}
-                                cnt_dropped_2           = {}
-                                priority_2_slack        = {}
-                                priority_2_met          = {}
-                                priority_2_noaff_per    = {}
+                    for ptoks in PTOKS_:
+                        for accel_count in range(5,6):
+                            cnt_1                   = {}
+                            cnt_dropped_1           = {}
+                            priority_1_slack        = {}
+                            priority_1_met          = {}
+                            priority_1_noaff_per    = {}
 
-                                mission_time            = {}
-                                mission_time1           = {}
-                                mission_completed       = {}
-                                total_energy            = {}
-                                ctime                   = {}
-                                rtime                   = {}
-                                ta_time                 = {}
-                                to_time                 = {}
+                            cnt_2                   = {}
+                            cnt_dropped_2           = {}
+                            priority_2_slack        = {}
+                            priority_2_met          = {}
+                            priority_2_noaff_per    = {}
 
-                                header1 = "ACCEL_COUNT,PWR_MGMT,SLACK_PERC,DROP,PROB,ARR_SCALE,PTOKS"
-                                out1 = str(accel_count) + "," + \
-                                    str(pwr_mgmt) + "," + \
-                                    str(slack_perc) + "," + \
-                                    str(drop) + "," + \
-                                    str(prob) + "," + \
-                                    str(arr_scale) + "," + \
-                                    str(ptoks)
-                                for policy in POLICY:
+                            mission_time            = {}
+                            mission_time1           = {}
+                            mission_completed       = {}
+                            total_energy            = {}
+                            ctime                   = {}
+                            rtime                   = {}
+                            ta_time                 = {}
+                            to_time                 = {}
+
+                            header1 = "ACCEL_COUNT,PWR_MGMT,SLACK_PERC,DROP,PROB,ARR_SCALE,PTOKS"
+                            # out1 = str(accel_count) + "," + \
+                            #     str(pwr_mgmt) + "," + \
+                            #     str(slack_perc) + "," + \
+                            #     str(drop) + "," + \
+                            #     str(prob) + "," + \
+                            #     str(arr_scale) + "," + \
+                            #     str(ptoks)
+                            for policy in POLICY:
+
+                                if (app != "synthetic"):
+                                    if policy in POLICY_SOTA:
+                                        ARRIVE_SCALE = [5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5]
+                                    else:
+                                        ARRIVE_SCALE     = [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5]
+                                else:
+                                    ARRIVE_SCALE     = [0.1, 0.5, 0.7, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0]
+
+                                for arr_scale in ARRIVE_SCALE:
+                                    # print("dl_scale", dl_scale)
+
+                                    arr_scale = arr_scale / dl_scale
+                                    deadline_5 = DL_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                                    deadline_7 = DL_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                                    deadline_10 = DL_10 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                                    # print(deadline_5, deadline_7, deadline_10)
+
+
                                     header = header1 + ",Policy,Mission time,Mission time1,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Dropped Cnt,Energy"
                                     if (extra):
                                         header = header + "," + policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
@@ -267,6 +293,7 @@ def main(argv):
 
                                     mission_time[policy] += arr_scale*mean_arrival_time*1000
                                     mission_time1[policy] += arr_scale*mean_arrival_time*1000
+                                    # print("Adding", arr_scale, arr_scale*mean_arrival_time*1000)
                                     mission_completed[policy] = float(mission_completed[policy])/cnt_2[policy]
                                     if mission_failed == 0:
                                         mission_completed[policy] = 1.0;
@@ -291,4 +318,4 @@ def main(argv):
 
 if __name__ == "__main__":
     assert len(sys.argv) >= 2, "Insufficient args"
-    main(sys.argv[1])
+    main(sys.argv)

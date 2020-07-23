@@ -40,10 +40,11 @@ from meta import TASK
 ###############################################################################
 class Server:
 
-    def __init__(self, id, type):
+    def __init__(self, id, type, stomp_obj):
 
         self.id                 = id
         self.type               = type
+        self.stomp_obj          = stomp_obj
         self.pmode              = None
         self.num_reqs           = 0
         self.last_stopped_at    = 0
@@ -76,6 +77,23 @@ class Server:
         self.task                   = None
         self.curr_job_ptoks         = 0
 
+    def communication_cost(self, task):
+        # communication_cost[task.type][parent_server_type][self.server_type]
+        noaffinity_time = 0
+        for parent in task.parent_data:
+            if parent[1]  == self.id and parent[0] == self.last_task_id and task.dag_id == self.last_dag_id:
+                noaffinity_time             += 0
+            else:
+                parent_server_type          = self.stomp_obj.servers[parent[1]].type
+                server_type = self.type
+                if(parent_server_type.endswith("accel")):
+                    parent_server_type = "accel"
+                if(server_type.endswith("accel")):
+                    server_type = "accel"
+                noaffinity_time             += self.stomp_obj.params['simulation']['tasks'][task.type]['comm_cost'][parent_server_type][server_type]
+                # noaffinity_time             += 0.25 * task.mean_service_time_dict[self.type]
+        return float(noaffinity_time)
+
     def assign_task(self, sim_time, task, service_time_scale=None):
         # At this moment, we know the target server where the task will run.
         # Therefore, we can compute the task's service time
@@ -105,13 +123,16 @@ class Server:
         #     print("Server id: %d last DAG id and task id: %d,%d" % (self.id, self.last_dag_id, self.last_task_id))
 
         # print(task.parent_data)
-        for parent in task.parent_data:
-            if parent[1]  == self.id and parent[0] == self.last_task_id and task_dag_id == self.last_dag_id:
-                noaffinity_time             += 0
-            else:
-                noaffinity_time             += 0.25 * task.mean_service_time_dict[self.type]
-                # print("No Affinity for parent %lf" % (noaffinity_time))
-        task.noaffinity_time = int(noaffinity_time)
+        # if(self.stomp_obj.params['simulation']['application'] == "synthetic"):
+        noaffinity_time = self.communication_cost(task)
+        # else:
+        #     for parent in task.parent_data:
+        #         if parent[1]  == self.id and parent[0] == self.last_task_id and task_dag_id == self.last_dag_id:
+        #             noaffinity_time             += 0
+        #         else:
+        #             noaffinity_time             += 0.25 * task.mean_service_time_dict[self.type]
+                    # print("No Affinity for parent %lf" % (noaffinity_time))
+        task.noaffinity_time = int(round(noaffinity_time))
         task.server_type = self.type
         task.task_service_time              = service_time + task.noaffinity_time
         # print("service_time=%u, task_service_time=%u" % (service_time, task.task_service_time))
@@ -315,7 +336,7 @@ class STOMP:
                 self.stats['Available Servers'][server_type] = self.params['simulation']['servers'][server_type]['count']
             server_count = self.params['simulation']['servers'][server_type]['count']
             for i in range(server_count):
-                self.servers.append(Server(id, server_type))
+                self.servers.append(Server(id, server_type, self))
                 id += 1
 
             #self.supported_servers.append(server_type)
@@ -818,7 +839,7 @@ class STOMP:
                     #     logging.info('Random WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
                 else:
                 # if (self.task_completed_flag != 1):
-					# Should only happen of all tid 0 of dags are processed
+                    # Should only happen of all tid 0 of dags are processed
                     self.next_cust_arrival_time = float("inf")
                     # print("SD: " + str(self.next_cust_arrival_time))
                         # self.next_cust_arrival_time = None

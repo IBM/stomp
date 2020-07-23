@@ -31,7 +31,6 @@
         "v_min" : 0.45,
         "power_scale" : 2.5,
         "no_completed_activity_check": true,
-
         "promote": true,
         "max_tasks_simulated": 10000,
         "mean_arrival_time":   10,
@@ -131,6 +130,18 @@
             "simple_policy_ver5": {
                 "meta_policy" : "edf",
                 "tsched_policy": "simple_policy_ver5"
+            },
+            "ms3_update_comm" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_update_comm"
+            },
+            "ads" : {
+                "meta_policy" : "heft",
+                "tsched_policy": "ads"
+            },
+            "ms3_heft" : {
+                "meta_policy" : "heft",
+                "tsched_policy": "ms_update_heft"
             }
         },
 
@@ -166,8 +177,26 @@
                     "gpu"       : 0.08,
                     "fft_accel" : 0.01
                 },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.282,
+                        "gpu"       : 0.282,
+                        "accel"     : 0.410 
+                    },
+                    "gpu" : {
+                        "cpu_core"  : 0.000,
+                        "gpu"       : 0.000,
+                        "accel"     : 0.128
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.128,
+                        "gpu"       : 0.128,
+                        "accel"     : 0.256
+                    }
+                },
                 "priority" : 1,
                 "deadline" : 1000
+
             },
             "fft_128" : {
                 "mean_service_time" : {
@@ -184,6 +213,23 @@
                     "cpu_core"  : 0.83,
                     "gpu"       : 0.08,
                     "fft_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.844,
+                        "gpu"       : 0.844,
+                        "accel"     : 1.356
+                    },
+                    "gpu" : {
+                        "cpu_core"  : 0.000,
+                        "gpu"       : 0.000,
+                        "accel"     : 0.512
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.512,
+                        "gpu"       : 0.512,
+                        "accel"     : 1.024
+                    }
                 },
                 "priority" : 1,
                 "deadline" : 1000
@@ -204,6 +250,23 @@
                     "gpu"       : 0.1,
                     "fft_accel" : 0.01
                 },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 3.164,
+                        "gpu"       : 3.164,
+                        "accel"     : 5.212
+                    },
+                    "gpu" : {
+                        "cpu_core"  : 0.000,
+                        "gpu"       : 0.000,
+                        "accel"     : 2.048
+                    },
+                    "accel" : {
+                        "cpu_core"  : 2.048,
+                        "gpu"       : 2.048,
+                        "accel"     : 4.096
+                    }
+                },
                 "priority" : 1,
                 "deadline" : 1000
             },
@@ -222,6 +285,23 @@
                     "cpu_core"  : 1.62,
                     "gpu"       : 0.52,
                     "fft_accel" : 0.18
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.662,
+                        "gpu"       : 0.662,
+                        "accel"     : 1.048
+                    },
+                    "gpu" : {
+                        "cpu_core"  : 0.000,
+                        "gpu"       : 0.000,
+                        "accel"     : 0.386
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.386,
+                        "gpu"       : 0.386,
+                        "accel"     : 0.772
+                    }
                 },
                 "priority" : 2,
                 "deadline" : 1000
@@ -242,6 +322,23 @@
                     "gpu"       : 0.35,
                     "fft_accel" : 0.05
                 },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.141,
+                        "gpu"       : 0.141,
+                        "accel"     : 0.202
+                    },
+                    "gpu" : {
+                        "cpu_core"  : 0.000,
+                        "gpu"       : 0.000,
+                        "accel"     : 0.062
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.062,
+                        "gpu"       : 0.062,
+                        "accel"     : 0.123
+                    }
+                },
                 "priority" : 2,
                 "deadline" : 1000
             },
@@ -257,6 +354,23 @@
                 "stdev_service_time" : {
                     "cpu_core"  : 1.0,
                     "gpu"       : 0.2
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.063,
+                        "gpu"       : 0.063,
+                        "accel"     : 0.068
+                    },
+                    "gpu" : {
+                        "cpu_core"  : 0.000,
+                        "gpu"       : 0.000,
+                        "accel"     : 0.005
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.005,
+                        "gpu"       : 0.005,
+                        "accel"     : 0.010
+                    }
                 },
                 "priority" : 3,
                 "deadline" : 1000

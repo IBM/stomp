@@ -32,6 +32,7 @@ import subprocess
 import json
 import time
 import sys
+import shutil
 import getopt
 import numpy as np
 from sys import stdout
@@ -49,12 +50,12 @@ CONF_FILE        = None #Automatically set based on app
 PROMOTE          = True
 
 APP              = ['synthetic', 'ad', 'mapping', 'package']
-POLICY_SOTA      = ['heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
-POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update']
+POLICY_SOTA      = ['ads', 'heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
+POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update', 'ms3_heft']
 POLICY           = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR     = [0.01] # percentages
 ARRIVE_SCALE     = [0.1, 0.5, 0.7, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0] # percentages
-# ARRIVE_SCALE     = [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
+ARRIVE_SCALE     += [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
 PROB             = [0.1, 0.2, 0.3] 
 DROP             = [False, True]
 dl_scale         = 1
@@ -159,6 +160,7 @@ def main(argv):
             for slack_perc in SLACK_PERC_:
                 for drop in DROP:
                     for prob in PROB:
+                        dl_scale = 1
                         for arr_scale in ARRIVE_SCALE:
                             if(app == "ad"):
                                 dl_scale = 5
