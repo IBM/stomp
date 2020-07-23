@@ -90,9 +90,11 @@ class TASK:
 
         self.reserved_server_id         = None
 
-    def calc_slack(self, sim_time, service_time):
+    def calc_slack(self, sim_time, service_time, remaining_time):
         # print("[%10u][%u.%u] Deadline: %u" % (sim_time, self.dag_id, self.tid, self.arrival_time + self.deadline))
-        return self.arrival_time + self.deadline - sim_time - service_time
+        wait_time = sim_time - self.arrival_time
+        actual_time = service_time + remaining_time
+        return self.deadline - wait_time - actual_time
 
     def __str__(self):
         return ('Task ' + str(self.trace_id) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
@@ -301,6 +303,9 @@ class META:
                             #print(task,power,task_completed.task_lifetime)
                             dag_completed.energy += task_completed.task_service_time * \
                                     task_completed.ptoks_used
+                            # print('[%d.%d] task %s | task_service_time %u |  ptoks_used : %u | energy = %u | dag accum energy %u' % 
+                            #     (task_completed.dag_id, task_completed.tid, task_completed.type, task_completed.task_service_time, task_completed.ptoks_used, task_completed.task_service_time * task_completed.ptoks_used, dag_completed.energy))
+
                             dag_completed.graph.remove_node(node)
                             break;
 
