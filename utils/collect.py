@@ -64,7 +64,7 @@ def main(argv):
     sim_dir = argv[1].strip('/')
     app = argv[2]
     ACCEL_COUNT = 1
-    if(argv[3] == 'hetero'):
+    if(len(argv) > 4 and  argv[3] == 'hetero'):
         ACCEL_COUNT = 6
     # app,temp = sim_dir.split('_')
     # app = "mapping"

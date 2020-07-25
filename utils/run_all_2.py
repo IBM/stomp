@@ -47,7 +47,7 @@ POLICY = ['ms1_update']
 STDEV_FACTOR = [0.01] # percentages
 PROB         = [0.1]
 DROP         = [True]
-PWR_MGMT     = [True]
+PWR_MGMT     = [False]
 PTOKS        = [100000] # [6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000] # , 10500, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000, 100000]
 # SLACK_PERC   = [0.0, 98.4]
 SLACK_PERC   = np.linspace(0, 100, 50, endpoint=True).tolist()
@@ -56,13 +56,9 @@ folder = ""
 CONF_FILE        = None #Automatically set based on app
 PROMOTE          = True
 
-# APP              = ['ad', 'mapping', 'package', 'synthetic']
-# APP              = ['synthetic']
-APP              = ['ad']
-# POLICY_SOTA      = ['ads', 'heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
-POLICY_SOTA      = []
-# POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
-POLICY_NEW       = ['ms1_update']
+APP              = ['ad', 'mapping', 'package', 'synthetic']
+POLICY_SOTA      = ['ads', 'heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
+POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
 POLICY           = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR     = [0.01] # percentages
 ARRIVE_SCALE0     = [0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0] # percentages
