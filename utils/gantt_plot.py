@@ -11,7 +11,7 @@ start_ts = 0
 #end_ts   = -1 #300 # 200
 end_ts   = -1 # 200
 group_bys = [
-    #'server_type_flat',
+    # 'server_type_flat',
     # 'server_type',
     # 'criticality',
     None

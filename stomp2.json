@@ -18,7 +18,9 @@
         "sched_policy_module": "policies.simple_policy_ver2",
         "policy":              "ms1",
         "drop":                false,
+        
         "pwr_mgmt": false,
+        "pwr_model": "simple",
         "total_ptoks": 1000,
         "slack_perc": 0,
         "dvfs": 1,

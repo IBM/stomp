@@ -54,7 +54,6 @@ extra1 = False
 
 ARRIVE_SCALE = ARRIVE_SCALE0 + ARRIVE_SCALE1 + ARRIVE_SCALE2
 
-
 stdev_factor = STDEV_FACTOR[0]
 
 def main(argv):
@@ -238,7 +237,7 @@ def main(argv):
                                             line = fp.readline()
                                             if not line:
                                                 break
-                                            if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy\n"):
+                                            if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time\n"):
                                                 # print("Found line")
                                                 flag = 1
                                                 continue
@@ -258,8 +257,8 @@ def main(argv):
 
                                                 line = fp.readline()
                                                 line = line.strip('\n')
-                                                wtr_crit[policy],lt_wcet_r_crit[policy], wtr_crit[policy],lt_wcet_r_crit[policy],sim_time[policy] = line.split(',')
-
+                                                wtr_crit[policy], lt_wcet_r_crit[policy], wtr_crit[policy],lt_wcet_r_crit[policy],sim_time[policy],total_energy[policy] = line.split(',')
+                                                total_energy[policy] = int(total_energy[policy])
 
 
                                             if (flag):
@@ -267,9 +266,10 @@ def main(argv):
                                                     break
                                                 # print(line)
                                                 line = line.strip()
-                                                dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.split(',')
+                                                # dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.split(',')
+                                                dropped,tid,priority,dag_type,slack,resp,noafftime = line.split(',')
 
-                                                total_energy[policy] = float(energy)
+                                                # total_energy[policy] = float(energy)
                                                 if priority == '1':
                                                     cnt_1[policy] += 1
                                                     if (int(dropped) == 1):
