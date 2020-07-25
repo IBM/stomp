@@ -383,7 +383,6 @@ def main(argv):
                                         first = 0
                                     print(out)
 
-                                    exit()
 
 
 if __name__ == "__main__":
