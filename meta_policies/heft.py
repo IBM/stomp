@@ -11,7 +11,7 @@ class DAGVariables:
 
 class MetaPolicy(BaseMetaPolicy):
 
-    def init(self, policy):
+    def init(self, params):
         pass
     
     def set_task_variables(self, dag, task_node):
@@ -34,7 +34,7 @@ class MetaPolicy(BaseMetaPolicy):
                 for child in graph.successors(node):
                     child_rank.append(childs[child.tid])
                     if childs[child.tid]== -1:
-                        child_rank_comp = False
+                        child_rank_comp = False    
 
 
                 if child_rank_comp == True:
@@ -42,16 +42,18 @@ class MetaPolicy(BaseMetaPolicy):
                         size -=1
                         sum=0
                         none = 0
-                        for server in stomp.servers:
-                            if server.type == "cpu_core":
-                                sum+=int(comp[node.tid][2])
-                            if server.type == "gpu":
-                                sum+=int(comp[node.tid][3])
-                            if server.type == "fft_accel":
-                                if comp[node.tid][4]=="None":
-                                    none+=1
+                        count = 0
+                        for service_time in comp[node.tid]:
+                            # Ignore first two columns.
+                            if (count <= 1):
+                                count += 1
+                                continue
+                            else:
+                                if (service_time != "None"):
+                                    sum += round(float(service_time))
                                 else:
-                                    sum+=int(comp[node.tid][4])
+                                    none += 1
+                            count += 1  
 
 
                         node.rank = sum/(len(stomp.servers)-none) + max(child_rank)

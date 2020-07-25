@@ -65,7 +65,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         # TODO: these should probably go into stomp.py.
         self.pwr_mgmt     = stomp_params['simulation']['pwr_mgmt']
-        self.pwr_model    = stomp_params["simulation"]["pwr_model"]
         self.total_ptoks  = stomp_params['simulation']['total_ptoks']
         self.avail_ptoks  = self.total_ptoks
         # Percentage of slack to consume for DVFS.
@@ -79,32 +78,16 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.v_min        = stomp_params["simulation"]["v_min"]
         self.power_scale  = stomp_params["simulation"]["power_scale"]
 
-    # Return scaled number of power tokens. Voltage is clamped to v_min if it falls lower than that.
-    # Clock is also clamped to the clock at v_min.
-    def get_scaled_power_clk(self, ptoks, clk_new):
-        assert clk_new > 0.
+    # Return scaled number of power tokens.
+    def get_scaled_power(self, ptoks, clk):
+        assert clk > 0.
 
-        if self.pwr_model == "simple":
-            v_new = self.v_nom * clk_new / self.base_clk
-        else:
-            # v_new = self.v_th / (1 - ((clk_new / self.base_clk) ** 0.5) * (1 - self.v_th / self.v_nom))
-            assert False, "Unsupported"
-
-        v_new_clamped = clamp(v_new, self.v_min)
-
-        if v_new_clamped > v_new:
-            # Recalculate clock for clamped voltage.
-            if self.pwr_model == "simple":
-                clk_new = self.base_clk * (v_new_clamped / self.v_nom)
-            else:
-                # clk_new = self.base_clk * ((1 - self.v_th / v_new_clamped) / (1 - self.v_th / self.v_nom)) ** 2
-                assert False, "Unsupported"
-
-        v_new = v_new_clamped
-
-        # print("v_th = %f, v_nom = %f, v_new = %f, clk_old = %f, clk_new = %f, clk_new_orig = %f" \
-        #     " power_scale = %f" % (self.v_th, self.v_nom, v_new, self.base_clk, clk_new, 1, self.power_scale))
-        return ptoks * (v_new / self.v_nom) ** self.power_scale, clk_new
+        v_new = self.v_th / (1 - ((clk / 1.) ** 0.5) * (1 - self.v_th / self.v_nom))
+        # Clamp to within 10% of Vth. TODO: parameterize.
+        v_new = clamp(v_new, self.v_min)
+        # print("v_th = %f, v_nom = %f, v_new = %f, clk_new = %f, clk_orig = %f" \
+        #     " power_scale = %f" % (self.v_th, self.v_nom, v_new, clk, 1, self.power_scale))
+        return ptoks * (v_new / self.v_nom) ** self.power_scale
 
     def apply_dvfs(self, sim_time, task, mean_service_time, ptoks):
         # Scale service time based on
@@ -112,31 +95,25 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         # - % of slack to convert to power savings
         clk_scale = 1.
         orig_service_time = mean_service_time
-        slack = task.calc_slack(sim_time, orig_service_time, 0)
+        slack = task.calc_slack(sim_time, orig_service_time)
         usable_slack = slack * self.slack_perc / 100.
         # print("slack = %u, usable_slack = %u" % (slack, usable_slack))
         if usable_slack > 0:
-
-            # Assume linear relationship b/w clock and service time.
-            clk_scale = orig_service_time / (usable_slack + orig_service_time)
-            # Clamp clock to lower bound.
+            mean_service_time = round(usable_slack + orig_service_time)
+            # print("orig_service_time = %u, slack = %u, scaled_service_time = %u" %
+            #     (orig_service_time, slack, mean_service_time))
+            clk_scale = orig_service_time / mean_service_time
             clk_scale = clamp(clk_scale, self.min_clk_f)
 
             new_clk = self.base_clk * clk_scale
             orig_rqstd_ptoks = ptoks
-            ptoks, new_clk = self.get_scaled_power_clk(orig_rqstd_ptoks, new_clk)
-            clk_scale = new_clk / self.base_clk
-
-            # Now scale the service time linearly with clock scale.
-            mean_service_time = round(orig_service_time / clk_scale)
-
-            # print("orig_service_time = %u, slack = %u, usable_slack = %u, scaled_service_time = %u" %
-            #     (orig_service_time, slack, usable_slack, mean_service_time))
+            ptoks = self.get_scaled_power(orig_rqstd_ptoks, new_clk)
 
             # print("orig_rqstd_ptoks = %u, scaled_rqstd_ptoks = %u" % (orig_rqstd_ptoks,
             #     ptoks))
             # print("orig_service_time = %u, mean_service_time = %u" % (orig_service_time,
             #     mean_service_time))
+            # print("clk_scale = %f" % (clk_scale))
         else:
             pass
             # print("no usable slack")
@@ -180,15 +157,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             if ((t.deadline -(sim_time-t.arrival_time) - (max_time)) < 0):
                 if (t.priority > 1):
                     if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
-                        slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
-                        t.rank = int((100000 * (1000000*t.priority))/slack)
                         t.rank_type = 4
                         # print("[%d] [%d,%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
                         #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, slack, t.arrival_time, max_time, min_time))
 
                     else:
-                        slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
-                        t.rank = int((100000 * (10000000*t.priority))/slack)
                         t.rank_type = 5
                         # print("[%d] [%d,%d,%d] Deadline passed deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
                         #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, slack, t.arrival_time, max_time, min_time))
@@ -202,8 +175,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         # print("[ID: %d] A hinting from task scheduler" %(t.dag_id))
                     else:
                         if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
-                            slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
-                            t.rank = int((100000 * (100*t.priority))/slack)
                             t.rank_type = 1
                             # print("B", t.rank)
                             # print("[%d] [%d,%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
@@ -218,19 +189,14 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                                 # print("[ID: %d] B hinting from task scheduler" %(t.dag_id))
 
                             else:
-                                slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
-                                t.rank = int((100000 * (1*t.priority))/slack)
                                 t.rank_type = 0
                                 # print("A", t.rank)
 
 
             else:
-                slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))
                 if (t.priority > 1):
-                    t.rank = int((100000 * (10000*t.priority))/slack)
                     t.rank_type = 3
                 else:
-                    t.rank = int((100000 * 1000*(t.priority))/slack)
                     t.rank_type = 2
                 # print("[%d] [%d,%d,%d] Max deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
                 #     (sim_time, t.dag_id, t.tid, t.priority,t.deadline, slack, t.arrival_time, max_time, min_time))
@@ -250,22 +216,17 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         # print("Start")
         # for t in tasks:
-        #     if t.possible_server_idx != None:
-        #         mst = t.mean_service_time_dict[self.servers[t.possible_server_idx].type]
-        #     else:
-        #         mst = None
-        #     if(mst != None):
-        #         if(mst != t.possible_mean_service_time):
-        #             print("[%d] [%d,%d,%d][%d] rank: %d deadline:%d, atime:%d, PSI: %s, PMST:%s, MST:%d, Not Equal" % (sim_time, t.dag_id, t.tid, t.priority, t.rank_type, t.rank, t.deadline, t.arrival_time, t.possible_server_idx, t.possible_mean_service_time, mst))
-        #         else:
-        #             print("[%d] [%d,%d,%d][%d] rank: %d deadline:%d, atime:%d, PSI: %s, PMST:%s, MST:%d" % (sim_time, t.dag_id, t.tid, t.priority, t.rank_type, t.rank, t.deadline, t.arrival_time, t.possible_server_idx, t.possible_mean_service_time, mst))
+        #     print("[%d] [%d,%d,%d][%d] rank: %d deadline:%d, atime:%d, PSI: %s" % (sim_time, t.dag_id, t.tid, t.priority, t.rank_type, t.rank, t.deadline, t.arrival_time, t.possible_server_idx))
 
         # print("End")
 
-        free_cpu_count = 0
-        for server in self.servers:
-            if not server.busy and server.type == "cpu_core":
-                free_cpu_count += 1
+        # x = []
+        # for server in self.servers:
+        #     if server.busy:
+        #         x.append(server.id);
+
+        # print("busy server", x)
+
 
         end = datetime.now()
         self.to_time += end - start
@@ -292,15 +253,15 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
                 # print("[%d] [%d.%d] Params: task.priority = %d server.type = %s stomp_obj.num_critical_tasks = %d"
                 #     % (sim_time, task.dag_id, task.tid, task.priority, server.type, stomp_obj.num_critical_tasks))
-                if (self.stomp_params['simulation']['application'] == "synthetic"):
-                    condition = ((task.priority == 1 and ((server.type == "cpu_core") or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
-                else:
-                    condition = ((task.priority == 1 and ((server.type == "cpu_core" and free_cpu_count > 2) or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
-                    # condition = ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
-                #if ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
-                if (condition):
+                #if ((task.priority == 1 and (server.type == "cpu_core" or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
+                if ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
                     # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
                     if (server.type in task.mean_service_time_dict):
+
+                        mean_service_time   = task.mean_service_time_dict[server.type]
+                        if self.pwr_mgmt and self.dvfs:
+                            mean_service_time, ptoks, clk_scale = self.apply_dvfs(
+                                sim_time, task, mean_service_time, task.power_dict[server.type])
 
                         if (server.busy):
                             remaining_time  = server.curr_job_end_time - sim_time
@@ -313,21 +274,9 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                                     #     (sim_time, task.dag_id, task.tid, stask.dag_id, stask.tid, stask.possible_server_idx,
                                     #         stask.possible_mean_service_time, stask.mean_service_time_dict[server.type]))
                                     remaining_time += stask.possible_mean_service_time # set when server for stask is reserved
-                                    if not self.pwr_mgmt:
-                                        assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
+                                    # assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
                         else:
                             remaining_time  = 0
-
-                        mean_service_time   = task.mean_service_time_dict[server.type]
-                        if self.pwr_mgmt and self.dvfs:
-                            slack = task.calc_slack(sim_time, mean_service_time, remaining_time)
-                            usable_slack = slack * self.slack_perc / 100.
-                            # Update mean service time with slack.
-                            mean_service_time += usable_slack
-
-                        #     mean_service_time, ptoks, clk_scale = self.apply_dvfs(
-                        #         sim_time, task, mean_service_time, task.power_dict[server.type])
-
                         actual_service_time = mean_service_time + remaining_time
 
                         # print('[%10ld] [%d.%d.%d] Server:%d %s : mst %d ast %d ' % (sim_time, task.dag_id, task.tid, task.priority, server.id, server.type, mean_service_time, actual_service_time))
@@ -354,12 +303,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             if not server.busy:           # Server is not busy.
                 if self.pwr_mgmt and self.dvfs:
                     # logging.info('[%10ld] [%d.%d] Applying dvfs ' % (sim_time, task.dag_id, task.tid))
-                    orig_mst = mean_service_time
-                    orig_pwr = rqstd_ptoks
-                    orig_energy = mean_service_time * rqstd_ptoks
                     mean_service_time, rqstd_ptoks, clk_scale = self.apply_dvfs(
                         sim_time, task, mean_service_time, rqstd_ptoks)
-                    new_energy = mean_service_time * rqstd_ptoks
                 else:
                     clk_scale = 1.
 
@@ -369,11 +314,10 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     tasks.remove(task)
                     if (task.priority > 1):
                         stomp_obj.num_critical_tasks -= 1
-                    # print('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s, energy = %u' %
-                    #     (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type, new_energy))
+                    # print('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s' % (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type))
+
+                    logging.debug('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s' % (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type))
                     task.ptoks_used = rqstd_ptoks
-                    # print('[%d.%d] OLD power: %u, service time: %u, energy: %u | NEW power: %u, service time:%u, energy: %u, clk_scale=%f' % \
-                    #         (task.dag_id, task.tid, orig_pwr, orig_mst, orig_energy, rqstd_ptoks, mean_service_time, new_energy, clk_scale))
                     # Embed the actual ptoks used by task into its object
                     server.assign_task(sim_time, task, 1 / clk_scale)
                     if self.pwr_mgmt:

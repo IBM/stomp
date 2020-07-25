@@ -20,11 +20,18 @@ class DAGVariables:
 
 class MetaPolicy(BaseMetaPolicy):
 
-    def init(self, dag_types):
+    def init(self, params):
+        application = params['simulation']['application']
+        dag_types = params["simulation"]['applications'][application]["dag_types"] 
+
         self.pre_schd_data = {}
         for dag_type in dag_types:
             self.pre_schd_data[dag_type]=[]
-            with open("pre_schd/random_"+ dag_type, 'r') as input_data:
+            if application == "synthetic":
+                pre_schd_file = "pre_schd/random_" + dag_type
+            else:
+                pre_schd_file = "pre_schd/" + application + "_dag_" + dag_type
+            with open(pre_schd_file, 'r') as input_data:
                 for line in input_data.readlines():
                 #   print(line)
                     temp = line.strip().split(' ')
@@ -95,16 +102,18 @@ class MetaPolicy(BaseMetaPolicy):
                         size -=1
                         sum=0
                         none = 0
-                        for server in stomp.servers:
-                            if server.type == "cpu_core":
-                                sum+=int(comp[node.tid][2])
-                            if server.type == "gpu":
-                                sum+=int(comp[node.tid][3])
-                            if server.type == "fft_accel":
-                                if comp[node.tid][4]=="None":
-                                    none+=1
+                        count = 0
+                        for service_time in comp[node.tid]:
+                            # Ignore first two columns.
+                            if (count <= 1):
+                                count += 1
+                                continue
+                            else:
+                                if (service_time != "None"):
+                                    sum += round(float(service_time))
                                 else:
-                                    sum+=int(comp[node.tid][4])
+                                    none += 1
+                            count += 1  
 
                         node.rank = sum/(len(stomp.servers)-none) + max(parent_rank)       
                         parents[node.tid] = node.rank

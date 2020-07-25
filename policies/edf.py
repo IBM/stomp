@@ -67,7 +67,9 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     #     print(str(target_server_type) + "," + str(tasks[0].per_server_service_dict[target_server_type]))
     
                     # Pop task in queue's head and assign it to server
-                    server.assign_task(sim_time, tasks.pop(0))
+                    task = tasks.pop(0)
+                    task.ptoks_used = task.power_dict[server.type]
+                    server.assign_task(sim_time, task)
                     return server
                 
         return None

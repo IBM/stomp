@@ -1,33 +1,47 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright 2018 IBM
-# 
+#
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
-# SCHEDULING POLICY DESCRIPTION: HEFT
+# SCHEDULING POLICY DESCRIPTION:
+#  This scheduling policy tries to schedule the task at the head of the
+#  queue into the queue that will result in the earliest estimated
+#  completion time for this task (factoring in the given start time
+#  of the task taking into account the current busy status of a server).
+#  IF that task does not immeidately "issue" to the selected server
+#   (i.e. that server is "busy") then it considers the next task on the task list,
+#   and continues to do so until it has checked a number of tasks equal to
+#   the max_task_depth_to_check parm (defined below).
+#  This policy effectively attempts to provide the least utilization time
+#  (overall) for all the servers during the run.  For highly skewed
+#  mean service times, this policy may delay the start time of a task until
+#  a fast server is available.
+# This is the first example that includes "issue" of tasks other than the
+#  one at the head of the queue...
 #
 
 
 from stomp import BaseSchedulingPolicy
 import logging
 import numpy
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
 
-max_task_depth_to_check = 10
+max_task_depth_to_check = 20
 
 class SchedulingPolicy(BaseSchedulingPolicy):
 
@@ -48,38 +62,40 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
-            return None    
+            return None
 
         if (len(tasks) > max_task_depth_to_check):
             window_len = max_task_depth_to_check
         else:
             window_len = len(tasks)
 
-        window = tasks[:window_len]
-
         start = datetime.now()
+        for t in tasks:
+            if (t.priority > 1):
+                    t.rank_type = 1
 
-        window.sort(key=lambda task: task.rank, reverse=True)
+            else:
+                    t.rank_type = 0
+
 
         end = datetime.now()
         self.to_time += end - start
         # print(("TO: %d")%(self.to_time.microseconds))
-        
-            
+        window = tasks[:window_len]
+        window.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
+
         tidx = 0;
-        
-        start = datetime.now()       
+
+        start = datetime.now()
         for task in window:
             # logging.debug('[%10ld] Attempting to schedule task %2d : %s' % (sim_time, tidx, task.type))
-        
+
             # Compute execution times for each target server, factoring in
             # the remaining execution time of tasks already running.
             target_servers = []
             for server in self.servers:
-            
                 # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
                 if (server.type in task.mean_service_time_dict):
-                
                     mean_service_time   = task.mean_service_time_dict[server.type]
                     if (server.busy):
                         remaining_time  = server.curr_job_end_time - sim_time
@@ -91,12 +107,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     else:
                         remaining_time  = 0
                     actual_service_time = mean_service_time + remaining_time
-                
                     logging.debug('[%10ld] Server %s : mst %d ast %d ' % (sim_time, server.type, mean_service_time, actual_service_time))
                     target_servers.append(actual_service_time)
                 else:
                     target_servers.append(float("inf"))
-        
+
             # Look for the server with smaller actual_service_time
             # and check if it's available
             server_idx = target_servers.index(min(target_servers))
@@ -107,10 +122,10 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 # Pop task in queue and assign it to server
                 tasks.remove(task)
                 # logging.debug('[%10ld] Scheduling task %2d %s to server %2d %s' % (sim_time, tidx, task.type, server_idx, self.servers[server_idx].type))
-                
+
                 task.ptoks_used = rqstd_ptoks
                 self.servers[server_idx].assign_task(sim_time, task)
-                bin = int(tidx / self.bin_size)        
+                bin = int(tidx / self.bin_size)
                 if (bin >= len(self.stats['Task Issue Posn'])):
                     bin = len(self.stats['Task Issue Posn']) - 1
                 # logging.debug('[          ] Set BIN from %d / %d to %d vs %d = %d' % (tidx, self.bin_size, int(tidx / self.bin_size), len(self.stats['Task Issue Posn']), bin))

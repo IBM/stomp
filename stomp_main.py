@@ -52,7 +52,7 @@ def main(argv):
     except getopt.GetoptError:
         usage_and_exit(2)
 
-    conf_file = "stomp.json"
+    conf_file = None
     conf_json = None
     log_level = None
     input_trace_file = None

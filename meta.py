@@ -149,7 +149,7 @@ class BaseMetaPolicy:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def init(self): pass
+    def init(self, params): pass
 
     @abstractmethod
     def set_task_variables(self, dag, task_node): pass
@@ -194,17 +194,32 @@ class META:
 
         self.dag_dict                       = {}
         self.dag_id_list                    = []
-        self.server_types                   = ["cpu_core", "gpu", "fft_accel"]
+        self.server_types                   = []
+        for type_count in range(0,len(self.params['simulation']['servers'])):
+            for server_type in self.params['simulation']['servers']:
+                if(self.params['simulation']['servers'][server_type]['id'] == type_count):
+                    self.server_types.append(server_type)
+                    break
 
     def run(self):
 
-        self.meta_policy.init(self.params["simulation"]["dag_types"])
+        self.meta_policy.init(self.params)
 
+        application = self.params['simulation']['application']
         ### Read input DAGs ####
         dags_completed = 0
         dags_completed_per_interval = 0
         end_list = []
         dropped_list = []
+        
+        lt_wcet_r_crit = 0
+        wtr_crit = 0
+        tasks_completed_count_crit = 0
+
+        lt_wcet_r_nocrit = 0
+        wtr_nocrit = 0
+        tasks_completed_count_nocrit = 0
+
         time_interval = 0
         last_promoted_id = 0
         promote_interval = 10*self.params['simulation']['arrival_time_scale']*self.params['simulation']['mean_arrival_time']
@@ -225,7 +240,9 @@ class META:
                     atime = int(int(tmp.pop(0))*self.params['simulation']['arrival_time_scale'])
                     dag_id = int(tmp.pop(0))
                     dag_type = tmp.pop(0)
-                    graph = nx.read_graphml("inputs/random_dag_{0}.graphml".format(dag_type), TASK)
+
+                    graphml_file = self.params['simulation']['applications'][application]['graphml_file'] + "{0}.graphml".format(dag_type)
+                    graph = nx.read_graphml(graphml_file, TASK)
 
                     #### AFFINITY ####
                     # Add matrix to maintain parent node id's
@@ -237,7 +254,10 @@ class META:
                             parent_list.append(pred_node.tid)
                         parent_dict[node.tid] = parent_list
                         # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
-                    comp = read_matrix("inputs/random_comp_{0}_{1}.txt".format(dag_type, self.stdev_factor))
+                    # comp_file = self.params['simulation']['applications'][application]['comp_file'] + "{0}_{1}.txt".format(dag_type, self.stdev_factor)
+                    comp_file = self.params['simulation']['applications'][application]['comp_file'] + "{0}.txt".format(dag_type)
+
+                    comp = read_matrix(comp_file)
                     # if (self.params['simulation']['policy'].startswith("ms3")):
                     #     comp = read_matrix("inputs/random_comp_{0}_{1}_slack.txt".format(dag_type, self.stdev_factor))
                     priority = int(tmp.pop(0))
@@ -263,10 +283,13 @@ class META:
         while(self.dag_id_list or self.stomp.E_TSCHED_DONE == 0):
             temp_task_trace = []
             completed_list = []
+            stomp_drop_list = []
             dropped_dag_id_list = []
 
             ## Get Completed Tasks from TSCHED ##
             self.stomp.tlock.acquire()
+            while(len(self.stomp.final_drop_list)):
+                stomp_drop_list.append(self.stomp.final_drop_list.pop(0))
             while(len(self.stomp.tasks_completed)):
                 completed_list.append(self.stomp.tasks_completed.pop(0))
             self.stomp.tlock.release()
@@ -276,6 +299,23 @@ class META:
             while (len(completed_list)):
                 task_completed = completed_list.pop(0)
                 dag_id_completed = task_completed.dag_id
+
+                if(task_completed.priority > 1):
+                    wait_time_crit = task_completed.task_lifetime - task_completed.task_service_time
+                    wcet_crit = task_completed.per_server_service_dict['cpu_core']
+
+                    lt_wcet_r_crit += (float)(task_completed.task_lifetime/wcet_crit)
+
+                    wtr_crit += (float)(wait_time_crit/task_completed.task_lifetime)
+                    tasks_completed_count_crit += 1
+                else:
+                    wait_time_nocrit = task_completed.task_lifetime - task_completed.task_service_time
+                    wcet_nocrit = task_completed.per_server_service_dict['cpu_core']
+
+                    lt_wcet_r_nocrit += (float)(task_completed.task_lifetime/wcet_nocrit)
+
+                    wtr_nocrit += (float)(wait_time_nocrit/task_completed.task_lifetime)
+                    tasks_completed_count_nocrit += 1
 
                 ## If the task belongs to a non-dropped DAG ##
                 if dag_id_completed in self.dag_dict:
@@ -338,7 +378,7 @@ class META:
                 for dag_id in self.dag_id_list:
                     the_dag_sched = self.dag_dict[dag_id]
 
-                    if dag_id in self.stomp.drop_hint_list and the_dag_sched.priority == 1:
+                    if dag_id in stomp_drop_list and the_dag_sched.priority == 1:
                         # print("[ID: %d]Dropping based on hint from task scheduler" %(dag_id))
                         dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
                         self.stomp.dags_dropped.append(dag_id)
@@ -519,5 +559,13 @@ class META:
 
         #(Processing time for completed task, ready task time, task assignment, task ordering)
         fho.write(("Time: %d, %d, %d, %d\n")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
+        if(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit != 0):
+            fho.write(("nan, nan, %lf, %lf, %d\n")%(wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time))
+        elif(tasks_completed_count_crit != 0 and tasks_completed_count_nocrit == 0):
+            fho.write(("%lf, %lf, nan, nan, %d\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, self.stomp.sim_time))
+        elif(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit == 0):
+            fho.write(("nan, nan, nan, nan, %d\n")%(self.stomp.sim_time))
+        else:
+            fho.write(("%lf, %lf, %lf, %lf, %d\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time))
 
         fho.close()

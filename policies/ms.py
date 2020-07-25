@@ -137,7 +137,9 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # Look for the server with smaller actual_service_time
             # and check if it's available
             server_idx = target_servers.index(min(target_servers))
+            server = self.servers[server_idx]
 
+            rqstd_ptoks = task.power_dict[server.type]
             if (not self.servers[server_idx].busy):
                 # Pop task in queue and assign it to server
                 tasks.remove(task)
@@ -145,6 +147,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     stomp_obj.num_critical_tasks -= 1
                 # print('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s' % (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type))
                 
+                task.ptoks_used = rqstd_ptoks
                 self.servers[server_idx].assign_task(sim_time, task)
                 bin = int(tidx / self.bin_size)        
                 if (bin >= len(self.stats['Task Issue Posn'])):

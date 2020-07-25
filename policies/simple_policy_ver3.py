@@ -75,10 +75,14 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         # Look for the server with smaller actual_service_time
         # and check if it's available
         server_idx = target_servers.index(min(target_servers))
+        server = self.servers[server_idx]
 
+        rqstd_ptoks = task.power_dict[server.type]
         if (not self.servers[server_idx].busy):
             # Pop task in queue's head and assign it to server
-            self.servers[server_idx].assign_task(sim_time, tasks.pop(0))
+            task = tasks.pop(0)
+			task.ptoks_used = rqstd_ptoks
+			self.servers[server_idx].assign_task(sim_time, task)
             return self.servers[server_idx]
         else:
             return None
