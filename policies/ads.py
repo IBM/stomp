@@ -41,7 +41,7 @@ import logging
 import numpy
 from datetime import datetime, timedelta
 
-max_task_depth_to_check = 20
+max_task_depth_to_check = 10
 
 class SchedulingPolicy(BaseSchedulingPolicy):
 
@@ -77,12 +77,12 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                     t.rank_type = 0
 
-
+        tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
         end = datetime.now()
         self.to_time += end - start
         # print(("TO: %d")%(self.to_time.microseconds))
         window = tasks[:window_len]
-        window.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
+        # window.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
 
         tidx = 0;
 

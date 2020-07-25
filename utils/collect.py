@@ -43,7 +43,7 @@ from __builtin__ import str
 
 from run_all_2 import POLICY, PWR_MGMT, SLACK_PERC, STDEV_FACTOR, ARRIVE_SCALE0, ARRIVE_SCALE1, ARRIVE_SCALE2, PROB, DROP, PTOKS, POLICY_SOTA
 
-extra = True
+extra = False
 extra1 = False
 #POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2']
 # POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2', 'simple_policy_ver5', 'edf', 'edf_ver5', 'ms1_update2', 'ms2_update2', 'ms3_update2'] # This is default
@@ -55,8 +55,6 @@ extra1 = False
 ARRIVE_SCALE = ARRIVE_SCALE0 + ARRIVE_SCALE1 + ARRIVE_SCALE2
 
 
-
-
 stdev_factor = STDEV_FACTOR[0]
 
 def main(argv):
@@ -66,6 +64,9 @@ def main(argv):
 
     sim_dir = argv[1].strip('/')
     app = argv[2]
+    ACCEL_COUNT = 1
+    if(argv[3] == 'hetero'):
+        ACCEL_COUNT = 6
     # app,temp = sim_dir.split('_')
     # app = "mapping"
     # app = "synthetic"
@@ -104,7 +105,7 @@ def main(argv):
                 for prob in PROB:
 
                     for ptoks in PTOKS_:
-                        for accel_count in range(5,6):
+                        for accel_count in range(0,ACCEL_COUNT):
                             cnt_1                   = {}
                             cnt_dropped_1           = {}
                             priority_1_slack        = {}
@@ -212,7 +213,8 @@ def main(argv):
                                         "_drop_" + str(drop) + \
                                         "_arr_" + str(arr_scale) + \
                                         '_prob_' + str(prob) + \
-                                        '_ptoks_' + str(ptoks)
+                                        '_ptoks_' + str(ptoks) + \
+                                        '_accel_' + str(accel_count)
                                     fname_out = str(sim_dir) + '/run_stdout_' + basename + '.out'
                                     fname_util = str(sim_dir) + '/out_' + basename
                                     # print(fname_out)
