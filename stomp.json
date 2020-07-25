@@ -46,28 +46,48 @@
                 "comp_file":           "inputs/random_comp_",
                 "graphml_file":        "inputs/random_dag_",
                 "dag_types": {
-                    "5": {},
-                    "7": {},
-                    "10": {}
+                    "5": {
+                        "deadline" : 537
+                    },
+                    "7": {
+                        "deadline": 428
+                    },
+                    "10": {
+                        "deadline": 1012
+                    }
                 } 
             },
             "ad": {
                 "comp_file":           "inputs/end_to_end/dag_",
                 "graphml_file":        "inputs/end_to_end/dag", 
                 "dag_types": {
-                    "0": {},
-                    "1": {},
-                    "2": {},
-                    "3": {}
+                    "0": {
+                        "deadline" : 400
+                    },
+                    "1": {
+                        "deadline" : 400
+                    },
+                    "2": {
+                        "deadline" : 400
+                    },
+                    "3": {
+                        "deadline" : 400
+                    }
                 }
             },
             "mapping": {
                 "comp_file":           "inputs/mavbench/mapping/dag_",
                 "graphml_file":        "inputs/mavbench/mapping/dag",  
                 "dag_types": {
-                    "0": {},
-                    "1": {},
-                    "2": {}
+                    "0": {
+                        "deadline" : 1536
+                    },
+                    "1": {
+                        "deadline" : 167
+                    },
+                    "2": {
+                        "deadline" : 1140
+                    }
 
                 }
             },
@@ -75,9 +95,15 @@
                 "comp_file":           "inputs/mavbench/package/dag_",
                 "graphml_file":        "inputs/mavbench/package/dag", 
                 "dag_types": {
-                    "0": {},
-                    "1": {},
-                    "2": {}
+                    "0": {
+                        "deadline" : 2144
+                    },
+                    "1": {
+                        "deadline" : 1140
+                    },
+                    "2": {
+                        "deadline" : 167
+                    }
                 }
             }
         },
