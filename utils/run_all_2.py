@@ -40,26 +40,44 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-
-JOBS_LIM = 32
-PWR_MGMT     = [False]
-PTOKS        = [100000] # [6500, 7000, 7500, 8000, 8500, 100000]
-SLACK_PERC   = [100] # np.arange(50, 101, 50).tolist()
+JOBS_LIM = 64
+CONF_FILE    = './stomp.json'
+PROMOTE = True
+POLICY = ['ms1_update']
+STDEV_FACTOR = [0.01] # percentages
+PROB         = [0.1]
+DROP         = [True]
+PWR_MGMT     = [True]
+PTOKS        = [100000] # [6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000] # , 10500, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000, 100000]
+# SLACK_PERC   = [0.0, 98.4]
+SLACK_PERC   = np.linspace(0, 100, 50, endpoint=True).tolist()
+folder = ""
 
 CONF_FILE        = None #Automatically set based on app
 PROMOTE          = True
 
-APP              = ['ad', 'mapping', 'package', 'synthetic']
-POLICY_SOTA      = ['ads', 'heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
-POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
+# APP              = ['ad', 'mapping', 'package', 'synthetic']
+# APP              = ['synthetic']
+APP              = ['ad']
+# POLICY_SOTA      = ['ads', 'heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
+POLICY_SOTA      = []
+# POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
+POLICY_NEW       = ['ms1_update']
 POLICY           = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR     = [0.01] # percentages
-ARRIVE_SCALE0     = [0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.5,3.0] # percentages
-ARRIVE_SCALE1     = [3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0,5.1,5.2,5.3,5.4,5.5,5.6,5.7,5.8,5.9,6.0] # percentages
-ARRIVE_SCALE2     = [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
-PROB             = [0.1, 0.2, 0.3] 
-DROP             = [True, False]
-dl_scale         = 1
+# ARRIVE_SCALE0     = [0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.5,3.0] # percentages
+# ARRIVE_SCALE0 = np.arange(0.55, 0.59, 0.01).tolist()
+# ARRIVE_SCALE0 = [0.30] # synth lowest 0.1
+ARRIVE_SCALE0     = [0.6] # ad lowest 0.1
+# ARRIVE_SCALE1     = [3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0,5.1,5.2,5.3,5.4,5.5,5.6,5.7,5.8,5.9,6.0] # percentages
+ARRIVE_SCALE1     = []
+# ARRIVE_SCALE2     = [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
+ARRIVE_SCALE2     = []
+# PROB             = [0.1, 0.2, 0.3] 
+PROB              = [0.1] 
+# DROP             = [True, False]
+DROP              = [True]
+dl_scale          = 1
 
 total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE0 + ARRIVE_SCALE1) * len(PROB) * len(DROP)
 
@@ -255,17 +273,20 @@ def main(argv):
                                         else:
                                             command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
                                     
-                                    if trace_debug:
-                                        command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc.trim'
-                                    elif (use_user_input_trace):
+                                    if (use_user_input_trace):
                                         if (app == 'synthetic'):
-                                            command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc'
+                                            tracefile = "user_traces/user_gen_trace_prob_" + str(prob) + ".trc"
                                         elif (app == 'ad'):
-                                            command_str = command_str + ' -i ../input_trace/ad_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
+                                            tracefile = "input_trace/ad_" + str(stomp_params['simulation']['mean_arrival_time']) + "_trace_uniform_" + str(int(prob*100)) + ".trc"
                                         elif (app == 'mapping'):
-                                            command_str = command_str + ' -i ../input_trace/mapping_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
+                                            tracefile = "input_trace/mapping_" + str(stomp_params['simulation']['mean_arrival_time']) + "_trace_uniform_" + str(int(prob*100)) + ".trc"
                                         elif (app == 'package'):
-                                            command_str = command_str + ' -i ../input_trace/package_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
+                                            tracefile = "input_trace/package_" + str(stomp_params['simulation']['mean_arrival_time']) + "_trace_uniform_" + str(int(prob*100)) + ".trc"
+                                    
+                                    if trace_debug:
+                                        tracefile += ".trim"
+                                    assert os.path.exists(tracefile), tracefile + " not found!"
+                                    command_str += " -i ../" + tracefile
 
                                     if (verbose):
                                         print('Running', command_str)
