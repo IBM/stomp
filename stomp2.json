@@ -307,7 +307,7 @@
 
             "mission" : {
                 "mean_service_time" : {
-                    "cpu_core"  : 0.0022
+                    "cpu_core"  : 1
                 },
                 "power" : {
                     "cpu_core"  : 3534

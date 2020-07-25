@@ -209,6 +209,15 @@ class META:
         dags_completed_per_interval = 0
         end_list = []
         dropped_list = []
+        
+        lt_wcet_r_crit = 0
+        wtr_crit = 0
+        tasks_completed_count_crit = 0
+
+        lt_wcet_r_nocrit = 0
+        wtr_nocrit = 0
+        tasks_completed_count_nocrit = 0
+
         time_interval = 0
         last_promoted_id = 0
         promote_interval = 10*self.params['simulation']['arrival_time_scale']*self.params['simulation']['mean_arrival_time']
@@ -288,6 +297,23 @@ class META:
             while (len(completed_list)):
                 task_completed = completed_list.pop(0)
                 dag_id_completed = task_completed.dag_id
+
+                if(task_completed.priority > 1):
+                    wait_time_crit = task_completed.task_lifetime - task_completed.task_service_time
+                    wcet_crit = task_completed.per_server_service_dict['cpu_core']
+
+                    lt_wcet_r_crit += (float)(task_completed.task_lifetime/wcet_crit)
+
+                    wtr_crit += (float)(wait_time_crit/task_completed.task_lifetime)
+                    tasks_completed_count_crit += 1
+                else:
+                    wait_time_nocrit = task_completed.task_lifetime - task_completed.task_service_time
+                    wcet_nocrit = task_completed.per_server_service_dict['cpu_core']
+
+                    lt_wcet_r_nocrit += (float)(task_completed.task_lifetime/wcet_nocrit)
+
+                    wtr_nocrit += (float)(wait_time_nocrit/task_completed.task_lifetime)
+                    tasks_completed_count_nocrit += 1
 
                 ## If the task belongs to a non-dropped DAG ##
                 if dag_id_completed in self.dag_dict:
@@ -528,5 +554,13 @@ class META:
 
         #(Processing time for completed task, ready task time, task assignment, task ordering)
         fho.write(("Time: %d, %d, %d, %d\n")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
+        if(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit != 0):
+            fho.write(("nan, nan, %lf, %lf, %d\n")%(wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time))
+        elif(tasks_completed_count_crit != 0 and tasks_completed_count_nocrit == 0):
+            fho.write(("%lf, %lf, nan, nan, %d\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, self.stomp.sim_time))
+        elif(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit == 0):
+            fho.write(("nan, nan, nan, nan, %d\n")%(self.stomp.sim_time))
+        else:
+            fho.write(("%lf, %lf, %lf, %lf, %d\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time))
 
         fho.close()

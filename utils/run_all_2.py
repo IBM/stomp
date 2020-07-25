@@ -49,18 +49,19 @@ SLACK_PERC   = [100] # np.arange(50, 101, 50).tolist()
 CONF_FILE        = None #Automatically set based on app
 PROMOTE          = True
 
-APP              = ['synthetic', 'ad', 'mapping', 'package']
+APP              = ['ad', 'mapping', 'package', 'synthetic']
 POLICY_SOTA      = ['ads', 'heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
-POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update', 'ms3_heft']
+POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
 POLICY           = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR     = [0.01] # percentages
-ARRIVE_SCALE     = [0.1, 0.5, 0.7, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0] # percentages
-ARRIVE_SCALE     += [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
+ARRIVE_SCALE0     = [0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.5,3.0] # percentages
+ARRIVE_SCALE1     = [3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0,5.1,5.2,5.3,5.4,5.5,5.6,5.7,5.8,5.9,6.0] # percentages
+ARRIVE_SCALE2     = [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
 PROB             = [0.1, 0.2, 0.3] 
-DROP             = [False, True]
+DROP             = [True, False]
 dl_scale         = 1
 
-total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE) * len(PROB) * len(DROP)
+total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE0 + ARRIVE_SCALE1) * len(PROB) * len(DROP)
 
 def usage_and_exit(exit_code):
     stdout.write('\nusage: run_all.py [--help] [--verbose] [--csv-out] [--save-stdout] [--pre-gen-tasks] [--arrival-trace] [--input-trace] [--user-input-trace] [--user-input-trace-debug]\n\n')
@@ -122,7 +123,7 @@ def main(argv):
     process = []
     # Simulation directory
     for app in APP:
-        sim_dir = time.strftime("sim_%d%m%Y_%H%M") + "_" + str(app)
+        sim_dir = time.strftime("sim_%d%m%Y_%H%M%S") + "_" + str(app)
         if os.path.exists(sim_dir):
             shutil.rmtree(sim_dir)
         os.makedirs(sim_dir)
@@ -160,6 +161,12 @@ def main(argv):
             for slack_perc in SLACK_PERC_:
                 for drop in DROP:
                     for prob in PROB:
+                        ARRIVE_SCALE = []
+                        if(app == "synthetic" or app == "ad"):
+                            ARRIVE_SCALE = ARRIVE_SCALE0 + ARRIVE_SCALE1
+                        elif(app == "mapping" or app == "package"):
+                            ARRIVE_SCALE = ARRIVE_SCALE1 + ARRIVE_SCALE2
+                        
                         dl_scale = 1
                         for arr_scale in ARRIVE_SCALE:
                             if(app == "ad"):
@@ -265,7 +272,7 @@ def main(argv):
 
                                     sys.stdout.flush()
                                     # output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
-                                    stdout_fname=sim_dir + "/out" + str(run_count) + "_" + stomp_params['general']['basename']
+                                    stdout_fname=sim_dir + "/out_" + stomp_params['general']['basename']
                                     with open(stdout_fname, 'wb') as out:
                                         p = subprocess.Popen(command_str, stdout=out, stderr=subprocess.STDOUT, shell=True)
                                         process.append(p)

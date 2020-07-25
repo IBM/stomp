@@ -231,13 +231,10 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         # print("End")
 
-        # x = []
-        # for server in self.servers:
-        #     if server.busy:
-        #         x.append(server.id);
-
-        # print("busy server", x)
-
+        free_cpu_count = 0
+        for server in self.servers:
+            if not server.busy and server.type == "cpu_core":
+                free_cpu_count += 1
 
         end = datetime.now()
         self.to_time += end - start
@@ -264,8 +261,13 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
                 # print("[%d] [%d.%d] Params: task.priority = %d server.type = %s stomp_obj.num_critical_tasks = %d"
                 #     % (sim_time, task.dag_id, task.tid, task.priority, server.type, stomp_obj.num_critical_tasks))
-                #if ((task.priority == 1 and (server.type == "cpu_core" or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
-                if ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
+                if (self.stomp_params['simulation']['application'] == "synthetic"):
+                    condition = ((task.priority == 1 and ((server.type == "cpu_core") or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
+                else:
+                    condition = ((task.priority == 1 and ((server.type == "cpu_core" and free_cpu_count > 2) or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
+                    # condition = ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
+                #if ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
+                if (condition):
                     # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
                     if (server.type in task.mean_service_time_dict):
 

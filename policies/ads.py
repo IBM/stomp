@@ -41,7 +41,7 @@ import logging
 import numpy
 from datetime import datetime, timedelta
 
-max_task_depth_to_check = 10
+max_task_depth_to_check = 20
 
 class SchedulingPolicy(BaseSchedulingPolicy):
 
@@ -71,30 +71,18 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         start = datetime.now()
         for t in tasks:
-            max_time = 0
-            min_time = 100000
-            num_servers = 0
-            for server in self.servers:
-                if (server.type in t.per_server_service_dict):
-                    service_time   = t.per_server_service_dict[server.type]
-                    if(max_time < float(service_time)):
-                        max_time = float(service_time)
-                    if(min_time > float(service_time)):
-                        min_time = float(service_time)
-                    num_servers += 1
-
             if (t.priority > 1):
                     t.rank_type = 1
 
             else:
                     t.rank_type = 0
 
-        tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
 
         end = datetime.now()
         self.to_time += end - start
         # print(("TO: %d")%(self.to_time.microseconds))
         window = tasks[:window_len]
+        window.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
 
         tidx = 0;
 
