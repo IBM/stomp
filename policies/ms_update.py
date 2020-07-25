@@ -181,14 +181,14 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 if (t.priority > 1):
                     if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
                         slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
-                        t.rank = int((100000 * (1000000*t.priority))/slack)
+                        t.rank = int((100000 * (t.priority))/slack)
                         t.rank_type = 4
                         # print("[%d] [%d,%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
                         #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, slack, t.arrival_time, max_time, min_time))
 
                     else:
                         slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
-                        t.rank = int((100000 * (10000000*t.priority))/slack)
+                        t.rank = int((100000 * (t.priority))/slack)
                         t.rank_type = 5
                         # print("[%d] [%d,%d,%d] Deadline passed deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
                         #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, slack, t.arrival_time, max_time, min_time))
@@ -198,12 +198,14 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         # print("[%d] [%d,%d,%d] Critical tasks and min deadline exists deadline:%d, atime:%d, max_time: %d, min_time: %d" %
                         #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, t.arrival_time, max_time, min_time))
                         t.rank = 0
+                        t.rank_type = 0
                         stomp_obj.drop_hint_list.append(t.dag_id)
+
                         # print("[ID: %d] A hinting from task scheduler" %(t.dag_id))
                     else:
                         if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
                             slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
-                            t.rank = int((100000 * (100*t.priority))/slack)
+                            t.rank = int((100000 * (t.priority))/slack)
                             t.rank_type = 1
                             # print("B", t.rank)
                             # print("[%d] [%d,%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
@@ -212,14 +214,15 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         else:
                             # print("[%d] [%d,%d,%d] Min deadline doesnt exist/priority 1 type:%s with no max deadline:%d, atime:%d, max_time: %d, min_time: %d" %
                             #     (sim_time, t.dag_id, t.tid, t.priority, t.type, t.deadline,t.arrival_time, max_time, min_time))
-                            if(self.stomp_params['simulation']['drop']== True):
+                            if(self.stomp_params['simulation']['drop'] == True):
                                 t.rank = 0
+                                t.rank_type = 0
                                 stomp_obj.drop_hint_list.append(t.dag_id)
                                 # print("[ID: %d] B hinting from task scheduler" %(t.dag_id))
 
                             else:
                                 slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
-                                t.rank = int((100000 * (1*t.priority))/slack)
+                                t.rank = int((100000 * (t.priority))/slack)
                                 t.rank_type = 0
                                 # print("A", t.rank)
 
@@ -227,10 +230,10 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                 slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))
                 if (t.priority > 1):
-                    t.rank = int((100000 * (10000*t.priority))/slack)
+                    t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 3
                 else:
-                    t.rank = int((100000 * 1000*(t.priority))/slack)
+                    t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 2
                 # print("[%d] [%d,%d,%d] Max deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
                 #     (sim_time, t.dag_id, t.tid, t.priority,t.deadline, slack, t.arrival_time, max_time, min_time))
@@ -271,13 +274,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.to_time += end - start
         # print(("TO: %d")%(self.to_time.microseconds))
         window = tasks[:window_len]
-
-        # out = str(sim_time) + ","
-        # ii = 0
-        # for w in window:
-        #     out += (("%d, atime: %d, dead: %d, rank: %d, priority: %d,") % (ii,w.arrival_time,w.deadline,w.rank,w.priority))
-        #     ii += 1
-        # print(out)
 
         tidx = 0;
 
@@ -340,7 +336,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # Look for the server with smaller actual_service_time
             # and check if it's available
             if(min(target_servers) == float("inf")):
-                break
+                continue
+
+            if(task.rank == 0 and task.rank_type == 0 and task.priority == 1 and self.stomp_params['simulation']['drop'] == True):
+                continue
+
             server_idx = target_servers.index(min(target_servers))
             server = self.servers[server_idx]
 
