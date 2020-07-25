@@ -43,7 +43,8 @@ from __builtin__ import str
 
 from run_all_2 import POLICY, PWR_MGMT, SLACK_PERC, STDEV_FACTOR, ARRIVE_SCALE0, ARRIVE_SCALE1, ARRIVE_SCALE2, PROB, DROP, PTOKS, POLICY_SOTA
 
-extra = False
+extra = True
+extra1 = False
 #POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2']
 # POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2', 'simple_policy_ver5', 'edf', 'edf_ver5', 'ms1_update2', 'ms2_update2', 'ms3_update2'] # This is default
 # ARRIVE_SCALE = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2]
@@ -59,9 +60,9 @@ ARRIVE_SCALE = ARRIVE_SCALE0 + ARRIVE_SCALE1 + ARRIVE_SCALE2
 stdev_factor = STDEV_FACTOR[0]
 
 def main(argv):
-    DL_5 = 537
-    DL_7 = 428
-    DL_10 = 1012
+    # DL_5 = 537
+    # DL_7 = 428
+    # DL_10 = 1012
 
     sim_dir = argv[1].strip('/')
     app = argv[2]
@@ -162,15 +163,15 @@ def main(argv):
                                     # print("dl_scale", dl_scale)
 
                                     arr_scale = arr_scale / dl_scale
-                                    deadline_5 = DL_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
-                                    deadline_7 = DL_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
-                                    deadline_10 = DL_10 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                                    # deadline_5 = DL_5 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                                    # deadline_7 = DL_7 * (arr_scale * stomp_params['simulation']['deadline_scale'])
+                                    # deadline_10 = DL_10 * (arr_scale * stomp_params['simulation']['deadline_scale'])
                                     # print(deadline_5, deadline_7, deadline_10)
 
 
                                     header = header1 + ",Policy,Mission time,Mission time1,Mission time2,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Dropped Cnt,Energy"
                                     if (extra):
-                                        header = header + "," + policy + " C time,"+ policy + " R time,"+ policy + " TA time,"+ policy + " TO time,"+ policy + " Pr1 Slack," + policy + " Pr2 Slack," + policy + " Pr1 aff_pc," + policy + " Pr2 aff_pc"
+                                        header = header + ",WTR_Nocrit,LTR_NoCrit,WTR_Crit,LTR_Crit,C time,R time,TA time,TO time,Pr1 Slack,Pr2 Slack,Pr1 aff_pc,Pr2 aff_pc"
                                     priority_1_slack[policy]        = 0
                                     priority_1_met[policy]          = 0
                                     cnt_1[policy]                   = 0
@@ -265,19 +266,16 @@ def main(argv):
                                                 # print(line)
                                                 line = line.strip()
                                                 dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.split(',')
+
                                                 total_energy[policy] = float(energy)
                                                 if priority == '1':
                                                     cnt_1[policy] += 1
                                                     if (int(dropped) == 1):
                                                         cnt_dropped_1[policy] += 1
                                                     else:
-                                                        if dag_type == '5':
-                                                            priority_1_slack[policy] += float(slack)/deadline_5
-                                                        else:
-                                                            if dag_type == '7':
-                                                                priority_1_slack[policy] += float(slack)/deadline_7
-                                                            else:
-                                                                priority_1_slack[policy] += float(slack)/deadline_10
+                                                        deadline = stomp_params['simulation']['applications'][app]['dag_types'][dag_type]['deadline'] * (arr_scale * dl_scale)
+                                                        priority_1_slack[policy] += float(slack)/deadline
+
                                                         if(float(slack) >= 0):
                                                             priority_1_met[policy] += 1
                                                         priority_1_noaff_per[policy] += float(noafftime)/float(resp)
@@ -287,17 +285,10 @@ def main(argv):
                                                         cnt_dropped_2[policy] += 1
                                                         print("Dropped", tid)
                                                     else:
-                                                        deadline = 0
-                                                        if dag_type == '5':
-                                                            priority_2_slack[policy] += float(slack)/deadline_5
-                                                            deadline = deadline_5
-                                                        else:
-                                                            if dag_type == '7':
-                                                                priority_2_slack[policy] += float(slack)/deadline_7
-                                                                deadline = deadline_7
-                                                            else:
-                                                                priority_2_slack[policy] += float(slack)/deadline_10
-                                                                deadline = deadline_10
+                                                        deadline = stomp_params['simulation']['applications'][app]['dag_types'][dag_type]['deadline'] * (arr_scale * dl_scale)
+                                                        priority_2_slack[policy] += float(slack)/deadline
+                                                        # print(dag_type, slack, deadline)
+
                                                         if(float(slack) >= 0):
                                                             priority_2_met[policy] += 1
                                                         elif(mission_failed != 1):
@@ -312,38 +303,39 @@ def main(argv):
                                     server_count = 0
                                     found = 0
 
-                                    with open(fname_util,'r') as fp:
-                                        while(1):
-                                            line = fp.readline()
-                                            if not line:
-                                                break
-
-                                            if (line == " Busy time and Utilization:\n"):
-                                                print("Found line")
-                                                found = 1
-                                                line = fp.readline() # Skip next line
-                                                continue
-
-                                            if(found):
-
-                                                if (line == "\n"): # Break on empty line
-                                                    # print("Break here")
+                                    if(extra1):
+                                        with open(fname_util,'r') as fp:
+                                            while(1):
+                                                line = fp.readline()
+                                                if not line:
                                                     break
-                                                
-                                                server_count += 1
-                                                line = line.strip('\n')
-                                                
-                                                # print(line)
-                                                data1, data2, data3, server, data5, data6, util = line.split()
-                                                # print(line.split())
-                                                server_list[policy] += (server + ',')
-                                                util_list[policy] += (util + ',')
-                                                # print(server, util)
+
+                                                if (line == " Busy time and Utilization:\n"):
+                                                    # print("Found line")
+                                                    found = 1
+                                                    line = fp.readline() # Skip next line
+                                                    continue
+
+                                                if(found):
+
+                                                    if (line == "\n"): # Break on empty line
+                                                        # print("Break here")
+                                                        break
+                                                    
+                                                    server_count += 1
+                                                    line = line.strip('\n')
+                                                    
+                                                    # print(line)
+                                                    data1, data2, data3, server, data5, data6, util = line.split()
+                                                    # print(line.split())
+                                                    server_list[policy] += (server + ',')
+                                                    util_list[policy] += (util + ',')
+                                                    # print(server, util)
                                         
 
-                                    # print(server_list[policy])
+                                        # print(server_list[policy])
 
-                                    header += ',' + server_list[policy]
+                                        header += ',' + server_list[policy]
                                     # print(util_list[policy])
 
 
@@ -376,12 +368,14 @@ def main(argv):
                                         str(policy)
                                     out += ((",%d,%d,%s,%lf,%lf,%lf,%d,%d,%d") % (mission_time[policy], mission_time1[policy], sim_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],cnt_dropped_1[policy],total_energy[policy]))
                                     if(extra):
-                                        out += (("%s,%s,%s,%s,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (wtr_crit[policy],lt_wcet_r_crit[policy], wtr_crit[policy],lt_wcet_r_crit[policy],ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
-                                    out += ',' + util_list[policy]
+                                        out += ((",%s,%s,%s,%s,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (wtr_crit[policy],lt_wcet_r_crit[policy], wtr_crit[policy],lt_wcet_r_crit[policy],ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
+                                    if(extra1):
+                                        out += ',' + util_list[policy]
                                     if(first):
                                         print(header)
                                         first = 0
                                     print(out)
+
 
 
 
