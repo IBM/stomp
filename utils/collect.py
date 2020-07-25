@@ -44,7 +44,7 @@ from __builtin__ import str
 from run_all_2 import POLICY, PWR_MGMT, SLACK_PERC, STDEV_FACTOR, ARRIVE_SCALE0, ARRIVE_SCALE1, ARRIVE_SCALE2, PROB, DROP, PTOKS, POLICY_SOTA
 
 extra = True
-extra1 = False
+extra1 = True
 #POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2']
 # POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2', 'simple_policy_ver5', 'edf', 'edf_ver5', 'ms1_update2', 'ms2_update2', 'ms3_update2'] # This is default
 # ARRIVE_SCALE = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2]
@@ -53,9 +53,6 @@ extra1 = False
 # STDEV_FACTOR = [0.01]
 
 ARRIVE_SCALE = ARRIVE_SCALE0 + ARRIVE_SCALE1 + ARRIVE_SCALE2
-
-
-
 
 stdev_factor = STDEV_FACTOR[0]
 
@@ -236,7 +233,7 @@ def main(argv):
                                             line = fp.readline()
                                             if not line:
                                                 break
-                                            if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy\n"):
+                                            if (line == "Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time\n"):
                                                 # print("Found line")
                                                 flag = 1
                                                 continue
@@ -256,8 +253,8 @@ def main(argv):
 
                                                 line = fp.readline()
                                                 line = line.strip('\n')
-                                                wtr_crit[policy],lt_wcet_r_crit[policy], wtr_crit[policy],lt_wcet_r_crit[policy],sim_time[policy] = line.split(',')
-
+                                                wtr_crit[policy], lt_wcet_r_crit[policy], wtr_crit[policy],lt_wcet_r_crit[policy],sim_time[policy],total_energy[policy] = line.split(',')
+                                                total_energy[policy] = int(total_energy[policy])
 
 
                                             if (flag):
@@ -265,9 +262,10 @@ def main(argv):
                                                     break
                                                 # print(line)
                                                 line = line.strip()
-                                                dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.split(',')
+                                                # dropped,tid,priority,dag_type,slack,resp,noafftime,energy = line.split(',')
+                                                dropped,tid,priority,dag_type,slack,resp,noafftime = line.split(',')
 
-                                                total_energy[policy] = float(energy)
+                                                # total_energy[policy] = float(energy)
                                                 if priority == '1':
                                                     cnt_1[policy] += 1
                                                     if (int(dropped) == 1):

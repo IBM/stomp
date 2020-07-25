@@ -227,6 +227,9 @@ class META:
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
 
+        # Cumulative energy for all tasks executed by the system
+        all_tasks_energy = 0
+
         while(self.stomp.E_TSCHED_START == 0):
             pass
 
@@ -300,6 +303,14 @@ class META:
                 task_completed = completed_list.pop(0)
                 dag_id_completed = task_completed.dag_id
 
+                # Calculate energy per task and accumulate.
+                all_tasks_energy += task_completed.task_service_time * task_completed.ptoks_used
+                # print('[%d.%d.%d] task %s | task_service_time %u |  ptoks_used : %u | ENERGY = %u | cumulative energy %u' % 
+                #     (task_completed.dag_id, task_completed.tid, task_completed.priority, 
+                #         task_completed.type, task_completed.task_service_time, task_completed.ptoks_used, 
+                #         task_completed.task_service_time * task_completed.ptoks_used, all_tasks_energy))
+
+
                 if(task_completed.priority > 1):
                     wait_time_crit = task_completed.task_lifetime - task_completed.task_service_time
                     wcet_crit = task_completed.per_server_service_dict['cpu_core']
@@ -341,11 +352,7 @@ class META:
                             assert task_completed.ptoks_used
                             # power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
                             #print(task,power,task_completed.task_lifetime)
-                            dag_completed.energy += task_completed.task_service_time * \
-                                    task_completed.ptoks_used
-                            # print('[%d.%d] task %s | task_service_time %u |  ptoks_used : %u | energy = %u | dag accum energy %u' % 
-                            #     (task_completed.dag_id, task_completed.tid, task_completed.type, task_completed.task_service_time, task_completed.ptoks_used, task_completed.task_service_time * task_completed.ptoks_used, dag_completed.energy))
-
+                            
                             dag_completed.graph.remove_node(node)
                             break;
 
@@ -361,7 +368,7 @@ class META:
                         ## Calculate stats for the DAG
                         # logging.info(str(self.params['simulation']['sched_policy_module'].split('.')[-1].split('_')[-1]) + ',' + str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
                         # logging.info(str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
-                        end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time,dag_completed.energy)
+                        end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time) #,dag_completed.energy)
                         end_list.append(end_entry)
                         # Remove DAG from active list
                         self.dag_id_list.remove(dag_id_completed)
@@ -544,28 +551,34 @@ class META:
 
         # Open output file and write DAG stats
         fho = open(self.params['general']['working_dir'] + '/run_stdout_' + self.params['general']['basename'] + '.out', 'w')
-        fho.write("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time,Energy\n")
+        fho.write("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time\n")
 
         end_list.sort(key=lambda end_entry: end_entry[0], reverse=False)
         while(len(end_list)):
             end_entry = end_list.pop(0)
-            fho.write("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + ',' + str(end_entry[6]) + '\n')
+            fho.write("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + '\n')
             # end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
 
         dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
         while(len(dropped_list)):
             dropped_entry = dropped_list.pop(0)
-            fho.write("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5])  + ',' + str(end_entry[6]) + '\n')
+            fho.write("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5]) + '\n')
+
+        if all_tasks_energy == 0:
+            logging.error("Energy could not be computed.")
+            exit(1)
 
         #(Processing time for completed task, ready task time, task assignment, task ordering)
         fho.write(("Time: %d, %d, %d, %d\n")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
         if(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit != 0):
-            fho.write(("nan, nan, %lf, %lf, %d\n")%(wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time))
+            fho.write(("nan, nan, %lf, %lf, %d, %u\n")%(wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time, all_tasks_energy))
         elif(tasks_completed_count_crit != 0 and tasks_completed_count_nocrit == 0):
-            fho.write(("%lf, %lf, nan, nan, %d\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, self.stomp.sim_time))
+            fho.write(("%lf, %lf, nan, nan, %d, %u\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, self.stomp.sim_time, all_tasks_energy))
         elif(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit == 0):
-            fho.write(("nan, nan, nan, nan, %d\n")%(self.stomp.sim_time))
+            fho.write(("nan, nan, nan, nan, %d, %u\n")%(self.stomp.sim_time, all_tasks_energy))
         else:
-            fho.write(("%lf, %lf, %lf, %lf, %d\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time))
+            fho.write(("%lf, %lf, %lf, %lf, %d, %u\n")%(wtr_crit/tasks_completed_count_crit, 
+                lt_wcet_r_crit/tasks_completed_count_crit, wtr_nocrit/tasks_completed_count_nocrit, 
+                lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time, all_tasks_energy))
 
         fho.close()
