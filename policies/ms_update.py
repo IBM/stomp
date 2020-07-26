@@ -237,6 +237,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 else:
                     t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 2
+					
+			# Remove tasks to be dropped
+            if(self.stomp_params['simulation']['drop'] == True and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
+                tasks.remove(t)
+				
                 # print("[%d] [%d,%d,%d] Max deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
                 #     (sim_time, t.dag_id, t.tid, t.priority,t.deadline, slack, t.arrival_time, max_time, min_time))
 
@@ -338,9 +343,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # Look for the server with smaller actual_service_time
             # and check if it's available
             if(min(target_servers) == float("inf")):
-                continue
-
-            if(task.rank == 0 and task.rank_type == 0 and task.priority == 1 and self.stomp_params['simulation']['drop'] == True):
                 continue
 
             server_idx = target_servers.index(min(target_servers))

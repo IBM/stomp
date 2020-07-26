@@ -40,13 +40,8 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-JOBS_LIM = 64
-CONF_FILE    = './stomp.json'
-PROMOTE = True
-POLICY = ['ms1_update']
-STDEV_FACTOR = [0.01] # percentages
-PROB         = [0.1]
-DROP         = [True]
+JOBS_LIM = 32
+
 PWR_MGMT     = [False]
 PTOKS        = [100000] # [6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000] # , 10500, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000, 100000]
 # SLACK_PERC   = [0.0, 98.4]
@@ -65,7 +60,7 @@ ARRIVE_SCALE0     = [0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0
 ARRIVE_SCALE1     = [3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0,5.1,5.2,5.3,5.4,5.5,5.6,5.7,5.8,5.9,6.0] # percentages
 ARRIVE_SCALE2     = [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
 PROB             = [0.1, 0.2, 0.3] 
-DROP             = [True, False]
+DROP             = [False, True]
 dl_scale         = 1
 
 total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE0 + ARRIVE_SCALE1) * len(PROB) * len(DROP)

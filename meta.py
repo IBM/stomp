@@ -224,7 +224,6 @@ class META:
         time_interval = 0
         last_promoted_id = 0
         promote_interval = 10*self.params['simulation']['arrival_time_scale']*self.params['simulation']['mean_arrival_time']
-        print("Promote interval",promote_interval)
         in_trace_name = self.working_dir + '/' + self.input_trace_file
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
@@ -453,9 +452,7 @@ class META:
                                 # print("%d: [%d,%d]Dag promoted\n" %(self.stomp.sim_time, dag_id, task_node.tid))
                                 time_interval = the_dag_sched.arrival_time
 
-
                         if task_node.scheduled == 0:
-
 
                             # PROMOTE DAGs
                             if(self.params['simulation']['promote'] == True):
@@ -553,6 +550,8 @@ class META:
             self.stomp.tlock.acquire()
             if(self.stomp.task_completed_flag == 1 and (len(self.stomp.tasks_completed) == 0)):
                 self.stomp.task_completed_flag = 0
+            if(self.stomp.task_dropped_flag == 1 and (len(self.stomp.final_drop_list) == 0)):
+                self.stomp.task_dropped_flag = 0
             self.stomp.tlock.release()
 
             self.stomp.lock.release()

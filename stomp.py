@@ -303,6 +303,7 @@ class STOMP:
         self.tlock = threading.Lock()       #For safe access of tasks_completed and task_completed_flag
         self.dlock = threading.Lock()
         self.task_completed_flag = 0
+        self.task_dropped_flag = 0
         self. random = 0
         if (stomp_params['general']['input_trace_file']):
             self.arrival_trace    = stomp_params['general']['input_trace_file'][0]
@@ -443,8 +444,6 @@ class STOMP:
         # self.dlock.release()
 
         self.tlock.acquire()
-        while(len(self.drop_hint_list)):
-            self.final_drop_list.append(self.drop_hint_list.pop(0))
         self.tasks_completed.append(server.task)
         self.task_completed_flag = 1
         self.next_cust_arrival_time = int(round(self.sim_time))
@@ -909,6 +908,18 @@ class STOMP:
                         logging.debug('[%10ld] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
                         logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
                         logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
+
+            # Notify meta to drop hinted DAGs
+            if(self.params['simulation']['drop'] == True):
+                self.tlock.acquire()
+                while(len(self.drop_hint_list)):
+                    print(self.sim_time, self.drop_hint_list)
+                    self.final_drop_list.append(self.drop_hint_list.pop(0))
+                    self.task_dropped_flag = 1
+                self.tlock.release()
+
+                while(self.task_dropped_flag == 1):
+                    pass
 
             # ######################################################################
             # # 4) Update sim time                                       #
