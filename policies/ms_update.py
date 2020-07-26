@@ -343,7 +343,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # Look for the server with smaller actual_service_time
             # and check if it's available
             if(min(target_servers) == float("inf")):
-                continue
+                break
 
             server_idx = target_servers.index(min(target_servers))
             server = self.servers[server_idx]

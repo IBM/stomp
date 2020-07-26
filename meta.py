@@ -223,7 +223,7 @@ class META:
 
         time_interval = 0
         last_promoted_id = 0
-        promote_interval = 10*self.params['simulation']['arrival_time_scale']*self.params['simulation']['mean_arrival_time']
+        promote_interval = 100*self.params['simulation']['arrival_time_scale']*self.params['simulation']['mean_arrival_time']
         in_trace_name = self.working_dir + '/' + self.input_trace_file
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
