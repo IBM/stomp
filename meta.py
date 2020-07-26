@@ -139,10 +139,11 @@ class DAG:
         self.ready_time         = atime
         self.dag_type           = dag_type
         self.dropped            = 0
+        self.promoted           = 0
+        self.perm_promoted      = 0
         self.completed_peid     = {}
         self.noaffinity_time    = 0
-        # logging.info("Created %d,%d" % (self.arrival_time,self.deadline))
-        self.energy         = 0
+        self.energy             = 0
 
 class BaseMetaPolicy:
 
@@ -223,6 +224,7 @@ class META:
         time_interval = 0
         last_promoted_id = 0
         promote_interval = 10*self.params['simulation']['arrival_time_scale']*self.params['simulation']['mean_arrival_time']
+        print("Promote interval",promote_interval)
         in_trace_name = self.working_dir + '/' + self.input_trace_file
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
@@ -440,22 +442,37 @@ class META:
                         #         dropped_dag_id_list.append(dag_id)
                         #         break
 
-                        ## PROMOTE DAGs
-                        # if(self.params['simulation']['promote'] == True):
-                        #     if (the_dag_sched.arrival_time > time_interval + promote_interval and the_dag_sched.priority == 1 and task_node.tid == 0 and task_node in self.stomp.tasks):
-                        #         # print("[%d]: [%d.%d.%d], atime: %d, time_threshold: %d, completed: %d\n" % (self.stomp.sim_time, dag_id, task_node.tid, the_dag_sched.priority, the_dag_sched.arrival_time, (time_interval + promote_interval), dags_completed_per_interval))
-                        #         # print("[%d]: DAG id: %d, atime: %d, completed DAGs: %d\n" % (self.stomp.sim_time, dag_id, the_dag_sched.arrival_time, dags_completed_per_interval))
-                        #         if dags_completed_per_interval <= 0:
-                        #             task_node.priority = 3
-                        #             the_dag_sched.priority = 3
-                        #             print("%d: [%d]Dag promoted\n" %(self.stomp.sim_time, dag_id))
-                        #         dags_completed_per_interval = 0
-                        #         time_interval = the_dag_sched.arrival_time
-                        #         last_promoted_id = dag_id
-
+                        # PROMOTE DAGs
+                        if(self.params['simulation']['promote'] == True):
+                            if (the_dag_sched.arrival_time > time_interval + promote_interval and the_dag_sched.priority == 1 and task_node.tid == 0):
+                                # print("[%d]: [%d.%d.%d], atime: %d, time_threshold: %d, completed: %d\n" % (self.stomp.sim_time, dag_id, task_node.tid, the_dag_sched.priority, the_dag_sched.arrival_time, (time_interval + promote_interval), dags_completed_per_interval))
+                                # print("[%d]: DAG id: %d, atime: %d, completed DAGs: %d\n" % (self.stomp.sim_time, dag_id, the_dag_sched.arrival_time, dags_completed_per_interval))
+                                task_node.priority = 3
+                                the_dag_sched.priority = 3
+                                the_dag_sched.promoted = 1
+                                # print("%d: [%d,%d]Dag promoted\n" %(self.stomp.sim_time, dag_id, task_node.tid))
+                                time_interval = the_dag_sched.arrival_time
 
 
                         if task_node.scheduled == 0:
+
+
+                            # PROMOTE DAGs
+                            if(self.params['simulation']['promote'] == True):
+                                # Revaluate promotion for non-zero tid
+                                if (the_dag_sched.promoted == 1 and the_dag_sched.perm_promoted == 0 and task_node.tid != 0):
+                                    if dags_completed_per_interval > 0:
+                                        task_node.priority = 1
+                                        the_dag_sched.priority = 1
+                                        the_dag_sched.promoted = 0
+                                        # print("%d: [%d,%d]Dag demoted completed:%d\n" %(self.stomp.sim_time, dag_id, task_node.tid,dags_completed_per_interval))
+                                    else:
+                                        # print("%d: [%d,%d]Dag remains promoted completed:%d\n" %(self.stomp.sim_time, dag_id, task_node.tid, dags_completed_per_interval))
+                                        the_dag_sched.perm_promoted = 1
+                                        last_promoted_id = dag_id
+                                    dags_completed_per_interval = 0
+
+
                             if (task_node.tid == 0):
                                 atime = the_dag_sched.arrival_time
                             else:
