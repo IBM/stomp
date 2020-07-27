@@ -913,7 +913,7 @@ class STOMP:
             if(self.params['simulation']['drop'] == True):
                 self.tlock.acquire()
                 while(len(self.drop_hint_list)):
-                    print(self.sim_time, self.drop_hint_list)
+                    # print(self.sim_time, self.drop_hint_list)
                     self.final_drop_list.append(self.drop_hint_list.pop(0))
                     self.task_dropped_flag = 1
                 self.tlock.release()

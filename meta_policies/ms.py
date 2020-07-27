@@ -31,30 +31,30 @@ class MetaPolicy(BaseMetaPolicy):
             if (priority > 1):
                 if((deadline - (min_time)) >= 0):
                     slack = 1 + (deadline - (min_time))
-                    task.rank = int((100000 * (1000000*priority))/slack)
+                    task.rank = int((100000 * (priority))/slack)
                     task.rank_type = 4 
                 else:
                     slack = 1 - 0.99/( min_time - deadline)
-                    task.rank = int((100000 * (10000000*priority))/slack)
+                    task.rank = int((100000 * (priority))/slack)
                     task.rank_type = 5 
 
             else:
                 if((deadline - (min_time)) >= 0):
                     slack = 1 + (deadline - (min_time))
-                    task.rank = int((100000 * (100*priority))/slack) 
+                    task.rank = int((100000 * (priority))/slack) 
                     task.rank_type = 1                       
                 else:
                     slack = 1 - 0.99/( min_time - deadline)
-                    task.rank = int((100000 * (1*priority))/slack)
+                    task.rank = int((100000 * (priority))/slack)
                     task.rank_type = 0
         else:
             slack = 1 + (deadline - (max_time))
             task.rank = int((100000 * (priority))/slack)
             if (task.priority > 1):
-                task.rank = int((100000 * (10000*priority))/slack)
+                task.rank = int((100000 * (priority))/slack)
                 task.rank_type = 3 
             else:
-                task.rank = int((100000 * (1000*priority))/slack)
+                task.rank = int((100000 * (priority))/slack)
                 task.rank_type = 2  
         # print("[%d.%d] Pre Task rank: %d,%d,%d,%d" % (task.dag_id, task.tid, task.rank, priority, deadline, max_time))
 
