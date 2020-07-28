@@ -18,7 +18,7 @@
         "sched_policy_module": "policies.simple_policy_ver2",
         "policy":              "ms1",
         "drop":                false,
-        
+
         "pwr_mgmt": false,
         "pwr_model": "simple",
         "total_ptoks": 1000,
@@ -56,11 +56,11 @@
                     "10": {
                         "deadline": 1012
                     }
-                } 
+                }
             },
             "ad": {
                 "comp_file":           "inputs/end_to_end/dag_",
-                "graphml_file":        "inputs/end_to_end/dag", 
+                "graphml_file":        "inputs/end_to_end/dag",
                 "dag_types": {
                     "0": {
                         "deadline" : 400
@@ -78,7 +78,7 @@
             },
             "mapping": {
                 "comp_file":           "inputs/mavbench/mapping/dag_",
-                "graphml_file":        "inputs/mavbench/mapping/dag",  
+                "graphml_file":        "inputs/mavbench/mapping/dag",
                 "dag_types": {
                     "0": {
                         "deadline" : 1536
@@ -94,16 +94,16 @@
             },
             "package": {
                 "comp_file":           "inputs/mavbench/package/dag_",
-                "graphml_file":        "inputs/mavbench/package/dag", 
+                "graphml_file":        "inputs/mavbench/package/dag",
                 "dag_types": {
                     "0": {
                         "deadline" : 2144
                     },
                     "1": {
-                        "deadline" : 1140
+                        "deadline" : 167
                     },
                     "2": {
-                        "deadline" : 167
+                        "deadline" : 1140
                     }
                 }
             }
@@ -140,23 +140,23 @@
             },
             "rheft" : {
                 "meta_policy" : "rheft",
-                "tsched_policy": "rheft" 
+                "tsched_policy": "rheft"
             },
             "edf" : {
                 "meta_policy" : "edf",
-                "tsched_policy": "edf" 
+                "tsched_policy": "edf"
             },
             "edf_ver5" : {
                 "meta_policy" : "edf",
-                "tsched_policy": "edf_ver5" 
+                "tsched_policy": "edf_ver5"
             },
             "simple_policy_ver2": {
                 "meta_policy" : "edf",
-                "tsched_policy": "simple_policy_ver2" 
+                "tsched_policy": "simple_policy_ver2"
             },
             "simple_policy_ver5": {
                 "meta_policy" : "edf",
-                "tsched_policy": "simple_policy_ver5" 
+                "tsched_policy": "simple_policy_ver5"
             },
             "ads" : {
                 "meta_policy" : "heft",
@@ -211,7 +211,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 1.913,
                         "gpu"       : 9.005,
-                        "accel"     : 14.154 
+                        "accel"     : 14.154
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -226,8 +226,8 @@
                 },
                 "priority" : 1,
                 "deadline" : 1000
-            },          
-         
+            },
+
             "detect" : {
                 "mean_service_time" : {
                     "cpu_core"  : 3530,
@@ -248,7 +248,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 40.924,
                         "gpu"       : 14.788,
-                        "accel"     : 135.883 
+                        "accel"     : 135.883
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -264,7 +264,7 @@
                 "priority" : 2,
                 "deadline" : 1000
             },
-      
+
             "track" : {
                 "mean_service_time" : {
                     "cpu_core"  : 1820,
@@ -285,7 +285,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 21.100,
                         "gpu"       : 1.611,
-                        "accel"     : 2.831 
+                        "accel"     : 2.831
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -347,7 +347,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 0.000,
                         "gpu"       : 0.000,
-                        "accel"     : 0.000 
+                        "accel"     : 0.000
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -378,7 +378,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 0.093,
                         "gpu"       : 0.000,
-                        "accel"     : 0.000 
+                        "accel"     : 0.000
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -409,7 +409,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 0.093,
                         "gpu"       : 0.000,
-                        "accel"     : 0.000 
+                        "accel"     : 0.000
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -439,7 +439,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 0.093,
                         "gpu"       : 0.000,
-                        "accel"     : 0.000 
+                        "accel"     : 0.000
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -469,7 +469,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 4.591,
                         "gpu"       : 0.000,
-                        "accel"     : 0.000 
+                        "accel"     : 0.000
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -502,7 +502,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 11.280,
                         "gpu"       : 72.137,
-                        "accel"     : 0.000 
+                        "accel"     : 0.000
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -535,7 +535,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 11.640,
                         "gpu"       : 35.926,
-                        "accel"     : 0.000 
+                        "accel"     : 0.000
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
