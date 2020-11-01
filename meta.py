@@ -234,6 +234,12 @@ class META:
         while(self.stomp.E_TSCHED_START == 0):
             pass
 
+        # Initialize profilers
+        ctime = timedelta(microseconds = 0)
+        rtime = timedelta(microseconds = 0)
+        sranktime = timedelta(microseconds = 0)
+        dranktime = timedelta(microseconds = 0)
+
         ## Read trace file and populate DAG information ##
         # self.stomp.dlock.acquire()
         with open(in_trace_name, 'r') as input_trace:
@@ -276,12 +282,13 @@ class META:
                     self.dag_id_list.append(dag_id)
 
                     ## Static ranking ##
+                    start = datetime.now()
                     self.meta_policy.meta_static_rank(self.stomp, the_dag_trace)
+                    end = datetime.now()
+                    sranktime += end - start
 
             line_count += 1
         # self.stomp.dlock.release()
-        ctime = timedelta(microseconds = 0)
-        rtime = timedelta(microseconds = 0)
 
 
         while(self.dag_id_list or self.stomp.E_TSCHED_DONE == 0):
@@ -396,17 +403,6 @@ class META:
 
                     for node,deg in the_dag_sched.graph.in_degree():
                         if deg == 0:
-                            ##### DROPPED ##########
-                            # TODO: Fix this code to be non-deterministic
-                            # if(self.params['simulation']['drop'] == True):
-                            #     if(the_dag_sched.priority == 1 and (the_dag_sched.dtime - self.stomp.sim_time) < 0):
-                            #         the_dag_sched.dropped = 1
-                            #         dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
-                            #         self.stomp.dags_dropped.append(dag_id)
-                            #         dropped_list.append(dropped_entry)
-                            #         dropped_dag_id_list.append(dag_id)
-                            #         break
-
                             if node.scheduled == 0:
                                 if(self.meta_policy.dropping_policy(the_dag_sched, node)):
                                     # logging.info("%d: [DROPPED] DAG id: %d dropped" %(self.stomp.sim_time, dag_id))
@@ -481,7 +477,7 @@ class META:
                             #Use SDR for task deadline calculation
                             if (self.params['simulation']['policy'].startswith("ms1")):
                                 deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[task_node.tid][1]))
-                            if (self.params['simulation']['policy'].startswith("ms3")):
+                            elif (self.params['simulation']['policy'].startswith("ms3")):
                                 deadline = int(deadline*float(the_dag_sched.comp[task_node.tid][1]))
 
 
@@ -519,8 +515,10 @@ class META:
                                 count += 1
 
                             # Dynamic Rank Assignment
+                            start1 = datetime.now()
                             self.meta_policy.meta_dynamic_rank(self.stomp, task_node, the_dag_sched.comp, max_time, min_time, deadline, priority)
-
+                            end1 = datetime.now()
+                            dranktime += end1 - start1
 
                             #### AFFINITY ####
                             # Pass parent id and HW id of parents with task
@@ -584,8 +582,8 @@ class META:
             logging.error("Energy could not be computed.")
             exit(1)
 
-        #(Processing time for completed task, ready task time, task assignment, task ordering)
-        fho.write(("Time: %d, %d, %d, %d\n")%(ctime.microseconds, rtime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
+        #(Processing time for completed task, ready task time, static-rank time, dynamic rank time, task assignment, task ordering)
+        fho.write(("Time: %d, %d, %d, %d, %d, %d\n")%(ctime.microseconds, rtime.microseconds, sranktime.microseconds, dranktime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
         if(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit != 0):
             fho.write(("nan, nan, %lf, %lf, %d, %u\n")%(wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time, all_tasks_energy))
         elif(tasks_completed_count_crit != 0 and tasks_completed_count_nocrit == 0):

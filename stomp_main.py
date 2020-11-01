@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # Copyright 2018 IBM
 #
@@ -30,7 +30,7 @@ from meta import META
 
 
 def usage_and_exit(exit_code):
-    print 'usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival-trace=<string>] [--input-trace=<string>] [--generate-trace=<string>] [--pre-gen-arrivals]'
+    print('usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--arrival-trace=<string>] [--input-trace=<string>] [--generate-trace=<string>] [--pre-gen-arrivals]')
     sys.exit(exit_code)
 
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # Copyright 2018 IBM
 #
@@ -41,10 +41,11 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-from run_all_2 import POLICY, PWR_MGMT, SLACK_PERC, STDEV_FACTOR, ARRIVE_SCALE0, ARRIVE_SCALE1, ARRIVE_SCALE2, PROB, DROP, PTOKS, POLICY_SOTA
+from run_all_2 import POLICY, PWR_MGMT, SLACK_PERC, STDEV_FACTOR, ARRIVE_SCALE0, ARRIVE_SCALE1, ARRIVE_SCALE2, ARRIVE_SCALE3,PROB, DROP, PTOKS, POLICY_SOTA
 
 extra = False
-extra1 = False
+extra1 = True
+extra_profile = False
 #POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2']
 # POLICY       = ['ms1', 'ms2', 'ms3', 'simple_policy_ver2', 'simple_policy_ver5', 'edf', 'edf_ver5', 'ms1_update2', 'ms2_update2', 'ms3_update2'] # This is default
 # ARRIVE_SCALE = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2]
@@ -171,7 +172,10 @@ def main(argv):
 
                                     header = header1 + ",Policy,Mission time,Mission time1,Mission time2,Mission Completed,Pr1 Met,Pr2 Met,Pr2 Cnt,Dropped Cnt,Energy"
                                     if (extra):
-                                        header = header + ",WTR_Nocrit,LTR_NoCrit,WTR_Crit,LTR_Crit,C time,R time,TA time,TO time,Pr1 Slack,Pr2 Slack,Pr1 aff_pc,Pr2 aff_pc"
+                                        header = header + ",WTR_Nocrit,LTR_NoCrit,WTR_Crit,LTR_Crit,Pr1 Slack,Pr2 Slack,Pr1 aff_pc,Pr2 aff_pc"
+                                    if (extra_profile):
+                                        header += header + ",C time,R time,SRANK time, DRANK time, TA time,TO time"
+
                                     priority_1_slack[policy]        = 0
                                     priority_1_met[policy]          = 0
                                     cnt_1[policy]                   = 0
@@ -190,6 +194,8 @@ def main(argv):
 
                                     ctime[policy]                   = 0
                                     rtime[policy]                   = 0
+                                    sranktime[policy]               = 0
+                                    dranktime[policy]               = 0
                                     ta_time[policy]                 = 0
                                     to_time[policy]                 = 0
 
@@ -247,10 +253,12 @@ def main(argv):
                                                 #Time: C, R, TA, TO
                                                 theader,data = line.split(':')
                                                 #print(data)
-                                                ct, rt, ta_t, to_t = data.split(',')
+                                                ct, rt, srank_t, drank_t, ta_t, to_t = data.split(',')
 
                                                 ctime[policy]       = float(ct)
                                                 rtime[policy]       = float(rt)
+                                                sranktime[policy]   = float(srank_t)
+                                                dranktime[policy]   = float(drank_t)
                                                 ta_time[policy]     = float(ta_t)
                                                 to_time[policy]     = float(to_t)
                                                 #print(ctime[policy],rtime[policy],ta_time[policy],to_time[policy])
@@ -370,7 +378,10 @@ def main(argv):
                                         str(policy)
                                     out += ((",%d,%d,%s,%lf,%lf,%lf,%d,%d,%d") % (mission_time[policy], mission_time1[policy], sim_time[policy], mission_completed[policy], priority_1_met[policy],priority_2_met[policy],cnt_2[policy],cnt_dropped_1[policy],total_energy[policy]))
                                     if(extra):
-                                        out += ((",%s,%s,%s,%s,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (wtr_crit[policy],lt_wcet_r_crit[policy], wtr_crit[policy],lt_wcet_r_crit[policy],ctime[policy],rtime[policy],ta_time[policy],to_time[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
+                                        out += ((",%s,%s,%s,%s,%lf,%lf,%lf,%lf") % (wtr_crit[policy],lt_wcet_r_crit[policy], wtr_crit[policy],lt_wcet_r_crit[policy],priority_1_slack[policy],priority_2_slack[policy],priority_1_noaff_per[policy],priority_2_noaff_per[policy]))
+                                    if(extra_profile):
+                                        out += ((",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf") % (ctime[policy],rtime[policy],sranktime[policy],dranktime[policy],ta_time[policy],to_time[policy]))
+                                    
                                     if(extra1):
                                         out += ',' + util_list[policy]
                                     if(first):

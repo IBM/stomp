@@ -144,12 +144,16 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
     def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
 
+        removable_tasks = []
         for task in tasks:
             if task.dag_id in dags_dropped:
-                # print("Removing dropped dag")
-                tasks.remove(task)
+                removable_tasks.append(task)
                 if (task.priority > 1):
                     stomp_obj.num_critical_tasks -= 1
+
+        for task in removable_tasks:
+            tasks.remove(task)
+        removable_tasks = []
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
@@ -177,19 +181,22 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         min_time = float(service_time)
                     num_servers += 1
 
+            min_slack = t.deadline -(sim_time-t.arrival_time) - (max_time)
+            max_slack = t.deadline -(sim_time-t.arrival_time) - (min_time)
+
             # Min slack, i.e. slack when executed on slowest server.
-            if ((t.deadline -(sim_time-t.arrival_time) - (max_time)) < 0):
+            if (min_slack < 0):
                 if (t.priority > 1):
                     # Max slack, i.e. slack when executed on fastest server.
-                    if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
-                        slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
+                    if(max_slack >= 0):
+                        slack = 1 + max_slack
                         t.rank = int((100000 * (t.priority))/slack)
                         t.rank_type = 4
                         # print("[%d] [%d,%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
                         #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, slack, t.arrival_time, max_time, min_time))
 
                     else:
-                        slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
+                        slack = 1 + 0.99/max_slack
                         t.rank = int((100000 * (t.priority))/slack)
                         t.rank_type = 5
                         # print("[%d] [%d,%d,%d] Deadline passed deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
@@ -205,8 +212,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
                         # print("[ID: %d] A hinting from task scheduler" %(t.dag_id))
                     else:
-                        if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
-                            slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (min_time))
+                        if(max_slack >= 0):
+                            slack = 1 + max_slack
                             t.rank = int((100000 * (t.priority))/slack)
                             t.rank_type = 1
                             # print("B", t.rank)
@@ -223,14 +230,14 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                                 # print("[ID: %d] B hinting from task scheduler" %(t.dag_id))
 
                             else:
-                                slack = 1 - 0.99/((sim_time-t.arrival_time) + min_time - t.deadline)
+                                slack = 1 + 0.99/max_slack
                                 t.rank = int((100000 * (t.priority))/slack)
                                 t.rank_type = 0
                                 # print("A", t.rank)
 
 
             else:
-                slack = 1 + (t.deadline - (sim_time-t.arrival_time) - (max_time))
+                slack = 1 + min_slack
                 if (t.priority > 1):
                     t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 3
@@ -240,51 +247,28 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 					
 			# Remove tasks to be dropped
             if(self.stomp_params['simulation']['drop'] == True and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
-                tasks.remove(t)
-				
-                # print("[%d] [%d,%d,%d] Max deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
-                #     (sim_time, t.dag_id, t.tid, t.priority,t.deadline, slack, t.arrival_time, max_time, min_time))
+                removable_tasks.append(t)
 
-            # if (self.stomp_params['simulation']['drop'] == True and stomp_obj.num_critical_tasks > 0 and t.priority == 1):
-            #     # print("[%d] [%d,%d,%d] Critical tasks and min deadline exists deadline:%d, atime:%d, max_time: %d, min_time: %d" %
-            #     #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, t.arrival_time, max_time, min_time))
-            #     t.rank = 0
-            #     drop_hint_list.append(t.dag_id)
-            #     print("[ID: %d] C hinting from task scheduler" %(t.dag_id))
-
-        # tasks.sort(key=lambda task: (task.rank), reverse=True)
-        # print(tasks)
+        for task in removable_tasks:
+            tasks.remove(task)
+        removable_tasks = []
 
         tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
-
-
-        # print("Start")
-        # for t in tasks:
-        #     if t.possible_server_idx != None:
-        #         mst = t.mean_service_time_dict[self.servers[t.possible_server_idx].type]
-        #     else:
-        #         mst = None
-        #     if(mst != None):
-        #         if(mst != t.possible_mean_service_time):
-        #             print("[%d] [%d,%d,%d][%d] rank: %d deadline:%d, atime:%d, PSI: %s, PMST:%s, MST:%d, Not Equal" % (sim_time, t.dag_id, t.tid, t.priority, t.rank_type, t.rank, t.deadline, t.arrival_time, t.possible_server_idx, t.possible_mean_service_time, mst))
-        #         else:
-        #             print("[%d] [%d,%d,%d][%d] rank: %d deadline:%d, atime:%d, PSI: %s, PMST:%s, MST:%d" % (sim_time, t.dag_id, t.tid, t.priority, t.rank_type, t.rank, t.deadline, t.arrival_time, t.possible_server_idx, t.possible_mean_service_time, mst))
-
-        # print("End")
-
-        free_cpu_count = 0
-        for server in self.servers:
-            if not server.busy and server.type == "cpu_core":
-                free_cpu_count += 1
 
         end = datetime.now()
         self.to_time += end - start
         # print(("TO: %d")%(self.to_time.microseconds))
         window = tasks[:window_len]
 
-        tidx = 0;
 
         start = datetime.now()
+
+        tidx = 0;
+        free_cpu_count = 0
+        for server in self.servers:
+            if not server.busy and server.type == "cpu_core":
+                free_cpu_count += 1
+
         for task in window:
             # logging.debug('[%10ld] Attempting to schedule task %2d : %s' % (sim_time, tidx, task.type))
 
