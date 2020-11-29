@@ -124,6 +124,8 @@ def main(argv):
                             total_energy            = {}
                             ctime                   = {}
                             rtime                   = {}
+                            sranktime               = {}
+                            dranktime               = {}
                             ta_time                 = {}
                             to_time                 = {}
 
