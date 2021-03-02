@@ -40,7 +40,7 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-JOBS_LIM = 32
+JOBS_LIM = 64
 
 PWR_MGMT     = [False]
 PTOKS        = [100000] # [6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000] # , 10500, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000, 100000]
@@ -50,20 +50,41 @@ folder = ""
 
 CONF_FILE        = None #Automatically set based on app
 PROMOTE          = True
+CONTENTION       = [True, False]
 
 APP              = ['ad', 'mapping', 'package', 'synthetic']
 POLICY_SOTA      = ['ads', 'heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
 POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
 POLICY           = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR     = [0.01] # percentages
-ARRIVE_SCALE0     = [0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0] # percentages
-ARRIVE_SCALE1     = [3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0,5.1,5.2,5.3,5.4,5.5,5.6,5.7,5.8,5.9,6.0] # percentages
-ARRIVE_SCALE2     = [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
+ARRIVE_SCALE0    = [0.2, 0.2, 0.2, 0.2] # percentages
+ARRIVE_SCALE1    = [1.0, 1.0, 1.0, 1.0] #0.5,1.0,2.0,2.5,3.0,3.2,3.4,3.6,3.8,4.0,4.2,4.4,4.6,4.8,5.0,5.2,5.4,5.6,5.8,6.0] # percentages
+ARRIVE_SCALE2    = [2.0, 2.0, 2.0, 2.0]#2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0]
+
+ARRIVE_SCALE3    = [0.7, 1.0, 1.7, 2.5] # percentages
+ARRIVE_SCALE4    = [2, 2.2, 3.0, 4.0] #0.5,1.0,2.0,2.5,3.0,3.2,3.4,3.6,3.8,4.0,4.2,4.4,4.6,4.8,5.0,5.2,5.4,5.6,5.8,6.0] # percentages
+ARRIVE_SCALE5    = [3, 3, 3.8, 4.0]
 PROB             = [0.1, 0.2, 0.3, 0.5] 
 DROP             = [False, True]
 dl_scale         = 1
 
-total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE0 + ARRIVE_SCALE1) * len(PROB) * len(DROP)
+RUNS = 10
+DELTA = 0.1
+
+#APP              = ['ad', 'package', 'mapping'] #, 'ad']
+#POLICY_SOTA      = ['ads', 'rheft', 'edf_ver5']
+#POLICY_NEW       = ['ms1_update', 'ms2_update', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
+#POLICY           = POLICY_SOTA + POLICY_NEW
+#STDEV_FACTOR     = [0.01] # percentages
+#ARRIVE_SCALE0     = [0.5,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,4.0] # percentages
+#ARRIVE_SCALE1     = [0.5,1.0,2.3,2.5,2.6,2.7,2.8,2.9,3.0,3.2,3.4,3.6,3.8,4.0,4.2,4.4,4.6,4.8,5.0,5.2,5.4,5.6,5.8,6.0] # percentages
+#ARRIVE_SCALE2     = [2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0]
+#ARRIVE_SCALE3     = [2.2,2.6,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.5,5.0,5.5,6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
+#PROB             = [0.5, 0.3, 0.2, 0.1] 
+#DROP             = [True, False]
+#dl_scale         = 1
+
+total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE0) * len(PROB) * len(DROP)
 
 def usage_and_exit(exit_code):
     stdout.write('\nusage: run_all.py [--help] [--verbose] [--csv-out] [--save-stdout] [--pre-gen-tasks] [--arrival-trace] [--input-trace] [--user-input-trace] [--user-input-trace-debug] [--run_hetero]\n\n')
@@ -128,6 +149,7 @@ def main(argv):
 
 
     process = []
+    run_count = 0
     # Simulation directory
     for app in APP:
         sim_dir = time.strftime("sim_%d%m%Y_%H%M%S") + "_" + str(app)
@@ -155,7 +177,7 @@ def main(argv):
 
         stomp_params['general']['working_dir'] = os.getcwd() + '/' + sim_dir
 
-        run_count = 0
+
         ###############################################################################################
         # MAIN LOOP
         for pwr_mgmt in PWR_MGMT:
@@ -167,136 +189,172 @@ def main(argv):
                 PTOKS_ = PTOKS
             for slack_perc in SLACK_PERC_:
                 for drop in DROP:
-                    for prob in PROB:
-                        ARRIVE_SCALE = []
-                        if(app == "synthetic" or app == "ad"):
-                            ARRIVE_SCALE = ARRIVE_SCALE0 + ARRIVE_SCALE1
-                        elif(app == "mapping" or app == "package"):
-                            ARRIVE_SCALE = ARRIVE_SCALE1 + ARRIVE_SCALE2
-                        
-                        dl_scale = 1
-                        for arr_scale in ARRIVE_SCALE:
-                            if(app == "ad"):
-                                dl_scale = 5
-                            elif(app == "mapping" or app == "package"):
-                                dl_scale = 2.5
-                            arr_scale = arr_scale/dl_scale
-                            for ptoks in PTOKS_:
+                    for cont in CONTENTION:
+                        for x in range(0,len(PROB)):
+                            print(x)
+                            prob = PROB[x]
+                            ARRIVE_SCALE = []
+                            # if(app == "synthetic" or app == "ad"):
+                            #     ARRIVE_SCALE = ARRIVE_SCALE0 + ARRIVE_SCALE1
+                            # elif(app == "mapping" or app == "package"):
+                            #     ARRIVE_SCALE = ARRIVE_SCALE2 + ARRIVE_SCALE3
+                            
+                            dl_scale = 1
+                            
 
-                                # if arr_scale < (1/stomp_params['simulation']['deadline_scale']):
-                                #     print("Error: for arr_scale: %d. Arrival_scale less than 1 is not supported" %(arr_scale))
-                                #     break
+                            for policy in POLICY:
 
-                                sim_output[arr_scale] = {}
-                                stomp_params['simulation']['pwr_mgmt'] = pwr_mgmt
-                                stomp_params['simulation']['total_ptoks'] = ptoks
-                                stomp_params['simulation']['slack_perc'] = slack_perc
-                                stomp_params['simulation']['arrival_time_scale'] = arr_scale
+                                if (policy in POLICY_SOTA):
+                                    if(app == "synthetic" or app == "ad"):
+                                        ARRIVE_SCALE = ARRIVE_SCALE3
+                                    elif(app == "mapping"):
+                                        ARRIVE_SCALE = ARRIVE_SCALE4
+                                    elif(app == "package"):
+                                        ARRIVE_SCALE = ARRIVE_SCALE5
 
-                                for policy in POLICY:
-                                    if (policy in POLICY_SOTA and drop == True):
-                                        print("No dropping for SOTA", policy)
+                                else:
+                                    if(app == "synthetic" or app == "ad"):
+                                        ARRIVE_SCALE = ARRIVE_SCALE0
+                                    elif(app == "mapping"):
+                                        ARRIVE_SCALE = ARRIVE_SCALE1
+                                    elif(app == "package"):
+                                        ARRIVE_SCALE = ARRIVE_SCALE2
+
+                                #for arr_scale in ARRIVE_SCALE:
+                                for y in range(0,RUNS):
+                                    arr_scale = ARRIVE_SCALE[x] + DELTA*y
+                                    print("Prob: " + str(prob) + "arr_scale: " + str(arr_scale))
+                                    if (policy in POLICY_SOTA and (drop == True)):
+                                            print("No dropping for SOTA/Not arr_scale", policy, drop, arr_scale)
+                                            continue
+
+                                    # print(ARRIVE_SCALE0+ARRIVE_SCALE2)
+                                    if (policy in POLICY_NEW and (drop == False)):
+                                        print("Only dropping for NEW/Not arr_scale", policy, drop, arr_scale)
                                         continue
 
-                                    for accel_count in range(0,ACCEL_COUNT):
-                                        if(run == 'hetero'):
-                                            stomp_params['simulation']['servers']['cpu_core']['count'] = 11 - (2*accel_count)
-                                            stomp_params['simulation']['servers']['fft_accel']['count'] = accel_count
-                                            stomp_params['simulation']['servers']['gpu']['count'] = accel_count
-                                            print("Running for accel count:" + str(accel_count))
+                                    print("Running", policy, drop, arr_scale, run_count)
 
-                                        run_count += 1
-                                        sim_output[arr_scale][policy] = {}
+                                    if(app == "ad"):
+                                        dl_scale = 5
+                                    elif(app == "mapping" or app == "package"):
+                                        dl_scale = 2.5
+                                    arr_scale = arr_scale/dl_scale
+                                    for ptoks in PTOKS_:
 
-                                        stdev_factor = STDEV_FACTOR[0]
-                                        stomp_params['simulation']['stdev_factor'] = stdev_factor
-                                        stomp_params['simulation']['drop']         = drop
-                                        stomp_params['simulation']['promote']      = PROMOTE
+                                        # if arr_scale < (1/stomp_params['simulation']['deadline_scale']):
+                                        #     print("Error: for arr_scale: %d. Arrival_scale less than 1 is not supported" %(arr_scale))
+                                        #     break
 
-                                        sim_output[arr_scale][policy][stdev_factor] = {}
-                                        sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'] = {}
-                                        sim_output[arr_scale][policy][stdev_factor]['met_deadline'] = {}
+                                        sim_output[arr_scale] = {}
+                                        stomp_params['simulation']['pwr_mgmt'] = pwr_mgmt
+                                        stomp_params['simulation']['total_ptoks'] = ptoks
+                                        stomp_params['simulation']['slack_perc'] = slack_perc
+                                        stomp_params['simulation']['arrival_time_scale'] = arr_scale
 
-                                        ###########################################################################################
-                                        # Update the simulation configuration by updating
-                                        # the specific parameters in the input JSON data
-                                        stomp_params['simulation']['application'] = app
-                                        stomp_params['simulation']['policy'] = policy
-                                        stomp_params['simulation']['sched_policy_module'] = 'policies.' + stomp_params['simulation']["policies"][policy]['tsched_policy']
-                                        stomp_params['simulation']['meta_policy_module'] = 'meta_policies.' + stomp_params['simulation']["policies"][policy]['meta_policy']
-                                        stomp_params['simulation']['deadline_scale'] = dl_scale
-                                        if(app == "ad"):
-                                            stomp_params['simulation']['mean_arrival_time'] = 50
-                                        elif(app == "mapping" or app == "package"):
-                                            stomp_params['simulation']['mean_arrival_time'] = 25
-                                        for task in stomp_params['simulation']['tasks']:
-                                            # Set the stdev for the service time
-                                            for server, mean_service_time in stomp_params['simulation']['tasks'][task]['mean_service_time'].items():
-                                                stdev_service_time = (stdev_factor*mean_service_time)
-                                                stomp_params['simulation']['tasks'][task]['stdev_service_time'][server] = stdev_service_time
 
-                                        stomp_params['general']['basename'] = policy + \
-                                            "_pwr_mgmt_" + str(pwr_mgmt) + \
-                                            "_slack_perc_" + str(slack_perc) + \
-                                            "_drop_" + str(drop) + \
-                                            "_arr_" + str(arr_scale) + \
-                                            '_prob_' + str(prob) + \
-                                            '_ptoks_' + str(ptoks) + \
-                                            '_accel_' + str(accel_count)
-                                        conf_str = json.dumps(stomp_params)
+                                        for accel_count in range(0,ACCEL_COUNT):
+                                            if(run == 'hetero'):
+                                                stomp_params['simulation']['servers']['cpu_core']['count'] = 11 - (2*accel_count)
+                                                stomp_params['simulation']['servers']['fft_accel']['count'] = accel_count
+                                                stomp_params['simulation']['servers']['gpu']['count'] = accel_count
+                                                print("Running for accel count:" + str(accel_count))
 
-                                        ###########################################################################################
-                                        # Create command and execute the simulation
+                                            run_count += 1
+                                            sim_output[arr_scale][policy] = {}
 
-                                        command = ['./stomp_main.py'
-                                                   + ' -c ' + CONF_FILE
-                                                   + ' -j \'' + conf_str + '\''
-                                                   ]
+                                            stdev_factor = STDEV_FACTOR[0]
+                                            stomp_params['simulation']['stdev_factor'] = stdev_factor
+                                            stomp_params['simulation']['drop']         = drop
+                                            stomp_params['simulation']['contention']   = cont
+                                            stomp_params['simulation']['promote']      = PROMOTE
 
-                                        command_str = ' '.join(command)
+                                            sim_output[arr_scale][policy][stdev_factor] = {}
+                                            sim_output[arr_scale][policy][stdev_factor]['avg_resp_time'] = {}
+                                            sim_output[arr_scale][policy][stdev_factor]['met_deadline'] = {}
 
-                                        if (pre_gen_tasks):
-                                            command_str = command_str + ' -p'
+                                            ###########################################################################################
+                                            # Update the simulation configuration by updating
+                                            # the specific parameters in the input JSON data
+                                            stomp_params['simulation']['application'] = app
+                                            stomp_params['simulation']['policy'] = policy
+                                            stomp_params['simulation']['sched_policy_module'] = 'policies.' + stomp_params['simulation']["policies"][policy]['tsched_policy']
+                                            stomp_params['simulation']['meta_policy_module'] = 'meta_policies.' + stomp_params['simulation']["policies"][policy]['meta_policy']
+                                            stomp_params['simulation']['deadline_scale'] = dl_scale
+                                            if(app == "ad"):
+                                                stomp_params['simulation']['mean_arrival_time'] = 50
+                                            elif(app == "mapping" or app == "package"):
+                                                stomp_params['simulation']['mean_arrival_time'] = 25
+                                            for task in stomp_params['simulation']['tasks']:
+                                                # Set the stdev for the service time
+                                                for server, mean_service_time in stomp_params['simulation']['tasks'][task]['mean_service_time'].items():
+                                                    stdev_service_time = (stdev_factor*mean_service_time)
+                                                    stomp_params['simulation']['tasks'][task]['stdev_service_time'][server] = stdev_service_time
 
-                                        if (use_arrival_trace):
-                                            if (policy == POLICY[0]) and (stdev_factor == STDEV_FACTOR[0]):
-                                                command_str = command_str + ' -g generated_arrival_trace.trc'
-                                            else:
-                                                command_str = command_str + ' -a generated_arrival_trace.trc'
+                                            stomp_params['general']['basename'] = policy + \
+                                                "_pwr_mgmt_" + str(pwr_mgmt) + \
+                                                "_slack_perc_" + str(slack_perc) + \
+                                                "_cont_" + str(cont) + \
+                                                "_drop_" + str(drop) + \
+                                                "_arr_" + str(arr_scale) + \
+                                                '_prob_' + str(prob) + \
+                                                '_ptoks_' + str(ptoks) + \
+                                                '_accel_' + str(accel_count)
+                                            conf_str = json.dumps(stomp_params)
 
-                                        if (use_input_trace):
-                                            if (policy == POLICY[0]):
-                                                command_str = command_str + ' -g generated_trace_stdf_' + str(stdev_factor) + '.trc'
-                                            else:
-                                                command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
-                                        
-                                        if trace_debug:
-                                            command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc.trim'
-                                        elif (use_user_input_trace):
-                                            if (app == 'synthetic'):
-                                                command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc'
-                                            elif (app == 'ad'):
-                                                command_str = command_str + ' -i ../input_trace/ad_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
-                                            elif (app == 'mapping'):
-                                                command_str = command_str + ' -i ../input_trace/mapping_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
-                                            elif (app == 'package'):
-                                                command_str = command_str + ' -i ../input_trace/package_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
+                                            ###########################################################################################
+                                            # Create command and execute the simulation
 
-                                        if (verbose):
-                                            print('Running', command_str)
+                                            command = ['./stomp_main.py'
+                                                       + ' -c ' + CONF_FILE
+                                                       + ' -j \'' + conf_str + '\''
+                                                       ]
 
-                                        sys.stdout.flush()
-                                        # output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
-                                        stdout_fname=sim_dir + "/out_" + stomp_params['general']['basename']
-                                        with open(stdout_fname, 'wb') as out:
-                                            p = subprocess.Popen(command_str, stdout=out, stderr=subprocess.STDOUT, shell=True)
-                                            process.append(p)
-                                            if len(process) >= JOBS_LIM:
-                                                print(str(run_count) + "/" + str(total_count))
-                                                for p in process:
-                                                    p.wait()
-                                                del process[:]
-       
+                                            command_str = ' '.join(command)
+
+                                            if (pre_gen_tasks):
+                                                command_str = command_str + ' -p'
+
+                                            if (use_arrival_trace):
+                                                if (policy == POLICY[0]) and (stdev_factor == STDEV_FACTOR[0]):
+                                                    command_str = command_str + ' -g generated_arrival_trace.trc'
+                                                else:
+                                                    command_str = command_str + ' -a generated_arrival_trace.trc'
+
+                                            if (use_input_trace):
+                                                if (policy == POLICY[0]):
+                                                    command_str = command_str + ' -g generated_trace_stdf_' + str(stdev_factor) + '.trc'
+                                                else:
+                                                    command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
+                                            
+                                            if trace_debug:
+                                                command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc.trim'
+                                            elif (use_user_input_trace):
+                                                if (app == 'synthetic'):
+                                                    command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc'
+                                                elif (app == 'ad'):
+                                                    command_str = command_str + ' -i ../input_trace/ad_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
+                                                elif (app == 'mapping'):
+                                                    command_str = command_str + ' -i ../input_trace/mapping_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
+                                                elif (app == 'package'):
+                                                    command_str = command_str + ' -i ../input_trace/package_' + str(stomp_params['simulation']['mean_arrival_time']) + '_trace_uniform_' + str(int(prob*100)) + '.trc'
+
+                                            if (verbose):
+                                                print('Running', command_str)
+
+                                            sys.stdout.flush()
+                                            # output = subprocess.check_output(command_str, stderr=subprocess.STDOUT, shell=True)
+                                            stdout_fname=sim_dir + "/out_" + stomp_params['general']['basename']
+                                            with open(stdout_fname, 'wb') as out:
+                                                print("Running command")
+                                                p = subprocess.Popen(command_str, stdout=out, stderr=subprocess.STDOUT, shell=True)
+                                                process.append(p)
+                                                if len(process) >= JOBS_LIM:
+                                                    print(str(run_count) + "/" + str(total_count))
+                                                    for p in process:
+                                                        p.wait()
+                                                    del process[:]
+           
     for p in process:
         p.wait()
                                     # if (save_stdout):

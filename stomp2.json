@@ -17,6 +17,7 @@
         "meta_policy_module":  "meta_policies.ms",
         "sched_policy_module": "policies.simple_policy_ver2",
         "policy":              "ms1",
+        "contention":          false,
         "drop":                false,
 
         "pwr_mgmt": false,

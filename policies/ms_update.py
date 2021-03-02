@@ -299,7 +299,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                                     # print("[%10u][%u.%u] stask[%u.%u] reserved for server %u; mean_service_time = %u (dict=%u)" %
                                     #     (sim_time, task.dag_id, task.tid, stask.dag_id, stask.tid, stask.possible_server_idx,
                                     #         stask.possible_mean_service_time, stask.mean_service_time_dict[server.type]))
-                                    remaining_time += stask.possible_mean_service_time # set when server for stask is reserved
+                                    remaining_time += stask.possible_mean_service_time # + server.communication_cost(stask) # set when server for stask is reserved
                                     if not self.pwr_mgmt:
                                         assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
                         else:
@@ -331,6 +331,13 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
             server_idx = target_servers.index(min(target_servers))
             server = self.servers[server_idx]
+
+            # if(task.rank_type == 3 and free_cpu_count):
+            #     for server_i in self.servers:
+            #         if not server_i.busy and server_i.type == "cpu_core":
+            #             server = server_i
+            #             server_idx = server_i.id
+
 
             rqstd_ptoks = task.power_dict[server.type]
             # logging.info('[%10ld] [%d.%d] Requested ptoks = %f' % (sim_time, task.dag_id, task.tid, rqstd_ptoks))

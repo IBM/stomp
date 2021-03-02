@@ -124,7 +124,18 @@ class Server:
 
         # print(task.parent_data)
         # if(self.stomp_obj.params['simulation']['application'] == "synthetic"):
-        noaffinity_time = self.communication_cost(task)
+        busy_servers = 0
+        for server in self.stomp_obj.servers:
+            if server.busy:
+                busy_servers += 1
+
+
+        contention_factor = 1 
+        if (self.stomp_obj.params['simulation']['contention']):
+            contention_factor = self.stomp_obj.contention_factor[busy_servers]
+        noaffinity_time = contention_factor * self.communication_cost(task)
+        
+        # print("Contention: %d Factor: %f No_affinity_time: %f" %(busy_servers, contention_factor, noaffinity_time))
         # else:
         #     for parent in task.parent_data:
         #         if parent[1]  == self.id and parent[0] == self.last_task_id and task_dag_id == self.last_dag_id:
@@ -214,6 +225,7 @@ class STOMP:
         self.working_dir  = self.params['general']['working_dir']
         self.basename     = self.params['general']['basename']
         self.num_tasks_generated = 0
+        self.contention_factor = [1.00, 1.27, 1.40, 1.52, 1.69, 1.73, 1.97, 2.29, 2.38, 2.67, 2.84, 3.03, 3.25]
         # self.time_since_last_completed = 0
 
         logging.basicConfig(level=eval('logging.' + self.params['general']['logging_level']),
