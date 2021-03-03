@@ -241,6 +241,7 @@ class STOMP:
         self.num_critical_tasks               = 0
         self.num_critical_dags                = 0
         self.servers                          = []
+        self.server_types                     = []
         self.tasks_to_servers                 = {}   # Maps task type to target servers
         #self.supported_servers               = []
 
@@ -343,15 +344,20 @@ class STOMP:
 
     def init_servers(self):
 
+        for s_id in range(0, len(self.params['simulation']['servers'])):
+            for server_type in self.params['simulation']['servers']:
+                if(self.params['simulation']['servers'][server_type]['id'] == s_id):
+                    self.server_types.append(server_type)
+                    break
+        
         id = 0
         for server_type in self.params['simulation']['servers']:
             if not server_type in self.stats['Available Servers']:
                 self.stats['Available Servers'][server_type] = self.params['simulation']['servers'][server_type]['count']
             server_count = self.params['simulation']['servers'][server_type]['count']
-            for i in range(server_count):
+            for i in range(0, server_count):
                 self.servers.append(Server(id, server_type, self))
                 id += 1
-
             #self.supported_servers.append(server_type)
 
 

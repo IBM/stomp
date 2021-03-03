@@ -41,8 +41,9 @@ class MetaPolicy(BaseMetaPolicy):
                     if node.rank ==-1:  
                         size -=1
                         sum=0
-                        none = 0
                         count = 0
+                        i = 0
+                        num_servers = 0
                         for service_time in comp[node.tid]:
                             # Ignore first two columns.
                             if (count <= 1):
@@ -51,12 +52,11 @@ class MetaPolicy(BaseMetaPolicy):
                             else:
                                 if (service_time != "None"):
                                     sum += round(float(service_time))
-                                else:
-                                    none += 1
+                                    num_servers += stomp.params['simulation']['servers'][stomp.server_types[i]]['count']
+                                i += 1
                             count += 1  
 
-
-                        node.rank = sum/(len(stomp.servers)-none) + max(child_rank)
+                        node.rank = sum/(num_servers) + max(child_rank)
                         childs[node.tid] = node.rank
                         # print("tid: %d, rank: %d" %(node.tid, node.rank))
                                     
