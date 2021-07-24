@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-#
+# 
 # Copyright 2018 IBM
-#
+# 
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-#
+# 
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-#
+# 
 
 # SCHEDULING POLICY DESCRIPTION:
 #  This scheduling policy tries to schedule the task at the head of the
@@ -39,7 +39,7 @@
 from stomp import BaseSchedulingPolicy
 import logging
 import numpy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta 
 
 max_task_depth_to_check = 10
 
@@ -257,13 +257,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         end = datetime.now()
         self.to_time += end - start
-        # print(("TO: %d")%(self.to_time.microseconds))
+
         window = tasks[:window_len]
 
-
-        start = datetime.now()
-
         tidx = 0;
+        start = datetime.now()
         free_cpu_count = 0
         for server in self.servers:
             if not server.busy and server.type == "cpu_core":
@@ -277,18 +275,13 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             target_servers = []
             for server in self.servers:
 
-                # print("[%d] [%d.%d] Params: task.priority = %d server.type = %s stomp_obj.num_critical_tasks = %d"
-                #     % (sim_time, task.dag_id, task.tid, task.priority, server.type, stomp_obj.num_critical_tasks))
+                # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
                 if (self.stomp_params['simulation']['application'] == "synthetic"):
                     condition = ((task.priority == 1 and ((server.type == "cpu_core") or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
                 else:
-                    condition = ((task.priority == 1 and ((server.type == "cpu_core" and free_cpu_count > 2) or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
-                    # condition = ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
-                #if ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1):
+                    condition = ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
                 if (condition):
-                    # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
                     if (server.type in task.mean_service_time_dict):
-
                         if (server.busy):
                             remaining_time  = server.curr_job_end_time - sim_time
                             for stask in window:
@@ -296,9 +289,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                                     break
                                 if (self.servers.index(server) == stask.possible_server_idx):
                                     assert stask.possible_mean_service_time != None
-                                    # print("[%10u][%u.%u] stask[%u.%u] reserved for server %u; mean_service_time = %u (dict=%u)" %
-                                    #     (sim_time, task.dag_id, task.tid, stask.dag_id, stask.tid, stask.possible_server_idx,
-                                    #         stask.possible_mean_service_time, stask.mean_service_time_dict[server.type]))
                                     remaining_time += stask.possible_mean_service_time # + server.communication_cost(stask) # set when server for stask is reserved
                                     if not self.pwr_mgmt:
                                         assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
@@ -312,12 +302,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                             # Update mean service time with slack.
                             mean_service_time += usable_slack
 
-                        #     mean_service_time, ptoks, clk_scale = self.apply_dvfs(
-                        #         sim_time, task, mean_service_time, task.power_dict[server.type])
-
                         actual_service_time = mean_service_time + remaining_time
 
-                        # print('[%10ld] [%d.%d.%d] Server:%d %s : mst %d ast %d ' % (sim_time, task.dag_id, task.tid, task.priority, server.id, server.type, mean_service_time, actual_service_time))
                         target_servers.append(actual_service_time)
                     else:
                         target_servers.append(float("inf"))
@@ -332,19 +318,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             server_idx = target_servers.index(min(target_servers))
             server = self.servers[server_idx]
 
-            # if(task.rank_type == 3 and free_cpu_count):
-            #     for server_i in self.servers:
-            #         if not server_i.busy and server_i.type == "cpu_core":
-            #             server = server_i
-            #             server_idx = server_i.id
-
-
             rqstd_ptoks = task.power_dict[server.type]
-            # logging.info('[%10ld] [%d.%d] Requested ptoks = %f' % (sim_time, task.dag_id, task.tid, rqstd_ptoks))
             mean_service_time = task.mean_service_time_dict[server.type]
-            # if (task.priority == 1 and self.servers[server_idx].type != "cpu_core"):
-            #     print('[%10ld] [%d.%d] Assertion failed %2d %s to server %2d %s' % (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type))
-            #     assert(False)
 
             if not server.busy:           # Server is not busy.
                 if self.pwr_mgmt and self.dvfs:
@@ -364,14 +339,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     tasks.remove(task)
                     if (task.priority > 1):
                         stomp_obj.num_critical_tasks -= 1
-                    # print('[%10ld] [%d.%d] Scheduling task %2d %s to server %2d %s, energy = %u' %
-                    #     (sim_time, task.dag_id, task.tid, tidx, task.type, server_idx, self.servers[server_idx].type, new_energy))
                     task.ptoks_used = rqstd_ptoks
 
-                    # if self.pwr_mgmt and self.dvfs:
-                    #     print('[%10ld][%d.%d.%d][rank:%u, rank_type:%u] OLD power: %u, service time: %u, energy: %u | NEW power: %u, service time:%u, energy: %u, clk_scale=%f, slack=%u, usable_slack=%u | num_crit=%u' % \
-                    #             (sim_time, task.dag_id, task.tid, task.priority, task.rank, task.rank_type, orig_pwr, orig_mst, orig_energy, rqstd_ptoks, mean_service_time, new_energy, clk_scale, slack_, usable_slack_, stomp_obj.num_critical_tasks))
-                    
                     # Embed the actual ptoks used by task into its object
                     server.assign_task(sim_time, task, 1 / clk_scale)
                     if self.pwr_mgmt:
@@ -383,27 +352,16 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     self.stats['Task Issue Posn'][bin] += 1
                     end = datetime.now()
                     self.ta_time += end - start
-                    # print(("TA: %d")%(self.ta_time.microseconds))
                     return server
                 else:   # Not enough tokens, reserve server for later.
-                    # assert False, "=====================XXXXXXXX========================"
-                    # if sim_time >= 12000:
-                    # logging.info("[%10u] [%u.%u] Stalling because not enough power tokens (rqstd=%u, avail=%u), reserving server: %d" %
-                    #     (sim_time, task.dag_id, task.tid, rqstd_ptoks, self.avail_ptoks, server.id))
                     task.possible_server_idx        = server_idx    # Used by other tasks to calculate best finish time
                     task.possible_mean_service_time = mean_service_time
             else:
-                # if sim_time >= 12000:
-                # logging.info("[%10u][%u.%u] Server %u Busy, assigning to virtual queue; mean_service_time = %u" %
-                #     (sim_time, task.dag_id, task.tid, server_idx, mean_service_time))
                 task.possible_server_idx        = server_idx
                 task.possible_mean_service_time = mean_service_time
             tidx += 1  # Increment task idx
-            # if (tidx >= max_task_depth_to_check):
-            #     break
         end = datetime.now()
         self.ta_time += end - start
-        # print(("TA: %d")%(self.ta_time.microseconds))
         return None
 
     def remove_task_from_server(self, sim_time, server):

@@ -16,8 +16,9 @@
         "application":         "synthetic",
         "meta_policy_module":  "meta_policies.ms",
         "sched_policy_module": "policies.simple_policy_ver2",
-        "policy": "ms1",
-        "drop": false,
+        "policy":              "ms1",
+        "contention":          false,
+        "drop":                false,
 
         "pwr_mgmt": false,
         "pwr_model": "simple",
@@ -32,7 +33,7 @@
         "v_min" : 0.45,
         "power_scale" : 2.5,
         "no_completed_activity_check": true,
-        "promote": true,
+        "promote":             true,
         "max_tasks_simulated": 10000,
         "mean_arrival_time":   10,
         "power_mgmt_enabled":  false,
@@ -56,11 +57,11 @@
                     "10": {
                         "deadline": 1012
                     }
-                } 
+                }
             },
             "ad": {
                 "comp_file":           "inputs/end_to_end/dag_",
-                "graphml_file":        "inputs/end_to_end/dag", 
+                "graphml_file":        "inputs/end_to_end/dag",
                 "dag_types": {
                     "0": {
                         "deadline" : 400
@@ -78,7 +79,7 @@
             },
             "mapping": {
                 "comp_file":           "inputs/mavbench/mapping/dag_",
-                "graphml_file":        "inputs/mavbench/mapping/dag",  
+                "graphml_file":        "inputs/mavbench/mapping/dag",
                 "dag_types": {
                     "0": {
                         "deadline" : 1536
@@ -94,7 +95,7 @@
             },
             "package": {
                 "comp_file":           "inputs/mavbench/package/dag_",
-                "graphml_file":        "inputs/mavbench/package/dag", 
+                "graphml_file":        "inputs/mavbench/package/dag",
                 "dag_types": {
                     "0": {
                         "deadline" : 2144
@@ -154,11 +155,7 @@
                 "meta_policy" : "edf",
                 "tsched_policy": "simple_policy_ver2"
             },
-            "simple_policy_ver5": {
-                "meta_policy" : "edf",
-                "tsched_policy": "simple_policy_ver5"
-            },
-            "ms3_update_comm" : {
+            "ms3_update_comm": {
                 "meta_policy" : "ms",
                 "tsched_policy": "ms_update_comm"
             },
@@ -169,9 +166,64 @@
             "ms3_heft" : {
                 "meta_policy" : "heft",
                 "tsched_policy": "ms_update_heft"
+            },
+            "ms1_avg_et" : {
+                "meta_policy" : "ms_avg_et",
+                "tsched_policy": "ms_nohier"
+            },
+            "ms2_avg_et" : {
+                "meta_policy" : "ms_avg_et",
+                "tsched_policy": "ms_nohier"
+            },
+            "ms2_wcet" : {
+                "meta_policy" : "ms_wcet",
+                "tsched_policy": "ms_nohier"
+            },
+            "ms2_hetero" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_nohier"
+            },
+            "ms2_hier" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms"
+            },
+            "ms3_avg_et" : {
+                "meta_policy" : "ms_avg_et",
+                "tsched_policy": "ms_nohier"
+            },
+            "ms3_wcet" : {
+                "meta_policy" : "ms_wcet",
+                "tsched_policy": "ms_nohier"
+            },
+            "ms3_hetero" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_nohier"
+            },
+            "ms3_hier" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms"
+            },
+            "simple_policy_ver5": {
+                "meta_policy" : "edf",
+                "tsched_policy": "simple_policy_ver5"
+            },
+            "ms1_hom" : {
+                "meta_policy" : "ms_wcet",
+                "tsched_policy": "ms_hom"
+            },
+            "ms1_hetero" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_hetero"
+            },
+            "ms1_hyb" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_hyb"
+            },
+            "ms1_hyb_update" : {
+                "meta_policy" : "ms",
+                "tsched_policy": "ms_hyb_update"
             }
         },
-
         "servers": {
             "cpu_core" : {
                 "id": 0,

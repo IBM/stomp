@@ -40,7 +40,7 @@ from subprocess import check_output
 from collections import defaultdict
 from __builtin__ import str
 
-JOBS_LIM = 8
+JOBS_LIM = 16
 
 PWR_MGMT     = [False]
 PTOKS        = [100000] # [6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000] # , 10500, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000, 100000]
@@ -50,39 +50,28 @@ folder = ""
 
 CONF_FILE        = None #Automatically set based on app
 PROMOTE          = True
-CONTENTION       = [True, False]
+CONTENTION       = [True] #, False]
 
-APP              = ['ad', 'mapping', 'package', 'synthetic']
-POLICY_SOTA      = ['ads', 'heft', 'rheft', 'edf', 'edf_ver5', 'simple_policy_ver2', 'simple_policy_ver5']
-POLICY_NEW       = ['ms1', 'ms1_update', 'ms2', 'ms2_update', 'ms3', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
-POLICY           = POLICY_SOTA + POLICY_NEW
+APP              = ['synthetic'] #, 'mapping', 'package', 'synthetic']
+POLICY_SOTA      = ['ads', 'edf_ver5']
+POLICY_NEW       = ['simple_policy_ver5','ms1_hom','ms1_hetero','ms1_hyb', 'ms1_hyb_update']
+POLICY           = ['ms1_hom'] #POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR     = [0.01] # percentages
-ARRIVE_SCALE0    = [0.2, 0.2, 0.2, 0.2] # percentages
-ARRIVE_SCALE1    = [1.0, 1.0, 1.0, 1.0] #0.5,1.0,2.0,2.5,3.0,3.2,3.4,3.6,3.8,4.0,4.2,4.4,4.6,4.8,5.0,5.2,5.4,5.6,5.8,6.0] # percentages
-ARRIVE_SCALE2    = [2.0, 2.0, 2.0, 2.0]#2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0]
+#NEW
+ARRIVE_SCALE0     = [0.2, 0.2, 0.2, 1.0] # synthetic, ad
+ARRIVE_SCALE1     = [0.1, 0.1, 0.1, 0.1] # mapping
+ARRIVE_SCALE2     = [0.1, 0.1, 0.1, 0.1] # package
 
-ARRIVE_SCALE3    = [0.7, 1.0, 1.7, 2.5] # percentages
-ARRIVE_SCALE4    = [2, 2.2, 3.0, 4.0] #0.5,1.0,2.0,2.5,3.0,3.2,3.4,3.6,3.8,4.0,4.2,4.4,4.6,4.8,5.0,5.2,5.4,5.6,5.8,6.0] # percentages
-ARRIVE_SCALE5    = [3, 3, 3.8, 4.0]
+#SOTA 
+ARRIVE_SCALE3    = [0.2, 0.2, 0.2, 1.0] # synthetic, ad
+ARRIVE_SCALE4    = [0.1, 0.1, 0.1, 0.1] # mapping
+ARRIVE_SCALE5    = [0.1, 0.1, 0.1, 0.1] # package
 PROB             = [0.1, 0.2, 0.3, 0.5] 
 DROP             = [False, True]
 dl_scale         = 1
 
-RUNS = 10
-DELTA = 0.1
-
-#APP              = ['ad', 'package', 'mapping'] #, 'ad']
-#POLICY_SOTA      = ['ads', 'rheft', 'edf_ver5']
-#POLICY_NEW       = ['ms1_update', 'ms2_update', 'ms3_update'] #, 'ms3_update_comm'] #] #, 'ms3_heft'
-#POLICY           = POLICY_SOTA + POLICY_NEW
-#STDEV_FACTOR     = [0.01] # percentages
-#ARRIVE_SCALE0     = [0.5,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,4.0] # percentages
-#ARRIVE_SCALE1     = [0.5,1.0,2.3,2.5,2.6,2.7,2.8,2.9,3.0,3.2,3.4,3.6,3.8,4.0,4.2,4.4,4.6,4.8,5.0,5.2,5.4,5.6,5.8,6.0] # percentages
-#ARRIVE_SCALE2     = [2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.1,4.2,4.3,4.4,4.5,4.6,4.7,4.8,4.9,5.0]
-#ARRIVE_SCALE3     = [2.2,2.6,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0,4.5,5.0,5.5,6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] # percentages
-#PROB             = [0.5, 0.3, 0.2, 0.1] 
-#DROP             = [True, False]
-#dl_scale         = 1
+RUNS = 50#32#50
+DELTA = 0.1#5#1.0
 
 total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE0) * len(PROB) * len(DROP)
 
@@ -194,34 +183,30 @@ def main(argv):
                             print(x)
                             prob = PROB[x]
                             ARRIVE_SCALE = []
-                            # if(app == "synthetic" or app == "ad"):
-                            #     ARRIVE_SCALE = ARRIVE_SCALE0 + ARRIVE_SCALE1
-                            # elif(app == "mapping" or app == "package"):
-                            #     ARRIVE_SCALE = ARRIVE_SCALE2 + ARRIVE_SCALE3
                             
                             dl_scale = 1
                             
+                            #for arr_scale in ARRIVE_SCALE:
+                            for y in range(0,RUNS):
+                                
+                                for policy in POLICY:
 
-                            for policy in POLICY:
+                                    if (policy in POLICY_SOTA):
+                                        if(app == "synthetic" or app == "ad"):
+                                            ARRIVE_SCALE = ARRIVE_SCALE3
+                                        elif(app == "mapping"):
+                                            ARRIVE_SCALE = ARRIVE_SCALE4
+                                        elif(app == "package"):
+                                            ARRIVE_SCALE = ARRIVE_SCALE5
 
-                                if (policy in POLICY_SOTA):
-                                    if(app == "synthetic" or app == "ad"):
-                                        ARRIVE_SCALE = ARRIVE_SCALE3
-                                    elif(app == "mapping"):
-                                        ARRIVE_SCALE = ARRIVE_SCALE4
-                                    elif(app == "package"):
-                                        ARRIVE_SCALE = ARRIVE_SCALE5
+                                    else:
+                                        if(app == "synthetic" or app == "ad"):
+                                            ARRIVE_SCALE = ARRIVE_SCALE0
+                                        elif(app == "mapping"):
+                                            ARRIVE_SCALE = ARRIVE_SCALE1
+                                        elif(app == "package"):
+                                            ARRIVE_SCALE = ARRIVE_SCALE2
 
-                                else:
-                                    if(app == "synthetic" or app == "ad"):
-                                        ARRIVE_SCALE = ARRIVE_SCALE0
-                                    elif(app == "mapping"):
-                                        ARRIVE_SCALE = ARRIVE_SCALE1
-                                    elif(app == "package"):
-                                        ARRIVE_SCALE = ARRIVE_SCALE2
-
-                                #for arr_scale in ARRIVE_SCALE:
-                                for y in range(0,RUNS):
                                     arr_scale = ARRIVE_SCALE[x] + DELTA*y
                                     print("Prob: " + str(prob) + "arr_scale: " + str(arr_scale))
                                     if (policy in POLICY_SOTA and (drop == True)):
@@ -229,9 +214,9 @@ def main(argv):
                                             continue
 
                                     # print(ARRIVE_SCALE0+ARRIVE_SCALE2)
-                                    if (policy in POLICY_NEW and (drop == False)):
-                                        print("Only dropping for NEW/Not arr_scale", policy, drop, arr_scale)
-                                        continue
+                                    # if (policy in POLICY_NEW and (drop == False)):
+                                    #     print("Only dropping for NEW/Not arr_scale", policy, drop, arr_scale)
+                                    #     continue
 
                                     print("Running", policy, drop, arr_scale, run_count)
 
@@ -241,11 +226,6 @@ def main(argv):
                                         dl_scale = 2.5
                                     arr_scale = arr_scale/dl_scale
                                     for ptoks in PTOKS_:
-
-                                        # if arr_scale < (1/stomp_params['simulation']['deadline_scale']):
-                                        #     print("Error: for arr_scale: %d. Arrival_scale less than 1 is not supported" %(arr_scale))
-                                        #     break
-
                                         sim_output[arr_scale] = {}
                                         stomp_params['simulation']['pwr_mgmt'] = pwr_mgmt
                                         stomp_params['simulation']['total_ptoks'] = ptoks
@@ -253,9 +233,9 @@ def main(argv):
                                         stomp_params['simulation']['arrival_time_scale'] = arr_scale
 
                                         first_flag = False
-                                        for accel_count in [0]: #range(0,10,2):
-                                            for cpu_count in [2]: #range(2,10,2):
-                                                for gpu_count in [0]: #range(0,10,2):
+                                        for accel_count in [0, 2, 4, 8]: #range(0,10,2):
+                                            for cpu_count in [2, 4, 8]: #range(2,10,2):
+                                                for gpu_count in [0, 2, 4, 8]: #range(0,10,2):
                                                     if(run == 'hetero'):
                                                         stomp_params['simulation']['servers']['cpu_core']['count'] = cpu_count
                                                         if(app == "mapping" or app == "package"):

@@ -583,15 +583,15 @@ class META:
             exit(1)
 
         #(Processing time for completed task, ready task time, static-rank time, dynamic rank time, task assignment, task ordering)
-        fho.write(("Time: %d, %d, %d, %d, %d, %d\n")%(ctime.microseconds, rtime.microseconds, sranktime.microseconds, dranktime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
+        fho.write(("Time: %d,%d,%d,%d,%d,%d\n")%(ctime.microseconds, rtime.microseconds, sranktime.microseconds, dranktime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
         if(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit != 0):
-            fho.write(("nan, nan, %lf, %lf, %d, %u\n")%(wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time, all_tasks_energy))
+            fho.write(("nan, nan,%lf,%lf,%d,%u\n")%(wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time, all_tasks_energy))
         elif(tasks_completed_count_crit != 0 and tasks_completed_count_nocrit == 0):
-            fho.write(("%lf, %lf, nan, nan, %d, %u\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, self.stomp.sim_time, all_tasks_energy))
+            fho.write(("%lf,%lf, nan, nan,%d,%u\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, self.stomp.sim_time, all_tasks_energy))
         elif(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit == 0):
-            fho.write(("nan, nan, nan, nan, %d, %u\n")%(self.stomp.sim_time, all_tasks_energy))
+            fho.write(("nan, nan, nan, nan,%d,%u\n")%(self.stomp.sim_time, all_tasks_energy))
         else:
-            fho.write(("%lf, %lf, %lf, %lf, %d, %u\n")%(wtr_crit/tasks_completed_count_crit, 
+            fho.write(("%lf,%lf,%lf,%lf,%d,%u\n")%(wtr_crit/tasks_completed_count_crit, 
                 lt_wcet_r_crit/tasks_completed_count_crit, wtr_nocrit/tasks_completed_count_nocrit, 
                 lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time, all_tasks_energy))
 

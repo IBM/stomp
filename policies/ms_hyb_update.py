@@ -81,10 +81,76 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         else:
             window_len = len(tasks)
 
+        start = datetime.now()
+
+        for t in tasks:
+            # Get the min and max service_time of this task across all servers.
+            max_time = 0
+            min_time = 100000
+            num_servers = 0
+            for server in self.servers:
+                if (server.type in t.per_server_service_dict):
+                    service_time   = t.per_server_service_dict[server.type]
+                    if(max_time < float(service_time)):
+                        max_time = float(service_time)
+                    if(min_time > float(service_time)):
+                        min_time = float(service_time)
+                    num_servers += 1
+
+            wcet_slack = t.deadline -(sim_time-t.arrival_time) - (max_time)
+            bcet_slack = t.deadline -(sim_time-t.arrival_time) - (min_time)
+            if (t.priority > 1):
+                if (wcet_slack >= 0):
+                    slack = 1 + wcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 3 
+                elif (bcet_slack >= 0):
+                    slack = 1 + bcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 4 
+                else:
+                    slack = 1 + 0.99/bcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 5 
+            else:
+                if (wcet_slack >= 0):
+                    slack = 1 + wcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 2 
+                elif (bcet_slack >= 0):
+                    slack = 1 + bcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 1 
+                else:
+                    slack = 1 + 0.99/bcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 0
+
+            if t.priority == 1 and (stomp_obj.num_critical_tasks > 0 and self.stomp_params['simulation']['drop'] == True) and t.rank_type < 2:
+                stomp_obj.drop_hint_list.append(t.dag_id)
+
+            # Remove tasks to be dropped
+            if(self.stomp_params['simulation']['drop'] == True and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
+                stomp_obj.drop_hint_list.append(t.dag_id)
+                removable_tasks.append(t)
+
+        for task in removable_tasks:
+            tasks.remove(task)
+        removable_tasks = []
+
+        tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
+        end = datetime.now()
+        self.to_time += end - start
+
         window = tasks[:window_len]
 
         tidx = 0;
         start = datetime.now()
+        free_cpu_count = 0
+        for server in self.servers:
+            if not server.busy and server.type == "cpu_core":
+                free_cpu_count += 1
+
         for task in window:
             # logging.debug('[%10ld] Attempting to schedule task %2d : %s' % (sim_time, tidx, task.type))
 
@@ -94,7 +160,8 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             for server in self.servers:
 
                 # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
-                if (server.type in task.mean_service_time_dict):
+                condition = ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
+                if (server.type in task.mean_service_time_dict): #and condition:
                     if (server.busy):
                         remaining_time  = server.curr_job_end_time - sim_time
                         for stask in window:

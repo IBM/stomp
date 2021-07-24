@@ -81,6 +81,37 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         else:
             window_len = len(tasks)
 
+        for t in tasks:
+            # Get the min and max service_time of this task across all servers.
+            max_time = 0
+            min_time = 100000
+            num_servers = 0
+            for server in self.servers:
+                if (server.type in t.per_server_service_dict):
+                    service_time   = t.per_server_service_dict[server.type]
+                    if(max_time < float(service_time)):
+                        max_time = float(service_time)
+                    if(min_time > float(service_time)):
+                        min_time = float(service_time)
+                    num_servers += 1
+
+            wcet_slack = t.deadline -(sim_time-t.arrival_time) - (max_time)
+            bcet_slack = t.deadline -(sim_time-t.arrival_time) - (min_time)
+
+            if (wcet_slack >= 0):
+                # WCET deadline exists
+                slack = 1 + wcet_slack
+                task.rank = int((100000 * (t.priority))/slack)
+            else:
+                # Missed WCET deadline
+                slack = 1 + 0.99/wcet_slack
+                task.rank = int((100000 * (t.priority))/slack)
+
+        start = datetime.now()
+        tasks.sort(key=lambda task: (task.rank), reverse=True)
+        end = datetime.now()
+        self.to_time += end - start
+
         window = tasks[:window_len]
 
         tidx = 0;

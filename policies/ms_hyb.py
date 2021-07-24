@@ -81,6 +81,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         else:
             window_len = len(tasks)
 
+        start = datetime.now()
+        tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
+        end = datetime.now()
+        self.to_time += end - start
+
         window = tasks[:window_len]
 
         tidx = 0;
