@@ -893,7 +893,7 @@ class STOMP:
                     if server.busy == False:
                         free_server_count += 1
 
-                for x in xrange(0,free_server_count):
+                for x in range(0,free_server_count):
                     server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks, self.dags_dropped, self)
                     if server == None:
                         break

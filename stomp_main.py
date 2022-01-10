@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # Copyright 2018 IBM
 #
@@ -21,8 +21,7 @@
 import sys, getopt
 import importlib
 import json
-import collections
-
+from collections import abc
 import threading
 
 from stomp import STOMP
@@ -35,9 +34,9 @@ def usage_and_exit(exit_code):
 
 
 def update(d, u):
-    for k, v in u.iteritems():
+    for k, v in u.items():
         if (k in d):
-            if isinstance(v, collections.Mapping):
+            if isinstance(v, abc.Mapping):
                 r = update(d.get(k, {}), v)
                 d[k] = r
             else:

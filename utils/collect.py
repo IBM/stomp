@@ -390,7 +390,7 @@ def main(argv):
                                                         utils = util_list[policy].split(',')[:-1]
                                                         # print(utils)
                                                         # print(servers)
-                                                        for x in xrange(0,len(utils)):
+                                                        for x in range(0,len(utils)):
                                                             if ('accel' in servers[x]): # and float(utils[x]) != 0.):
                                                                 # print(servers[x], utils[x])
                                                                 final_accel_count += 1*area_mm2[servers[x]]
