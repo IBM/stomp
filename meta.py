@@ -188,7 +188,7 @@ class META:
 
         self.dag_trace_files                = {}
         self.output_trace_file              = self.params['general']['output_trace_file']
-        self.input_trace_file               = self.params['general']['input_trace_file'][1]
+        self.input_trace_file               = self.params['general']['input_trace_file']
         self.stdev_factor                   = self.params['simulation']['stdev_factor']
 
         self.global_task_trace              = []

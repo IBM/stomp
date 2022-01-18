@@ -40,6 +40,10 @@ STOMP can be configured using the `stomp.json` file. To run it:
 ```
 ./stomp_main.py
 ```
+Also checkout the script `run_all_2.py` in utils to run multiple runs for varying scheduling policies and parameters. To run with preloaded parameters and all scheduling policies run:
+```
+./utils/run_all.py -ucsv
+```
 
 ## Contributors and Current Maintainers
 

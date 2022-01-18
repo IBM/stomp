@@ -4,11 +4,12 @@
         "logging_level":        "INFO",
         "random_seed":          0,
         "working_dir":          ".",
-        "basename":             "",
+        "basename":             "sched",
         "pre_gen_arrivals":     false,
-        "input_trace_file":     "",
+        "input_trace_file":	"user_traces/user_gen_trace.trc",
         "output_trace_file":    "",
-        "uot":                  "10^-5s",
+        "unit_of_time":         "10^-5s",
+        "unit_of_power":        "mW",
         "comment":              "Power values derived from Jetson TX1 dev board. CPU power numbers are scaled to 1/N where N is the number of cores on the TX1. Accel power values are placeholders right now and are set to 1/5th of corresponding GPU power numbers."
     },
 
