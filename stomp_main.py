@@ -21,17 +21,56 @@
 import sys, getopt
 import importlib
 import json
+import simpy
 from collections import abc
 import threading
+from multiprocessing.managers import SyncManager
+from queue import PriorityQueue
 
 from stomp import STOMP
 from meta import META
+
+import utils
+
+class MyManager(SyncManager):
+    pass
+
+class MyPriorityQueue(PriorityQueue):
+    def __init__(self):
+        PriorityQueue.__init__(self)
+        self.counter = 0
+
+    def put(self, priority, item):
+        PriorityQueue.put(self, (priority, self.counter, item))
+        self.counter += 1
+
+    def get(self, *args, **kwargs):
+        priority, y, item = PriorityQueue.get(self, *args, **kwargs)
+        return priority, item
+
+def Manager():
+    m = MyManager()
+    m.start()
+    return m
+#
+# class Global_task_trace(object):
+#     def __init__(self):
+#         self.queue = []
+#     def append(self, item):
+#         self.queue.append(item)
+#     def sort(self, key, reverse):
+#         self.queue.sort(key=key, reverse=reverse)
+#     def get(self, ind):
+#         return self.queue[ind]
+#     def empty(self):
+#         return not self.queue
+#     def len(self):
+#         return len(self.queue)
 
 
 def usage_and_exit(exit_code):
     print('usage: stomp_main.py [--help] [--debug] [--conf-file=<json_config_file>] [--conf-json=<json_string>] [--input-trace=<string>] ')
     sys.exit(exit_code)
-
 
 def update(d, u):
     for k, v in u.items():
@@ -43,9 +82,10 @@ def update(d, u):
                 d[k] = u[k]
     return d
 
-
 def main(argv):
+    MyManager.register("MyPriorityQueue", MyPriorityQueue)  # Register a shared PriorityQueue
 
+    print("[stomp_main] start")
     try:
         opts, args = getopt.getopt(argv,"hdpc:j:i:",["help", "conf-file=", "conf-json=", "debug", "input-trace="])
     except getopt.GetoptError:
@@ -91,22 +131,63 @@ def main(argv):
         stomp_params['general']['input_trace_file'] = input_trace_file
 
     # Instantiate and run STOMP, print statistics
-    stomp_sim = STOMP(stomp_params, sched_policy_module.SchedulingPolicy())
-    meta_sim = META(stomp_params,stomp_sim, meta_policy_module.MetaPolicy())
+    # stomp_sim = STOMP(stomp_params, sched_policy_module.SchedulingPolicy())
+
+
+    # BaseManager.register('Global_task_trace', Global_task_trace)
+    # manager = BaseManager()
+    # manager.start()
+    # global_task_trace = manager.Global_task_trace()
+    # final_drop_list = manager.Global_task_trace()
+    # tasks_completed = manager.Global_task_trace()
+
+
+    env = simpy.Environment()
+    max_timesteps = 2**64
+    # max_cap = -1
+
+    m = Manager()
+    tsched_eventq     = m.MyPriorityQueue() # maxsize=max_cap)
+    meta_eventq       = m.MyPriorityQueue() # maxsize=max_cap)
+    global_task_trace = m.MyPriorityQueue() # maxsize=max_cap)
+    final_drop_list   = m.Queue() # maxsize=max_cap)
+    tasks_completed   = m.Queue() # maxsize=max_cap)
+    dags_dropped_list = m.Queue() # maxsize=max_cap)
+
+    # final_drop_list = simpy.Resource(env, capacity=max_cap)
+    # tasks_completed = simpy.Resource(env, capacity=max_cap)
+    # global_task_trace = simpy.PriorityResource(env, capacity=max_cap)
+
+    # tsched_eventq = simpy.PriorityStore(env)
+    # meta_eventq = simpy.PriorityStore(env)
+    # global_task_trace = simpy.PriorityStore(env)
+
+    tsched_cv = simpy.Store(env, capacity=1)
+    meta_cv = simpy.Store(env, capacity=1)
+    # E_META_END = simpy.Store(env, capacity=1)
+    task_completed_flag = simpy.Store(env, capacity=1)
+
+    lock = simpy.Resource(env, capacity=1)
+    tlock = simpy.Resource(env, capacity=1)
+    stomp_sim = STOMP(env, max_timesteps, tsched_eventq, meta_eventq, tsched_cv, meta_cv, global_task_trace, final_drop_list, tasks_completed, dags_dropped_list, lock, tlock, stomp_params, sched_policy_module.SchedulingPolicy())
+    meta_sim = META(env, max_timesteps, tsched_eventq, meta_eventq, tsched_cv, meta_cv, global_task_trace, final_drop_list, tasks_completed, dags_dropped_list, lock, tlock, stomp_params, stomp_sim, meta_policy_module.MetaPolicy())
     stomp_sim.meta = meta_sim
+    stomp_sim.meta_proc = meta_sim.action
+    # env.process(meta_sim.run())
+    # env.process(stomp_sim.run())
 
-    thread1 = threading.Thread(target=meta_sim.run)
-    thread2 = threading.Thread(target=stomp_sim.run)
+    env.run(until=max_timesteps)
+    # thread1 = threading.Thread(target=meta_sim.run)
+    # thread2 = threading.Thread(target=env.run, args=(max_timesteps,))
+    # env.run()
     # Will execute both in parallel
-    thread1.start()
-    thread2.start()
-
-    thread1.join()
-    thread2.join()
+    # thread1.start()
+    # thread2.start()
+    #
+    # thread1.join()
+    # thread2.join()
     # meta_sim.run()
     # stomp_sim.run()
-
-    stomp_sim.print_stats()
 
 
 if __name__ == "__main__":

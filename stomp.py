@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2018 IBM
+# Copyright 2022 IBM
 #
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,20 +18,39 @@
 # Boston, MA 02110-1301, USA.
 #
 
-from __future__ import division
-from __future__ import print_function
+from __future__ import division, print_function
 from abc import ABCMeta, abstractmethod
 import numpy
 import pprint
 import sys
+import simpy
+from queue import PriorityQueue
 import operator
 import logging
 from datetime import timedelta
 import datetime
-
 import threading
+import utils
 
 from meta import TASK
+
+def message_decode_event(obj, event_name):
+    if event_name == utils.events.META_START:
+        obj.message("META_START")
+    elif event_name == utils.events.META_DONE:
+        obj.message("META_DONE")
+    elif event_name == utils.events.DAG_ARRIVAL:
+        obj.message("DAG_ARRIVAL")
+    elif event_name == utils.events.SIM_LIMIT:
+        obj.message("SIM_LIMIT")
+    elif event_name == utils.events.TASK_ARRIVAL:
+        obj.message("TASK_ARRIVAL")
+    elif event_name == utils.events.SERVER_FINISHED:
+        obj.message("SERVER_FINISHED")
+    elif event_name == utils.events.TASK_COMPLETED:
+        obj.message("TASK_COMPLETED")
+    else:
+        raise NotImplementedError
 
 ###############################################################################
 # This class represents a 'server' in the system; i.e. an entity that can     #
@@ -57,8 +76,8 @@ class Server:
         self.stats['Tasks Serviced per Type'] = {}
         self.stats['Avg Resp Time']           = 0     # Overall for all tasks
         self.stats['Avg Resp Time per Type']  = {}    # Per task type
-        self.stats['Met Deadline']           = 0     # Overall for all tasks
-        self.stats['Met Deadline per Type']  = {}    # Per task type
+        self.stats['Met Deadline']            = 0     # Overall for all tasks
+        self.stats['Met Deadline per Type']   = {}    # Per task type
         self.stats['Service Time per Type']   = {}    # Per task type
         self.stats['Lifetime per Type']       = {}    # Per task type
 
@@ -95,6 +114,7 @@ class Server:
         return float(noaffinity_time)
 
     def assign_task(self, sim_time, task, service_time_scale=None):
+        self.stomp_obj.message("Assigning task to server {},{}".format(self.id, self.type))
         # At this moment, we know the target server where the task will run.
         # Therefore, we can compute the task's service time
         task_dag_id                     = task.dag_id
@@ -129,12 +149,11 @@ class Server:
             if server.busy:
                 busy_servers += 1
 
-
-        contention_factor = 1 
+        contention_factor = 1
         if (self.stomp_obj.params['simulation']['contention']):
             contention_factor = self.stomp_obj.contention_factor[busy_servers]
         noaffinity_time = contention_factor * self.communication_cost(task)
-        
+
         # print("Contention: %d Factor: %f No_affinity_time: %f" %(busy_servers, contention_factor, noaffinity_time))
         # else:
         #     for parent in task.parent_data:
@@ -165,15 +184,12 @@ class Server:
 
         logging.debug("[%10ld] Assigned task %d %s : srv %d st %d end %d est %d" % (sim_time, task.trace_id, task.type, self.curr_service_time, self.curr_job_start_time, self.curr_job_end_time, self.curr_job_end_time_estimated))
 
-
-
     def __str__(self):
         return ('Server ' + str(self.id) + ' (' + self.type + ')\n'
                 '  Busy:         ' + str(self.busy) + '\n'
                 '  Task:         ' + self.task.type + '\n'
                 '  Service Time: ' + str(self.curr_service_time) + '\n'
                 )
-
 
 class BaseSchedulingPolicy:
 
@@ -202,22 +218,42 @@ class BaseSchedulingPolicy:
 #   - Other simulation-related aspects.                                       #
 # The entire simulation is performed by calling the run() function.           #
 ###############################################################################
+
+
+class MyPriorityQueue(PriorityQueue):
+    def __init__(self):
+        PriorityQueue.__init__(self)
+        self.counter = 0
+
+    def put(self, priority, item):
+        PriorityQueue.put(self, (priority, self.counter, item))
+        self.counter += 1
+
+    def get(self, *args, **kwargs):
+        priority, y, item = PriorityQueue.get(self, *args, **kwargs)
+        return priority, item
 class STOMP:
 
     # Events: event-driven simulation
-    E_PWR_MGMT          = 1
-    E_TASK_ARRIVAL      = 2
-    E_SERVER_FINISHES   = 3
-    E_NOTHING           = 4
+    # E_PWR_MGMT          = 1
+    # E_TASK_ARRIVAL      = 2
+    # E_SERVER_FINISHES   = 3
+    # E_NOTHING           = 4
+    #
+    # # E_META_START        = 0
+    # E_META_DONE         = 0
+    #
+    # # E_TSCHED_START      = 0
+    # E_TSCHED_DONE       = 0
 
-    E_META_START        = 0
-    E_META_DONE         = 0
+    def __init__(self, env, max_timesteps, tsched_eventq, meta_eventq, tsched_cv, meta_cv, global_task_trace, final_drop_list, tasks_completed, dags_dropped_list, lock, tlock, stomp_params, sched_policy):
+        self.released_servers = MyPriorityQueue()
+        self.tsched_eventq = tsched_eventq
+        self.meta_eventq   = meta_eventq
 
-    E_TSCHED_START      = 0
-    E_TSCHED_DONE       = 0
-
-
-    def __init__(self, stomp_params, sched_policy):
+        # self.tsched_cv = tsched_cv
+        # self.meta_cv = meta_cv
+        self.meta_proc = None
 
         self.params       = stomp_params
         self.meta         = None
@@ -247,7 +283,7 @@ class STOMP:
 
         self.intrace_server_order             = []
 
-        self.sim_time                         = 0    # Simulation time
+        # self.sim_time                         = 0    # Simulation time
         self.ta_time                          = timedelta(microseconds = 0)
         self.to_time                          = timedelta(microseconds = 0)
 
@@ -268,7 +304,6 @@ class STOMP:
         # Histograms
         self.bin_size                         = 1
         self.num_bins                         = 12
-        self.last_size_change_time            = self.sim_time
         self.stats['Queue Size Histogram']    = numpy.zeros(self.num_bins, dtype=int)  # N-bin histogram
         self.stats['Max Queue Size']          = 0
 
@@ -299,25 +334,27 @@ class STOMP:
         self.task_assign_trace.write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
         self.task_assign_trace.write('Time\tResponse time (avg)\n')
 
-        self.dags_dropped                     = []
+        self.dags_dropped                     = dags_dropped_list
         self.drop_hint_list                   = []
-        self.final_drop_list                  = []
-        self.tasks_completed                  = []
-        self.next_event                       = STOMP.E_NOTHING
-        self.next_task_event                  = STOMP.E_NOTHING
-        self.next_server_event                = STOMP.E_NOTHING
-
+        # self.final_drop_list                  = []
+        # self.tasks_completed                  = []
 
         self.init_servers()
 
         # IF user specified an input trace file then read that in here:
-        self.global_task_trace = []
-        self.lock = threading.Lock()        #For safe access of global_task_trace
-        self.tlock = threading.Lock()       #For safe access of tasks_completed and task_completed_flag
-        self.dlock = threading.Lock()
-        self.task_completed_flag = 0
+        # self.global_task_trace = []
+
+        self.global_task_trace = global_task_trace
+        self.final_drop_list   = final_drop_list
+        self.tasks_completed   = tasks_completed
+
+        self.lock = lock        #For safe access of global_task_trace
+        self.tlock = tlock       #For safe access of tasks_completed and task_completed_flag
+        # self.task_completed_flag = task_completed_flag
+
+        # self.task_completed_flag = 0
         self.task_dropped_flag = 0
-        self. random = 0
+        self.random = 0
         if (stomp_params['general']['input_trace_file']):
             self.arrival_trace    = stomp_params['general']['input_trace_file'][0]
             self.input_trace_file = None #stomp_params['general']['input_trace_file'][1]
@@ -339,8 +376,15 @@ class STOMP:
             self.output_trace = open(out_trace_name, 'w')
             self.output_trace.write('%s\n' % ','.join(map(str, self.params['simulation']['servers'])))
 
+        self.env = env
+        self.max_timesteps = max_timesteps
+        # print("[stomp] calling run()")
+        self.action = env.process(self.run())
+        self.last_size_change_time            = self.env.now
 
-
+    def message(self, string):
+        pass
+        # logging.info(utils.bcolors.OKBLUE + "[%10ld][TSCHED] " % self.env.now + str(string) + utils.bcolors.ENDC)
 
     def init_servers(self):
 
@@ -349,7 +393,7 @@ class STOMP:
                 if(self.params['simulation']['servers'][server_type]['id'] == s_id):
                     self.server_types.append(server_type)
                     break
-        
+
         id = 0
         for server_type in self.params['simulation']['servers']:
             if not server_type in self.stats['Available Servers']:
@@ -360,89 +404,8 @@ class STOMP:
                 id += 1
             #self.supported_servers.append(server_type)
 
-
     def generate_n_enqueue_new_task(self, task_num):
 
-        if (len(self.tasks) == self.params['simulation']['max_queue_size']):
-            logging.info('[%10ld] Problem with finding an empty queue slot!' % (self.sim_time))
-            return False
-
-        # Update histogram
-        queue_size  = len(self.tasks)
-        bin         = int(queue_size / self.bin_size)
-        time_period = self.sim_time - self.last_size_change_time
-        if (self.stats['Max Queue Size'] < queue_size):
-            self.stats['Max Queue Size'] = queue_size
-        if (bin >= len(self.stats['Queue Size Histogram'])):
-            bin = len(self.stats['Queue Size Histogram']) - 1
-        self.stats['Queue Size Histogram'][bin] += time_period
-        self.last_size_change_time = self.sim_time
-
-        #if (self.stats['Queue Size Histogram'][6] > 0):
-        #    logging.info('1> At time %ld have Q_size[%d] = %d' % (self.sim_time, 6, self.stats['Queue Size Histogram'][6]))
-        #    logging.info(' qSize %d  bin  %d  time_period %d' % (queue_size, bin, time_period))
-
-        # Create and enqueue a new task
-        # Select the "type" of task to create
-        # NOTE: self.global_task_trace is used for EITHER an input trace or pre-gen arrival trace behavior
-        tr_entry = []
-        # logging.info("Start")
-        if (self.global_task_trace):
-            self.lock.acquire()
-            if (len(self.global_task_trace) > 0):
-                tr_entry = self.global_task_trace.pop(0)
-            self.lock.release()
-            # logging.info('ARR_TR : %s' % tr_entry)
-
-            # #logging.info('   PSD : %s' % the_task.per_server_service_dict)
-
-            the_task = tr_entry
-            the_task.trace_id = task_num
-            task = the_task.type
-
-            # logging.debug('[%10ld] Setting next task type from TRACE to %s' % (self.sim_time, task))
-
-
-            # print("Task:")
-            # print(the_task.dag_id,
-            #     the_task.tid,
-            #     the_task.priority,
-            #     the_task.deadline,
-            #     the_task.dtime,
-            #     the_task.rank,
-            #     the_task.est,
-            #     the_task.eft,
-            #     the_task.subD,
-            #     the_task.lst,
-            #     the_task.ftsched)
-            # print(the_task.per_server_services)
-
-            # for serv in self.servers:
-            #     print(serv.type,the_task.per_server_service_dict[serv.type])
-
-            # logging.info("Task rank: %d,%d,%d,%d,%d" % (the_task.rank, the_task.priority, the_task.deadline, sum_time, num_servers))
-            if (the_task.priority > 1):
-                self.num_critical_tasks += 1
-
-            # if (the_task.priority > 1 and the_task.tid == 0):
-            #     self.num_critical_dags += 1
-
-            self.tasks.append(the_task)
-            self.stats['Tasks Generated'] += 1
-
-            if (self.output_trace_file):
-                self.output_trace.write('%d,%s,%d,%d,%d,%d,%d,%s\n' % (self.sim_time, task, the_task.dag_id, the_task.tid, the_task.size, the_task.priority, the_task.deadline, ','.join(map(str, the_task.per_server_services))))
-
-
-            if not task in self.stats['Avg Resp Time per Type']:
-                self.stats['Avg Resp Time per Type'][task]  = 0
-                self.stats['Met Deadline per Type'][task]   = 0
-                self.stats['Tasks Serviced per Type'][task] = 0
-                self.task_trace_files[task] = open(self.working_dir + '/' + self.basename + '.' + task + '.' + self.params['simulation']['sched_policy_module'].split('.')[-1] + '.trace', 'w')
-
-                self.task_trace_files[task].write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-                self.task_trace_files[task].write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
-                self.task_trace_files[task].write('Time\tResponse time (avg)\n')
 
         return True
 
@@ -451,20 +414,27 @@ class STOMP:
         # Update statistics
         task_type = server.task.type
 
-        resp_time = (self.sim_time - server.task.arrival_time)
+        resp_time = (self.env.now - server.task.arrival_time)
         server.task.task_lifetime = resp_time
+        self.message("Releasing server={},{}".format(server.id, server.type))
+        # self.message("server {},{} task {} lifetime {}".format(server.id, server.type, server.task, server.task.task_lifetime))
+        assert server.task.task_lifetime != None and server.task.task_lifetime > 0
         server.task.peid = server.id
-
 
         # self.dlock.acquire()
         # if(len(self.meta.dag_dict[server.task.dag_id].graph.nodes()) == 1):
         #     self.num_critical_dags -= 1
         # self.dlock.release()
 
-        self.tlock.acquire()
-        self.tasks_completed.append(server.task)
-        self.task_completed_flag = 1
-        self.next_cust_arrival_time = int(round(self.sim_time))
+        # with self.tlock.request() as treq:
+        #     yield treq
+        self.tasks_completed.put(server.task)
+        self.message("Scheduling meta event for {}".format(self.env.now))
+        self.meta_eventq.put(self.env.now, utils.events.TASK_COMPLETED)
+        self.message("Interrupting meta")
+        self.meta.action.interrupt()
+        # self.task_completed_flag.set(1)
+        # self.next_cust_arrival_time = int(round(self.sim_time))
         assert server.curr_job_ptoks != 0 and server.curr_job_ptoks != None
 
         # Return the freed up power tokens to the pool of available power tokens.
@@ -475,9 +445,6 @@ class STOMP:
             #  self.sched_policy.avail_ptoks, server.id)) #Aporva
         # if self.params['simulation']['no_completed_activity_check']:
             # self.time_since_last_completed = 0
-
-        self.tlock.release()
-
 
         if not task_type in server.stats['Avg Resp Time per Type']:
             server.stats['Avg Resp Time per Type'][task_type]  = 0
@@ -506,14 +473,16 @@ class STOMP:
         self.stats['Tasks Serviced per Type'][task_type] += 1
         self.stats['Busy Servers']                       -= 1
         self.stats['Available Servers'][server.type]     += 1
-        self.next_serv_end_time                           = float("inf")
-        self.next_serv_end                                = None
+        # self.next_serv_end_time                           = float("inf")
+        # self.next_serv_end                                = None
 
         self.curr_job_ptoks = 0
 
+        assert self.stats['Tasks Serviced'] != 0
         avg_resp_time = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
         self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%d,%d,%d,%d,%s,%d,%d,%d\n' % (
-            self.sim_time,
+            # self.sim_time,
+            self.env.now,
             avg_resp_time,
             server.task.trace_id,
             server.task.type,
@@ -531,43 +500,43 @@ class STOMP:
         )
 
         avg_resp_time = self.stats['Avg Resp Time per Type'][task_type] / self.stats['Tasks Serviced per Type'][task_type]
-        self.task_trace_files[task_type].write('%ld\t%.1f\n' % (self.sim_time, avg_resp_time))
+        self.task_trace_files[task_type].write('%ld\t%.1f\n' % (self.env.now, avg_resp_time))
 
-        self.sched_policy.remove_task_from_server(self.sim_time, server)
+        self.sched_policy.remove_task_from_server(self.env.now, server)
 
         # print("[%d] [%d,%d] Releasing server: %d" %(self.sim_time, server.task.dag_id, server.task.tid, server.id))
         server.reset()
-        server.last_stopped_at = self.sim_time
+        server.last_stopped_at = self.env.now
 
-        # Determine next server end time
-        for server in self.servers:
-            if (server.busy and server.curr_job_end_time <= self.next_serv_end_time):
-                self.next_serv_end_time  = server.curr_job_end_time
-                self.next_serv_end       = server
-
+        # # Determine next server end time
+        # for server in self.servers:
+        #     # if (server.busy and server.curr_job_end_time <= self.next_serv_end_time):
+        #     # self.next_serv_end_time  = server.curr_job_end_time
+        #     # self.next_serv_end = server
+        #     if server.busy:
+        #         assert server.curr_job_end_time != None
+        #         assert server.task != None
+        #         self.released_servers.put((server.curr_job_end_time, server))
+        #         self.message("!!!!!!!!!! @{},{},{}".format(server.curr_job_end_time, utils.events.SERVER_FINISHED, server.task))
+        #         self.tsched_eventq.put((server.curr_job_end_time, utils.events.SERVER_FINISHED))
+        #
 
     def print_stats(self):
-
-        self.stats['Avg Resp Time'] = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
+        assert self.stats['Tasks Serviced'] != 0
+        self.stats['Avg Resp Time'] /= self.stats['Tasks Serviced']
 
         # Final histogram update
-        queue_size  = len(self.tasks)
-        bin         = int(queue_size / self.bin_size)
-        time_period = self.sim_time - self.last_size_change_time
-        if (bin >= len(self.stats['Queue Size Histogram'])):
-            bin = len(self.stats['Queue Size Histogram']) - 1
-        self.stats['Queue Size Histogram'][bin] += time_period
-        self.last_size_change_time = self.sim_time
+        self.message("queue_size = {}".format(len(self.tasks)))
+        self.update_histogram(len(self.tasks))
 
         # Normalize histogram
         total_time = numpy.sum(self.stats['Queue Size Histogram'])
         pct_qsize = numpy.around(100 * self.stats['Queue Size Histogram'] / total_time, decimals=2)
 
-
         ##### DUMP STATISTICS TO STDOUT #####
 
         logging.info('\n==================== Simulation Statistics ====================')
-        logging.info(' Total simulation time: %ld' % self.sim_time)
+        logging.info(' Total simulation time: %ld' % self.env.now)
         logging.info(' Tasks serviced:        %ld' % self.stats['Tasks Serviced'])
         logging.info('')
 
@@ -638,7 +607,7 @@ class STOMP:
                 bin = ">" + str(bin)
         logging.info('')
 
-        server = self.sched_policy.output_final_stats(self.sim_time)
+        server = self.sched_policy.output_final_stats(self.env.now)
 
         logging.info(' Per Server Task Service Times Analysis:')
         for server in self.servers:
@@ -742,241 +711,366 @@ class STOMP:
 
         logging.info('')
         logging.info('')
+    def print_welcome(self):
+        logging.info(utils.bcolors.OKBLUE + """
+ _____ _____ ________  _________
+/  ___|_   _|  _  |  \/  || ___ \\
+\ `--.  | | | | | | .  . || |_/ /
+ `--. \ | | | | | | |\/| ||  __/
+/\__/ / | | \ \_/ / |  | || |
+\____/  \_/  \___/\_|  |_/\_|
+        """ + utils.bcolors.ENDC)
+        self.message("Starting simulation...")
 
+    def update_histogram(self, queue_size):
+        bin         = int(queue_size / self.bin_size)
+        time_period = self.env.now - self.last_size_change_time
+        if (self.stats['Max Queue Size'] < queue_size):
+            self.stats['Max Queue Size'] = queue_size
+        if (bin >= len(self.stats['Queue Size Histogram'])):
+            bin = len(self.stats['Queue Size Histogram']) - 1
+        self.stats['Queue Size Histogram'][bin] += time_period
+        self.last_size_change_time = self.env.now
+
+    def handle_task_arrival(self, task_arr_time, the_task):
+        self.message("task_arr_time = {}, task = (dag_id,tid,type) = ({},{},{})".format(task_arr_time, the_task.dag_id, the_task.tid, the_task.type))
+        assert len(self.tasks) != self.params['simulation']['max_queue_size'], '[%10ld] Problem with finding an empty queue slot!' % (self.env.time)
+
+        self.message("queue_size = {}".format(len(self.tasks)))
+        self.update_histogram(len(self.tasks))
+
+        # Create and enqueue a new task
+        # Select the "type" of task to create
+        # NOTE: self.global_task_trace is used for EITHER an input trace or pre-gen arrival trace behavior
+
+        the_task.trace_id = self.num_tasks_generated
+
+        if (the_task.priority > 1):
+            self.num_critical_tasks += 1
+
+        self.tasks.append(the_task)
+        self.stats['Tasks Generated'] += 1
+
+        if (self.output_trace_file):
+            self.output_trace.write('%d,%s,%d,%d,%d,%d,%d,%s\n' % (self.env.now, task_type, the_task.dag_id, the_task.tid, the_task.size, the_task.priority, the_task.deadline, ','.join(map(str, the_task.per_server_services))))
+
+        task_type = the_task.type
+        if not task_type in self.stats['Avg Resp Time per Type']:
+            self.stats['Avg Resp Time per Type'][task_type]  = 0
+            self.stats['Met Deadline per Type'][task_type]   = 0
+            self.stats['Tasks Serviced per Type'][task_type] = 0
+
+            trace_filename = self.working_dir + '/' + self.basename + '.' + task_type + '.' + self.params['simulation']['sched_policy_module'].split('.')[-1] + '.trace'
+            self.task_trace_files[task_type] = open(trace_filename, 'w')
+
+            self.task_trace_files[task_type].write('%s\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            self.task_trace_files[task_type].write("CONFIGURATION:\n%s\n" % (self.params))  #pprint.pprint(self.params))
+            self.task_trace_files[task_type].write('Time\tResponse time (avg)\n')
+
+        # self.message("Wrote to {}".format(trace_filename))
+        self.num_tasks_generated += 1
+
+    def schedule_avail_task(self):
+        free_server_count = 0
+        for server in self.servers:
+            if server.busy == False:
+                free_server_count += 1
+
+        for x in range(free_server_count):
+            server = self.sched_policy.assign_task_to_server(self.env.now, self.tasks, self.dags_dropped, self)
+
+            if server == None:
+                break
+            # self.ta_time = self.sched_policy.ta_time
+            # self.to_time = self.sched_policy.to_time
+
+            self.message("Assigned to server={},{}".format(server.id, server.type))
+            # self.message("x={}, server={}, server.curr_job_end_time={}".format(x, server, server.curr_job_end_time))
+            # if server.curr_job_end_time < self.next_serv_end_time:
+                # self.next_serv_end_time = server.curr_job_end_time
+            assert server.task != None
+            # print(server)
+            # print(server.curr_job_end_time)
+            # print(self.released_servers.qsize())
+            self.released_servers.put(server.curr_job_end_time, server)
+            self.message("$$$$$$$ @{},{},{}".format(server.curr_job_end_time, utils.events.SERVER_FINISHED, server.task))
+
+            self.tsched_eventq.put(server.curr_job_end_time, utils.events.SERVER_FINISHED)
+
+
+            self.stats['Running Tasks']                  += 1
+            self.stats['Busy Servers']                   += 1
+            self.stats['Available Servers'][server.type] -= 1
+
+            self.task_assign_trace.write('%ld,%d,%s,%d,%s,%d,%d,%d\n' % (self.env.now, server.task.trace_id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
+
+            self.message("queue_size = {}".format(len(self.tasks) + 1))
+            self.update_histogram(len(self.tasks) + 1)  # +1 because the task was already removed
+
+        # Notify meta to drop hinted DAGs
+        if self.params['simulation']['drop']:
+            raise NotImplementedError
+            # with self.tlock.request() as treq:
+            #     yield treq
+            #     while(len(self.drop_hint_list)):
+            #         # print(self.sim_time, self.drop_hint_list)
+            #         self.final_drop_list.append(self.drop_hint_list.get())
+            #         self.task_dropped_flag = 1
+            #
+            # while(self.task_dropped_flag == 1):
+            #     pass
 
 
     def run(self):
-
-        logging.info('\nRunning STOMP simulation...')
-        # print("**Testing warning**\n", file=sys.stderr)
-        # print("**Testing error**\n", file=sys.stderr)
+        self.print_welcome()
+        self.tsched_eventq.put(self.max_timesteps, utils.events.SIM_LIMIT)
 
         # This is because some scheduling policies may need to know about
         # the existent servers in order to make scheduling decisions
         self.sched_policy.init(self.servers, self.stats, self.params)
 
         # Force a task to arrive now
-        self.next_cust_arrival_time  = self.sim_time
+        # self.next_cust_arrival_time  = self.sim_time
         self.next_power_mgmt_time    = float("inf")
-        self.next_serv_end_time      = float("inf")
-        self.next_serv_end           = None
-
+        # self.next_serv_end_time      = float("inf")
+        # self.next_serv_end           = None
 
         # STOMP variables are initialized, start meta
-        self.E_TSCHED_START = 1
+        # self.E_TSCHED_START = 1
         ######################################################################
         # MAIN SIMULATION: Generate 'max_tasks_simulated' and service them   #
         ######################################################################
         i = 0
-        while(self.E_META_START == 0):
-            pass
-            # logging.info("Waiting for tasks to be generated")
+
+        # self.message("Triggering Meta to start")
+        # self.tsched_cv.put(42)
+        # self.message("Waiting for Meta to start")
+        self.env.all_of([self.meta_proc])
+
+        # print("[stomp] " + str(self.E_META_START.get_queue))
+        # try:
+        #     rc = yield self.meta_cv.get()
+        # except simpy.Interrupt:
+        #     rc = -1
+        #     pass
+        # self.message("Received {}".format(rc))
+        #
+        # print("self.E_META_START = " + str(self.E_META_START))
+        #
+        # while not self.E_META_START:
+        #     try:
+        #         yield self.env.timeout(self.max_timesteps)
+        #     except simpy.Interrupt:
+        #         pass
+        #     # logging.info("Waiting for tasks to be generated")
+
+        self.message("Meta started")
+
         event_count_arrival = 0
         event_count_release = 0
         sim_count = 0
-        while ((len(self.tasks) > 0) or              # There are tasks in the queue, waiting to be served
-              (self.stats['Busy Servers'] > 0) or   # There are tasks being served in the servers
-              (self.E_META_DONE == 0)):             # Meta scheduler has pushed all ready tasks
 
-            # Main duty loop: handle whichever simulation event occurs
-            # earliest, then revert here in next iteration of main loop
+        # self.tsched_eventq.put((0, utils.events.META_START))
 
-            ######################################################################
-            # 1) Determine next event to handle                                  #
-            ######################################################################
+        # self.tsched_eventq.put((0, 3))
+        # self.tsched_eventq.put((2, 6))
+        # self.tsched_eventq.put((1, 4))
+        # while not self.tsched_eventq.empty():
+        #     self.message(self.tsched_eventq.get())
+        # exit(1)
 
-            if (self.params['simulation']['power_mgmt_enabled'] and
-               ((self.next_power_mgmt_time <= self.next_cust_arrival_time) or (self.stats['Tasks Generated'] >= self.params['simulation']['max_tasks_simulated'])) and
-               (self.next_power_mgmt_time <= self.next_serv_end_time)):
+        try:
+            yield self.env.timeout(self.max_timesteps)
+        except simpy.Interrupt:
+            pass
 
-                # Next event is a power management event
-                self.next_event = STOMP.E_PWR_MGMT
+        while True:
+                # self.message("Event {}".format(sim_count))
+            # print("Start at timestep %u" % self.env.now)
+            # try:
+            #     yield self.env.timeout(self.max_timesteps)
+            # except simpy.Interrupt:
+            #     print("Interrupted at timestep %u" % self.env.now)
 
-            else:
-                if ((self.stats['Tasks Generated by META']) and
-                     (self.next_cust_arrival_time <= self.next_serv_end_time) and (self.next_cust_arrival_time != float("inf"))):
-                    # Next event is a task arrival
-                    self.next_task_event = STOMP.E_TASK_ARRIVAL
+            # if ((len(self.tasks) > 0) or              # There are tasks in the queue, waiting to be served
+            #       (self.stats['Busy Servers'] > 0)): # or   # There are tasks being served in the servers
+                  # (self.E_META_DONE == 0)):             # Meta scheduler has pushed all ready tasks
 
+                # Main duty loop: handle whichever simulation event occurs
+                # earliest, then revert here in next iteration of main loop
 
-                if (self.next_serv_end_time <= self.next_cust_arrival_time and self.next_serv_end_time != float("inf")):
+                ######################################################################
+                # 1) Determine next event to handle                                  #
+                ######################################################################
+                # self.message("{} pending events".format(self.tsched_eventq.qsize()))
+                self.message("waiting for event, eventq size now:{}".format(self.tsched_eventq.qsize()))
+                # while event == None:
+                tick, event = self.tsched_eventq.get()
+                # tick, event = event.priority, event.item
+                self.message("GOT tick {}, event {}".format(tick, event))
 
-                    # Next event is a server finishing the execution of its assigned task
-                    self.next_server_event = STOMP.E_SERVER_FINISHES
+                delta = tick - self.env.now
+                while delta:
+                    try:
+                        yield self.env.timeout(delta)
+                    except simpy.Interrupt:
+                        self.message("Interrupted by META while dealing with event")
+                        # push back last event onto event queue
+                        self.tsched_eventq.put(tick, event)
+                        # while not self.tsched_eventq.empty():
+                        #     self.message(self.tsched_eventq.get())
+                        # exit(1)
+                        # get new event
+                        tick, event = self.tsched_eventq.get()
+                        # tick, event = event.priority, event.item
+                        self.message("Going to tick @{}".format(tick))
+                        delta = tick - self.env.now
+                        continue
+                        # if not tick == self.env.now:
+                        #     self.message("Processing new event @{}".format(tick))
+                        #     assert False
+                    delta = 0
+                message_decode_event(self, event)
+                self.message("tick: {}, event: {}".format(tick, event))
 
-            # if((self.next_task_event != STOMP.E_NOTHING) or (self.next_server_event != STOMP.E_NOTHING)):
-            #     print(str(self.sim_time) + " Event: " +
-            #         "T: " + str((self.next_task_event != STOMP.E_NOTHING)) +
-            #         " S: " + str((self.next_server_event != STOMP.E_NOTHING)) +
-            #         " CAT: " + str(self.next_cust_arrival_time) +
-            #         " NSET: " + str(self.next_serv_end_time) + " GT: " + str(len(self.global_task_trace)))               #Aporva
-            ######################################################################
-            # 2) Handle the event                                                #
-            ######################################################################
-            if (self.next_event == STOMP.E_PWR_MGMT):
-                if (self.next_power_mgmt_time < self.sim_time):
-                    logging.info('WARNING: PWR_MGMT Time Moving Backward: sim_time %ld but smaller next_power_mgmt_time %ld' % (self.sim_time, self.next_power_mgmt_time))
-                # Manage power...
-                self.sim_time = self.next_power_mgmt_time
-                logging.info("A: " + str(self.sim_time))
-                logging.warning('[%10ld] Power management not yet supported...' % (self.sim_time))
+                # if (self.params['simulation']['power_mgmt_enabled'] and
+                #    ((self.next_power_mgmt_time <= self.next_cust_arrival_time) or (self.stats['Tasks Generated'] >= self.params['simulation']['max_tasks_simulated'])) and
+                #    (self.next_power_mgmt_time <= self.next_serv_end_time)):
+                #
+                #     # Next event is a power management event
+                #     self.next_event = STOMP.E_PWR_MGMT
+                #
+                # else:
+                #     if ((self.stats['Tasks Generated by META']) and
+                #          (self.next_cust_arrival_time <= self.next_serv_end_time) and (self.next_cust_arrival_time != float("inf"))):
+                #         # Next event is a task arrival
+                #         self.next_task_event = STOMP.E_TASK_ARRIVAL
+                #
+                #     if (self.next_serv_end_time <= self.next_cust_arrival_time and self.next_serv_end_time != float("inf")):
+                #
+                #         # Next event is a server finishing the execution of its assigned task
+                #         self.next_server_event = STOMP.E_SERVER_FINISHES
 
-            if (self.next_task_event == STOMP.E_TASK_ARRIVAL):
-                # logging.info(self.sim_time, len(self.global_task_trace))
+                # if((self.next_task_event != STOMP.E_NOTHING) or (self.next_server_event != STOMP.E_NOTHING)):
+                #     print(str(self.sim_time) + " Event: " +
+                #         "T: " + str((self.next_task_event != STOMP.E_NOTHING)) +
+                #         " S: " + str((self.next_server_event != STOMP.E_NOTHING)) +
+                #         " CAT: " + str(self.next_cust_arrival_time) +
+                #         " NSET: " + str(self.next_serv_end_time) + " GT: " + str(len(self.global_task_trace)))               #Aporva
+                ######################################################################
+                # 2) Handle the event                                                #
+                ######################################################################
+                # if (self.next_event == STOMP.E_PWR_MGMT):
+                #     if (self.next_power_mgmt_time < self.sim_time):
+                #         logging.info('WARNING: PWR_MGMT Time Moving Backward: sim_time %ld but smaller next_power_mgmt_time %ld' % (self.sim_time, self.next_power_mgmt_time))
+                #     # Manage power...
+                #     self.sim_time = self.next_power_mgmt_time
+                #     logging.info("A: " + str(self.sim_time))
+                #     logging.warning('[%10ld] Power management not yet supported...' % (self.sim_time))
 
-                # Customer (task) arrival...
-                if (len(self.global_task_trace)):
+                # if event == utils.events.META_START:
+                    # self.message("META_START")
+                if event == utils.events.TASK_ARRIVAL:
+                    self.message("CALLING handle_task_arrival")
 
-                    self.lock.acquire()
-                    task_pop = self.global_task_trace[0]
-                    self.lock.release()
-                    if (self.sim_time == int(task_pop.arrival_time)):
-                        # Customer (task) arrival...
-                        # self.sim_time = self.next_cust_arrival_time
-                        # logging.info("B: " + str(self.sim_time))
-                        # Add task to queue
-                        if (self.generate_n_enqueue_new_task(self.num_tasks_generated)):
-                            event_count_arrival += 1
-                            self.num_tasks_generated += 1
-                    else:
-                        if(self.next_cust_arrival_time > int(task_pop.arrival_time)):
-                            # self.sim_time = int(task_pop.arrival_time) - 1
-                            self.next_cust_arrival_time = int(task_pop.arrival_time) - 1
-                            # print("SB: " + str(self.next_cust_arrival_time))
-                            # logging.info("C: " + str(self.sim_time))
-                    # self.next_cust_arrival_time = int(task_pop.arrival_time)
-                    logging.debug('[%10ld] Setting next task arrival time from TRACE to %d ( %s )' % (self.sim_time, self.next_cust_arrival_time, task_pop.arrival_time))
+                    assert not self.global_task_trace.empty()
+                    # the_task = None
+                    # while the_task == None:
+                    #     try:
+                    #         the_task = yield self.global_task_trace.get() # will block if empty
+                    #     except simpy.Interrupt:
+                    #         pass
+                    # task_arr_time, the_task = the_task.priority, the_task.item
+                    task_arr_time, the_task = self.global_task_trace.get() # will block if empty
+                    self.message("RECEIVED task {},{}".format(task_arr_time, the_task))
 
-                    if (len(self.global_task_trace)):
-                            self.next_cust_arrival_time = int(self.global_task_trace[0].arrival_time)
-                            # print("SC: " + str(self.next_cust_arrival_time))
+                    self.handle_task_arrival(task_arr_time, the_task)
 
+                    # pop next eventq event
+                    tick, event = self.tsched_eventq.get()
+                    # push back event
+                    self.tsched_eventq.put(tick, event)
+                    # check if event is TASK_ARRIVAL and time of event is same as env.now
+                    if event == utils.events.TASK_ARRIVAL and tick == self.env.now:
+                        # if yes, continue
+                        continue
 
-                    # if (self.next_cust_arrival_time < self.sim_time):
-                    #     logging.info('Random WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
+                    print("%10ld" % self.env.now, end = ' ')
+                    for task in self.tasks:
+                        print(task.dag_id, task.tid, end = ' ')
+                    print('')
+                    self.message("schedule_avail_task")
+                    self.schedule_avail_task()
+                elif event == utils.events.SERVER_FINISHED:
+                    assert not self.released_servers.empty()
+                    curtick, next_serv_end = self.released_servers.get()
+                    self.message("curtick={}, next_serv_end = {},{}".format(curtick, next_serv_end.id, next_serv_end.type))
+                    assert curtick == self.env.now
+                    assert next_serv_end.task != None
+                    self.release_server(next_serv_end)
+                    self.stats['Running Tasks'] -= 1
+
+                    logging.debug('[%10ld] Server finished' % (self.env.now))
+                    logging.debug('             Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
+                elif event == utils.events.META_DONE:
+                    self.message("META is done, exiting")
+                    break
+                elif event == utils.events.SIM_LIMIT:
+                    assert False
                 else:
-                # if (self.task_completed_flag != 1):
-                    # Should only happen of all tid 0 of dags are processed
-                    self.next_cust_arrival_time = float("inf")
-                    # print("SD: " + str(self.next_cust_arrival_time))
-                        # self.next_cust_arrival_time = None
-                logging.debug('[%10ld] Task enqueued. Next task will arrive at time %s' % (self.sim_time, self.next_cust_arrival_time))
-                logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
+                    raise NotImplementedError
+                    # else:
+                    # # if (self.task_completed_flag != 1):
+                    #     # Should only happen of all tid 0 of dags are processed
+                    #     self.next_cust_arrival_time = float("inf")
+                    #     # print("SD: " + str(self.next_cust_arrival_time))
+                    #         # self.next_cust_arrival_time = None
+                    # logging.debug('[%10ld] Task enqueued. Next task will arrive at time %s' % (self.sim_time, self.next_cust_arrival_time))
+                    # logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
 
+                ######################################################################
+                # 3) Make scheduling decisions                                       #
+                ######################################################################
+                # yield self.task_completed_flag.get()
 
-            if (self.next_server_event == STOMP.E_SERVER_FINISHES):
-                # logging.info("NSE:" + str(self.next_serv_end))
+                # if self.next_cust_arrival_time > self.sim_time and \
+                #     self.next_serv_end_time > self.sim_time:
 
-                # Service completion (next_cust_arrival_time >= next_serv_end_time)
-                # self.sim_time = self.next_serv_end_time
-                # logging.info("D: " + str(self.sim_time))
+                # ######################################################################
+                # # 4) Update sim time                                       #
+                # ######################################################################
+                # print("%d CAT: %lf, NSET: %lf" % (count,self.next_cust_arrival_time,self.next_serv_end_time)) #Aporva
+                # while(self.task_completed_flag == 1):
+                #     pass
+                # if self.next_cust_arrival_time <= self.next_serv_end_time:
+                #     if(self.next_cust_arrival_time != float("inf")):
+                #         if (self.next_cust_arrival_time < self.sim_time):
+                #             logging.warning('WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
+                #             assert False
+                #         self.sim_time = self.next_cust_arrival_time
+                #         sim_count += 1
+                # else:
+                #     if(self.next_serv_end_time != float("inf")):
+                #         if (self.next_serv_end_time < self.sim_time):
+                #             logging.warning('WARNING: SERVER_FINISH Time Moving Backward: sim_time %ld but smaller next_serv_end_time %ld' % (self.sim_time, self.next_serv_end_time))
+                #             assert False
+                #         self.sim_time = self.next_serv_end_time
+                #         sim_count += 1
 
-                assert(not self.next_serv_end is None);
-                event_count_release += 1
-                self.release_server(self.next_serv_end)
-                self.stats['Running Tasks'] -= 1
+                # if self.params['simulation']['no_completed_activity_check']:
+                #     self.time_since_last_completed += 1
+                #     if self.time_since_last_completed > self.params['simulation']['progress_intvl_f'] * \
+                #         self.params['simulation']['mean_arrival_time'] * \
+                #         self.params['simulation']['arrival_time_scale']:
+                #         print('[%10ld] WARNING: No completed activity since last %u timesteps' %
+                #             (self.sim_time, self.time_since_last_completed), file=sys.stderr)
 
-                logging.debug('[%10ld] Server finished' % (self.sim_time))
-                logging.debug('             Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
+                    # print("Time:" + str(self.sim_time)) #Aporva
 
+                # print(("TSCHED Stats: Ready Tasks: %d, Busy Servers: %d, E_META_DONE: %d") % (len(self.tasks), self.stats['Busy Servers'], self.E_META_DONE))
+                sim_count += 1
 
-            ######################################################################
-            # 3) Make scheduling decisions                                       #
-            ######################################################################
-            while(self.task_completed_flag == 1):
-                pass
-            if self.next_cust_arrival_time > self.sim_time and \
-                self.next_serv_end_time > self.sim_time:
-
-                free_server_count = 0
-                for server in self.servers:
-                    if server.busy == False:
-                        free_server_count += 1
-
-                for x in range(0,free_server_count):
-                    server = self.sched_policy.assign_task_to_server(self.sim_time, self.tasks, self.dags_dropped, self)
-                    if server == None:
-                        break
-                    self.ta_time = self.sched_policy.ta_time
-                    self.to_time = self.sched_policy.to_time
-
-                    # print(server)
-                    if server is not None:
-                        if server.curr_job_end_time < self.next_serv_end_time:
-                            self.next_serv_end_time = server.curr_job_end_time
-                            self.next_serv_end      = server
-
-                        self.stats['Running Tasks']                  += 1
-                        self.stats['Busy Servers']                   += 1
-                        self.stats['Available Servers'][server.type] -= 1
-
-                        self.task_assign_trace.write('%ld,%d,%s,%d,%s,%d,%d,%d\n' % (self.sim_time, server.task.trace_id, server.task.type, server.id, server.type, server.curr_job_start_time, server.curr_service_time, server.curr_job_end_time))
-
-                        # Update histogram
-                        queue_size  = len(self.tasks) + 1  # +1 because the task was already removed
-                        if (self.stats['Max Queue Size'] < queue_size):
-                            self.stats['Max Queue Size'] = queue_size
-                        bin         = int(queue_size / self.bin_size)
-                        time_period = self.sim_time - self.last_size_change_time
-                        if (bin >= len(self.stats['Queue Size Histogram'])):
-                            bin = len(self.stats['Queue Size Histogram']) - 1
-                        self.stats['Queue Size Histogram'][bin] += time_period
-                        self.last_size_change_time = self.sim_time
-
-                        logging.debug('[%10ld] Task %d scheduled in server %d ( %s ) until %d' % (self.sim_time, server.task.trace_id, server.id, server.type, server.curr_job_end_time))
-                        logging.debug('               Running tasks: %d, busy servers: %d, waiting tasks: %d' % (self.stats['Running Tasks'], self.stats['Busy Servers'], len(self.tasks)))
-                        logging.debug('               Avail: %s' % (', '.join(['%s: %s' % (key, value) for (key, value) in self.stats['Available Servers'].items()])))
-
-            # Notify meta to drop hinted DAGs
-            if(self.params['simulation']['drop'] == True):
-                self.tlock.acquire()
-                while(len(self.drop_hint_list)):
-                    # print(self.sim_time, self.drop_hint_list)
-                    self.final_drop_list.append(self.drop_hint_list.pop(0))
-                    self.task_dropped_flag = 1
-                self.tlock.release()
-
-                while(self.task_dropped_flag == 1):
-                    pass
-
-            # ######################################################################
-            # # 4) Update sim time                                       #
-            # ######################################################################
-            # print("%d CAT: %lf, NSET: %lf" % (count,self.next_cust_arrival_time,self.next_serv_end_time)) #Aporva
-            # while(self.task_completed_flag == 1):
-            #     pass
-            if self.next_cust_arrival_time <= self.next_serv_end_time:
-                if(self.next_cust_arrival_time != float("inf")):
-                    if (self.next_cust_arrival_time < self.sim_time):
-                        logging.warning('WARNING: TASK_ARRIVAL Time Moving Backward: sim_time %ld but smaller next_cust_arrival_time %ld' % (self.sim_time, self.next_cust_arrival_time))
-                        assert False
-                    self.sim_time = self.next_cust_arrival_time
-                    sim_count += 1
-            else:
-                if(self.next_serv_end_time != float("inf")):
-                    if (self.next_serv_end_time < self.sim_time):
-                        logging.warning('WARNING: SERVER_FINISH Time Moving Backward: sim_time %ld but smaller next_serv_end_time %ld' % (self.sim_time, self.next_serv_end_time))
-                        assert False
-                    self.sim_time = self.next_serv_end_time
-                    sim_count += 1
-
-            # if self.params['simulation']['no_completed_activity_check']:
-            #     self.time_since_last_completed += 1
-            #     if self.time_since_last_completed > self.params['simulation']['progress_intvl_f'] * \
-            #         self.params['simulation']['mean_arrival_time'] * \
-            #         self.params['simulation']['arrival_time_scale']:
-            #         print('[%10ld] WARNING: No completed activity since last %u timesteps' %
-            #             (self.sim_time, self.time_since_last_completed), file=sys.stderr)
-
-                # print("Time:" + str(self.sim_time)) #Aporva
-            self.next_event = STOMP.E_NOTHING
-            self.next_task_event = STOMP.E_NOTHING
-            self.next_server_event = STOMP.E_NOTHING
-
-            # print(("TSCHED Stats: Ready Tasks: %d, Busy Servers: %d, E_META_DONE: %d") % (len(self.tasks), self.stats['Busy Servers'], self.E_META_DONE))
-
-
-        self.E_TSCHED_DONE = 1
+        # self.E_TSCHED_DONE = 1
 
         # Close task trace files
         self.task_trace_file.close()
@@ -988,4 +1082,5 @@ class STOMP:
         if (self.output_trace_file):
             self.output_trace.close()
 
-        # print("STOMP Completed")
+        self.message("STOMP simulation complete")
+        self.print_stats()

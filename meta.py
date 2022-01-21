@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 import numpy
 import pprint
 import sys
+import simpy
 import operator
 import logging
 from datetime import datetime, timedelta
@@ -11,6 +12,26 @@ from datetime import datetime, timedelta
 import time
 import networkx as nx
 from csv import reader
+
+import utils
+
+def message_decode_event(obj, event_name):
+    if event_name == utils.events.META_START:
+        obj.message("META_START")
+    elif event_name == utils.events.META_DONE:
+        obj.message("META_DONE")
+    elif event_name == utils.events.DAG_ARRIVAL:
+        obj.message("DAG_ARRIVAL")
+    elif event_name == utils.events.SIM_LIMIT:
+        obj.message("SIM_LIMIT")
+    elif event_name == utils.events.TASK_ARRIVAL:
+        obj.message("TASK_ARRIVAL")
+    elif event_name == utils.events.SERVER_FINISHED:
+        obj.message("SERVER_FINISHED")
+    elif event_name == utils.events.TASK_COMPLETED:
+        obj.message("TASK_COMPLETED")
+    else:
+        raise NotImplementedError
 
 def read_matrix(matrix):
     lmatrix = []
@@ -170,14 +191,37 @@ class BaseMetaPolicy:
 
 class META:
 
-    E_PWR_MGMT          = 1
-    E_TASK_ARRIVAL      = 2
-    E_SERVER_FINISHES   = 3
-    E_NOTHING           = 4
+    # E_PWR_MGMT          = 1
+    # E_TASK_ARRIVAL      = 2
+    # E_SERVER_FINISHES   = 3
+    # E_NOTHING           = 4
+    #
+    # E_META_DONE         = 0
 
-    E_META_DONE         = 0
+    def __init__(self, env, max_timesteps, tsched_eventq, meta_eventq, tsched_cv, meta_cv, global_task_trace, final_drop_list, tasks_completed, dags_dropped_list, lock, tlock, meta_params, stomp_sim, meta_policy):
+        self.dags_completed = 0
+        self.dags_completed_per_interval = 0
 
-    def __init__(self, meta_params, stomp_sim, meta_policy):
+        self.tsched_eventq    = tsched_eventq
+        self.meta_eventq    = meta_eventq
+        # self.tsched_cv = tsched_cv
+        # self.meta_cv   = meta_cv
+
+        self.tsched_proc = stomp_sim.action
+
+        # Cumulative energy for all tasks executed by the system
+        self.all_tasks_energy = 0
+        self.lt_wcet_r_crit = 0
+        self.wtr_crit = 0
+        self.tasks_completed_count_crit = 0
+
+        self.lt_wcet_r_nocrit = 0
+        self.wtr_nocrit = 0
+        self.tasks_completed_count_nocrit = 0
+
+
+        self.lock = lock
+        self.tlock = tlock
 
         self.params         = meta_params
         self.stomp          = stomp_sim
@@ -191,7 +235,10 @@ class META:
         self.input_trace_file               = self.params['general']['input_trace_file']
         self.stdev_factor                   = self.params['simulation']['stdev_factor']
 
-        self.global_task_trace              = []
+        self.global_task_trace = global_task_trace
+        self.final_drop_list   = final_drop_list
+        self.tasks_completed   = tasks_completed
+        self.dags_dropped_list = dags_dropped_list
 
         self.dag_dict                       = {}
         self.dag_id_list                    = []
@@ -202,24 +249,301 @@ class META:
                     self.server_types.append(server_type)
                     break
 
+        self.env = env
+        self.max_timesteps = max_timesteps
+        self.action = env.process(self.run())
+
+    def message(self, string):
+        pass
+        # logging.info(utils.bcolors.WARNING + "[%10ld][  META] " % self.env.now + str(string) + utils.bcolors.ENDC)
+
+    def handle_task_completion(self, end_list, last_promoted_id):
+        # while (len(completed_list)):
+        if self.tasks_completed.empty():
+            return
+        task_completed = self.tasks_completed.get()
+        self.message("task_completed = {}".format(task_completed))
+        dag_id_completed = task_completed.dag_id
+
+        # Calculate energy per task and accumulate.
+        self.all_tasks_energy += task_completed.task_service_time * task_completed.ptoks_used
+        # print('[%d.%d.%d] task %s | task_service_time %u |  ptoks_used : %u | ENERGY = %u | cumulative energy %u' %
+        #     (task_completed.dag_id, task_completed.tid, task_completed.priority,
+        #         task_completed.type, task_completed.task_service_time, task_completed.ptoks_used,
+        #         task_completed.task_service_time * task_completed.ptoks_used, all_tasks_energy))
+
+        if(task_completed.priority > 1):
+            wait_time_crit = task_completed.task_lifetime - task_completed.task_service_time
+            wcet_crit = task_completed.per_server_service_dict['cpu_core']
+
+            self.lt_wcet_r_crit += (float)(task_completed.task_lifetime/wcet_crit)
+
+            self.wtr_crit += (float)(wait_time_crit/task_completed.task_lifetime)
+            self.tasks_completed_count_crit += 1
+        else:
+            wait_time_nocrit = task_completed.task_lifetime - task_completed.task_service_time
+            wcet_nocrit = task_completed.per_server_service_dict['cpu_core']
+
+            self.lt_wcet_r_nocrit += (float)(task_completed.task_lifetime/wcet_nocrit)
+
+            self.wtr_nocrit += (float)(wait_time_nocrit/task_completed.task_lifetime)
+            self.tasks_completed_count_nocrit += 1
+
+        ## If the task belongs to a non-dropped DAG ##
+        if dag_id_completed in self.dag_dict:
+            dag_completed = self.dag_dict[dag_id_completed]
+            # logging.info('[%10d]Task completed : %d,%d,%d' % (self.stomp.sim_time,(task_completed.arrival_time + task_completed.task_lifetime),dag_id_completed,task_completed.tid))
+
+            ## Remove completed task from parent DAG and update meta-info ##
+            for node in dag_completed.graph.nodes():
+                if node.tid == task_completed.tid:
+                    # TODO: If internal task deadline of priority == 1 is not met drop it
+                    dag_completed.ready_time = task_completed.arrival_time + task_completed.task_lifetime
+                    dag_completed.resp_time = dag_completed.ready_time - dag_completed.arrival_time
+                    dag_completed.slack = dag_completed.deadline - dag_completed.resp_time
+                    #### AFFINITY ####
+                    # Add completed id and HW id to a table
+                    ####
+                    dag_completed.completed_peid[task_completed.tid] = task_completed.peid
+                    dag_completed.noaffinity_time += task_completed.noaffinity_time
+
+                    # print("Completed: %d,%d,%d,%d,%d,%d" % (dag_id_completed,task_completed.tid,dag_completed.slack,dag_completed.deadline,task_completed.arrival_time,task_completed.task_lifetime))
+
+                    task = task_completed.type
+                    assert task_completed.ptoks_used
+                    # power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
+                    #print(task,power,task_completed.task_lifetime)
+
+                    dag_completed.graph.remove_node(node)
+                    break;
+
+            ## Update stats if DAG has finished execution ##
+            # self.stomp.dlock.acquire()
+            if (len(dag_completed.graph.nodes()) == 0):
+                self.dags_completed += 1
+                # logging.info("%d: DAG id: %d completed" %(self.stomp.sim_time, dag_id_completed))
+                if(dag_completed.priority == 1 and dag_id_completed >= last_promoted_id):
+                    # print("[%d]: Completed DAG id: %d priority: %d" %(self.stomp.sim_time, dag_id_completed, dag_completed.priority))
+                    self.dags_completed_per_interval += 1
+                ## Calculate stats for the DAG
+                # logging.info(str(self.params['simulation']['sched_policy_module'].split('.')[-1].split('_')[-1]) + ',' + str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
+                # logging.info(str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
+                end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time) #,dag_completed.energy)
+                end_list.append(end_entry)
+                # Remove DAG from active list
+                self.dag_id_list.remove(dag_id_completed)
+                del self.dag_dict[dag_id_completed]
+            # self.stomp.dlock.release()
+
+    def push_ready_tasks(self, time_interval, promote_interval, dranktime, last_promoted_id):
+        temp_task_trace = []
+
+        # Check for DAGs to be dropped
+        if(self.params['simulation']['drop'] == True):
+            raise NotImplementedError
+            # for dag_id in self.dag_id_list:
+            #     the_dag_sched = self.dag_dict[dag_id]
+            #
+            #     if dag_id in stomp_drop_list and the_dag_sched.priority == 1:
+            #         # print("[ID: %d]Dropping based on hint from task scheduler" %(dag_id))
+            #         dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
+            #         self.dags_dropped.append(dag_id)
+            #         dropped_list.append(dropped_entry)
+            #         dropped_dag_id_list.append(dag_id)
+            #         continue
+            #
+            #     for node,deg in the_dag_sched.graph.in_degree():
+            #         if deg == 0:
+            #             if node.scheduled == 0:
+            #                 if(self.meta_policy.dropping_policy(the_dag_sched, node)):
+            #                     # logging.info("%d: [DROPPED] DAG id: %d dropped" %(self.stomp.sim_time, dag_id))
+            #                     dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
+            #                     self.stomp.dags_dropped.append(dag_id)
+            #                     dropped_list.append(dropped_entry)
+            #                     dropped_dag_id_list.append(dag_id)
+            #                     break
+            #
+            # # Remove Dropped DAGs from active DAG list
+            # # self.stomp.dlock.acquire()
+            # for dag_id_dropped in dropped_dag_id_list:
+            #     self.dag_id_list.remove(dag_id_dropped)
+            #     del self.dag_dict[dag_id_dropped]
+            # # self.stomp.dlock.release()
+            #
+
+        ## Check for ready tasks ##
+        self.message("dag_id_list: {}".format(self.dag_id_list))
+        for dag_id in self.dag_id_list:
+            the_dag_sched = self.dag_dict[dag_id]
+
+            ## Push ready tasks into ready queue ##
+            for task_node, deg in the_dag_sched.graph.in_degree():
+                if deg == 0:
+
+                    # #### DROPPED ##########
+                    # if(self.params['simulation']['drop'] == True):
+                    #     if(self.meta_policy.dropping_policy(the_dag_sched, task_node)):
+                    #         dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
+                    #         self.stomp.dags_dropped.append(dag_id)
+                    #         dropped_list.append(dropped_entry)
+                    #         dropped_dag_id_list.append(dag_id)
+                    #         break
+
+                    # PROMOTE DAGs
+                    if(self.params['simulation']['promote'] == True):
+                        if (the_dag_sched.arrival_time > time_interval + promote_interval and the_dag_sched.priority == 1 and task_node.tid == 0):
+                            # print("[%d]: [%d.%d.%d], atime: %d, time_threshold: %d, completed: %d\n" % (self.stomp.sim_time, dag_id, task_node.tid, the_dag_sched.priority, the_dag_sched.arrival_time, (time_interval + promote_interval), dags_completed_per_interval))
+                            # print("[%d]: DAG id: %d, atime: %d, completed DAGs: %d\n" % (self.stomp.sim_time, dag_id, the_dag_sched.arrival_time, dags_completed_per_interval))
+                            task_node.priority = 3
+                            the_dag_sched.priority = 3
+                            the_dag_sched.promoted = 1
+                            # print("%d: [%d,%d]Dag promoted\n" %(self.stomp.sim_time, dag_id, task_node.tid))
+                            time_interval = the_dag_sched.arrival_time
+
+                    if task_node.scheduled == 0:
+
+                        # PROMOTE DAGs
+                        if(self.params['simulation']['promote'] == True):
+                            # Revaluate promotion for non-zero tid
+                            if (the_dag_sched.promoted == 1 and the_dag_sched.perm_promoted == 0 and task_node.tid != 0):
+                                if self.dags_completed_per_interval > 0:
+                                    task_node.priority = 1
+                                    the_dag_sched.priority = 1
+                                    the_dag_sched.promoted = 0
+                                    # print("%d: [%d,%d]Dag demoted completed:%d\n" %(self.stomp.sim_time, dag_id, task_node.tid,dags_completed_per_interval))
+                                else:
+                                    # print("%d: [%d,%d]Dag remains promoted completed:%d\n" %(self.stomp.sim_time, dag_id, task_node.tid, dags_completed_per_interval))
+                                    the_dag_sched.perm_promoted = 1
+                                    last_promoted_id = dag_id
+                                self.dags_completed_per_interval = 0
+
+                        if (task_node.tid == 0):
+                            atime = the_dag_sched.arrival_time
+                        else:
+                            atime = the_dag_sched.ready_time
+                        task_type = the_dag_sched.comp[task_node.tid][0]
+                        priority = the_dag_sched.priority
+                        deadline = int(the_dag_sched.slack)
+
+                        #Use SDR for task deadline calculation
+                        if (self.params['simulation']['policy'].startswith("ms1")):
+                            deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[task_node.tid][1]))
+                        elif (self.params['simulation']['policy'].startswith("ms3")):
+                            deadline = int(deadline*float(the_dag_sched.comp[task_node.tid][1]))
+
+
+                        # Initialize task during execution
+                        task_node.init_task(atime, dag_id, task_node.tid, task_type, self.params['simulation']['tasks'][task_type], priority, deadline, int(the_dag_sched.dtime))
+
+                        # Set task variables specific to the policy
+                        task_node.task_variables = self.meta_policy.set_task_variables(the_dag_sched, task_node)
+
+                        ## Update service_time of task on all servers
+                        stimes = []
+                        count = 0
+                        max_time = 0
+                        min_time = 100000
+                        # Iterate over each column of comp entry.
+                        for service_time in the_dag_sched.comp[task_node.tid]:
+                            # Ignore first two columns.
+                            if (count <= 1):
+                                count += 1
+                                continue
+                            else:
+                                task_node.per_server_services.append(service_time)
+                                if (service_time != "None"):
+                                    ## Warning; If number of entries in comp file changes, this needs to change
+                                    server_type = self.server_types[count-2]
+                                    task_node.per_server_service_dict[server_type] = round(float(service_time))
+                                    # print(str(server_type + "," + str(service_time))
+
+                                    # Min and max service time calculation
+                                    if (min_time > round(float(service_time))):
+                                        min_time = round(float(service_time))
+                                    if(max_time < float(service_time)):
+                                        max_time = float(service_time)
+
+                            count += 1
+
+                        # Dynamic Rank Assignment
+                        start1 = datetime.now()
+                        self.meta_policy.meta_dynamic_rank(self.stomp, task_node, the_dag_sched.comp, max_time, min_time, deadline, priority)
+                        end1 = datetime.now()
+                        dranktime += end1 - start1
+
+                        #### AFFINITY ####
+                        # Pass parent id and HW id of parents with task
+                        ####
+                        parent_data = []
+                        for parent in the_dag_sched.parent_dict[task_node.tid]:
+                            parent_data.append((parent,the_dag_sched.completed_peid[parent]))
+                        task_node.parent_data = parent_data
+
+                        ## Ready task found, push into temp ready task queue
+                        temp_task_trace.append(task_node)
+                        task_node.scheduled = 1
+
+        self.message("temp_task_trace = {}".format(temp_task_trace))
+        ## Push all ready tasks in the order of their arrival time ##
+        while temp_task_trace:
+            ready_task = temp_task_trace.pop(0)
+            self.message('Inserting @%u, DAG:%u, TID:%u' % (ready_task.arrival_time, ready_task.dag_id, ready_task.tid))
+            self.global_task_trace.put(ready_task.arrival_time, ready_task)
+            self.message("self.global_task_trace = {}".format(self.global_task_trace))
+            # self.global_task_trace.sort(key=lambda tr_entry: tr_entry.arrival_time, reverse=False)
+
+        # arr_time = self.global_task_trace.get()[0]
+        # if (not self.global_task_trace.empty() and (self.next_cust_arrival_time != arr_time)):
+        #     self.next_cust_arrival_time = arr_time
+
+        # with self.tlock.request() as treq:
+        #     yield treq
+        #     if self.task_completed_flag.get() == 1 and self.tasks_completed.empty()):
+        #         self.task_completed_flag = 0
+        #     if(self.task_dropped_flag == 1 and self.final_drop_list.empty()):
+        #         self.task_dropped_flag = 0
+
+        # yield self.env.timeout(1)
+
+        ## Update META START after first iteration in META. Used to start TSCHED and STOMP processing
+        # self.stomp.E_META_START = 1
+        # self.stomp.stats['Tasks Generated by META'] = 1
+        # print("[meta] triggering stomp to start now")
+            self.tsched_eventq.put(ready_task.arrival_time, utils.events.TASK_ARRIVAL)
+            self.message("TSCHED event queue len is now: {}".format(self.tsched_eventq.qsize()))
+            # print("Meta interrupting STOMP")
+            self.stomp.action.interrupt()
+            # self.stomp.action.interrupt()
+
+        ## If all DAGs have completed update META is done
+        if not self.dag_id_list:
+            self.tsched_eventq.put(self.env.now, utils.events.META_DONE)
+            self.stomp.action.interrupt()
+            self.meta_eventq.put(self.env.now, utils.events.META_DONE)
+            # self.E_META_DONE.put(1)
+            # logging.info("META completed")
+
+        # print("self.stomp.E_META_START = " + str(self.stomp.E_META_START))
+        # self.stomp.action.interrupt()
+
     def run(self):
+        # self.tsched_eventq.put((0, utils.events.META_START))
+        self.message("Run called, triggering stomp to start")
+        self.meta_eventq.put(self.max_timesteps, utils.events.SIM_LIMIT)
+
+        # self.meta_cv.put(33)
+        # self.message("Meta started")
+
+        # yield self.env.timeout(1)
+        # print("Meta interrupting STOMP at timestep %u" % self.stomp.global_task_trace[-1].arrival_time)
+        # self.stomp.action.interrupt()
 
         self.meta_policy.init(self.params)
 
         application = self.params['simulation']['application']
         ### Read input DAGs ####
-        dags_completed = 0
-        dags_completed_per_interval = 0
         end_list = []
         dropped_list = []
-        
-        lt_wcet_r_crit = 0
-        wtr_crit = 0
-        tasks_completed_count_crit = 0
-
-        lt_wcet_r_nocrit = 0
-        wtr_nocrit = 0
-        tasks_completed_count_nocrit = 0
 
         time_interval = 0
         last_promoted_id = 0
@@ -228,11 +552,19 @@ class META:
         logging.info(in_trace_name)
         # print("inputs/random_comp_5_{1}.txt".format(5, self.stdev_factor))
 
-        # Cumulative energy for all tasks executed by the system
-        all_tasks_energy = 0
+        self.env.all_of([self.tsched_proc])
 
-        while(self.stomp.E_TSCHED_START == 0):
-            pass
+        # self.message("Waiting for STOMP to start")
+        # rc = yield self.tsched_cv.get()
+        # self.message("Received {}".format(rc))
+        #
+        # while not self.stomp.E_TSCHED_START:
+        #     try:
+        #         yield self.env.timeout(self.max_timesteps)
+        #     except simpy.Interrupt:
+        #         pass
+        #
+        self.message("STOMP started")
 
         # Initialize profilers
         ctime = timedelta(microseconds = 0)
@@ -274,12 +606,12 @@ class META:
                     deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale']*self.params['simulation']['deadline_scale'])
                     dtime = atime + deadline
 
-
-
                     the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, dtime, priority, dag_type)
                     the_dag_trace.dag_variables = self.meta_policy.set_dag_variables(the_dag_trace)
                     self.dag_dict[dag_id] = the_dag_trace
                     self.dag_id_list.append(dag_id)
+                    if line_count == 0:
+                        self.meta_eventq.put(atime, utils.events.DAG_ARRIVAL)
 
                     ## Static ranking ##
                     start = datetime.now()
@@ -287,282 +619,83 @@ class META:
                     end = datetime.now()
                     sranktime += end - start
 
-            line_count += 1
+                line_count += 1
         # self.stomp.dlock.release()
+        while True:
+            tick, event = self.meta_eventq.get()
+            # tick, event = event.priority, event.item
+            self.message("GOT tick {}, event {}".format(tick, event))
+
+            delta = tick - self.env.now
+            while delta:
+                self.message("Going to timeout")
+                try:
+                    yield self.env.timeout(delta)
+                except simpy.Interrupt:
+                    self.message("Interrupted by TSCHED")
+                    # self.message("handle_task_completion")
+                    # self.handle_task_completion()
+
+                    # push back last event onto event queue
+                    self.meta_eventq.put(tick, event)
+                    # get new event
+                    tick, event = self.meta_eventq.get()
+                    # tick, event = event.priority, event.item
+                    self.message("Going to tick @{}".format(tick))
+                    # assert tick == self.env.now
+                    delta = tick - self.env.now
+                    continue
+                delta = 0
+
+            message_decode_event(self, event)
+
+            if event == utils.events.DAG_ARRIVAL:
+                # self.message("handle_task_completion")
+                # self.handle_task_completion()
+                self.message("push_ready_tasks")
+                self.push_ready_tasks(time_interval, promote_interval, dranktime, last_promoted_id)
+            elif event == utils.events.TASK_COMPLETED:
+                # pass
+                self.message("handle_task_completion")
+                self.handle_task_completion(end_list, last_promoted_id)
+                self.push_ready_tasks(time_interval, promote_interval, dranktime, last_promoted_id)
+            elif event == utils.events.SIM_LIMIT:
+                assert False
+            elif event == utils.events.META_DONE:
+                self.message("META done!")
+                break
+            else:
+                raise NotImplementedError
+
+        self.message("All done")
+
+        # while((self.dag_id_list or not self.stomp.E_TSCHED_DONE)):
+        #     #
+        #     # completed_list = []
+        #     # stomp_drop_list = []
+        #     # dropped_dag_id_list = []
+        #
+        #     ## Get Completed Tasks from TSCHED ##
+        #     # with self.tlock.request() as treq:
+        #     #     yield treq
+        #     #     while not self.final_drop_list.empty():
+        #     #         stomp_drop_list.append(self.final_drop_list.get())
+        #     #     while not self.tasks_completed.empty():
+        #     #         completed_list.append(self.tasks_completed.get())
+        #
+        #     ## Update DAGs and meta info for completed tasks ##
+        #     start = datetime.now()
+        #
+        #     end = datetime.now()
+        #     ctime += end - start
+        #
+        #     start = datetime.now()
+        #
+        #     end = datetime.now()
+        #     rtime += end - start
 
 
-        while(self.dag_id_list or self.stomp.E_TSCHED_DONE == 0):
-            temp_task_trace = []
-            completed_list = []
-            stomp_drop_list = []
-            dropped_dag_id_list = []
-
-            ## Get Completed Tasks from TSCHED ##
-            self.stomp.tlock.acquire()
-            while(len(self.stomp.final_drop_list)):
-                stomp_drop_list.append(self.stomp.final_drop_list.pop(0))
-            while(len(self.stomp.tasks_completed)):
-                completed_list.append(self.stomp.tasks_completed.pop(0))
-            self.stomp.tlock.release()
-
-            ## Update DAGs and meta info for completed tasks ##
-            start = datetime.now()
-            while (len(completed_list)):
-                task_completed = completed_list.pop(0)
-                dag_id_completed = task_completed.dag_id
-
-                # Calculate energy per task and accumulate.
-                all_tasks_energy += task_completed.task_service_time * task_completed.ptoks_used
-                # print('[%d.%d.%d] task %s | task_service_time %u |  ptoks_used : %u | ENERGY = %u | cumulative energy %u' % 
-                #     (task_completed.dag_id, task_completed.tid, task_completed.priority, 
-                #         task_completed.type, task_completed.task_service_time, task_completed.ptoks_used, 
-                #         task_completed.task_service_time * task_completed.ptoks_used, all_tasks_energy))
-
-
-                if(task_completed.priority > 1):
-                    wait_time_crit = task_completed.task_lifetime - task_completed.task_service_time
-                    wcet_crit = task_completed.per_server_service_dict['cpu_core']
-
-                    lt_wcet_r_crit += (float)(task_completed.task_lifetime/wcet_crit)
-
-                    wtr_crit += (float)(wait_time_crit/task_completed.task_lifetime)
-                    tasks_completed_count_crit += 1
-                else:
-                    wait_time_nocrit = task_completed.task_lifetime - task_completed.task_service_time
-                    wcet_nocrit = task_completed.per_server_service_dict['cpu_core']
-
-                    lt_wcet_r_nocrit += (float)(task_completed.task_lifetime/wcet_nocrit)
-
-                    wtr_nocrit += (float)(wait_time_nocrit/task_completed.task_lifetime)
-                    tasks_completed_count_nocrit += 1
-
-                ## If the task belongs to a non-dropped DAG ##
-                if dag_id_completed in self.dag_dict:
-                    dag_completed = self.dag_dict[dag_id_completed]
-                    # logging.info('[%10d]Task completed : %d,%d,%d' % (self.stomp.sim_time,(task_completed.arrival_time + task_completed.task_lifetime),dag_id_completed,task_completed.tid))
-
-                    ## Remove completed task from parent DAG and update meta-info ##
-                    for node in dag_completed.graph.nodes():
-                        if node.tid == task_completed.tid:
-                            # TODO: If internal task deadline of priority == 1 is not met drop it
-                            dag_completed.ready_time = task_completed.arrival_time + task_completed.task_lifetime
-                            dag_completed.resp_time = dag_completed.ready_time - dag_completed.arrival_time
-                            dag_completed.slack = dag_completed.deadline - dag_completed.resp_time
-                            #### AFFINITY ####
-                            # Add completed id and HW id to a table
-                            ####
-                            dag_completed.completed_peid[task_completed.tid] = task_completed.peid
-                            dag_completed.noaffinity_time += task_completed.noaffinity_time
-
-                            # print("Completed: %d,%d,%d,%d,%d,%d" % (dag_id_completed,task_completed.tid,dag_completed.slack,dag_completed.deadline,task_completed.arrival_time,task_completed.task_lifetime))
-
-                            task = task_completed.type
-                            assert task_completed.ptoks_used
-                            # power = self.params['simulation']['tasks'][task]['power'][task_completed.server_type]
-                            #print(task,power,task_completed.task_lifetime)
-                            
-                            dag_completed.graph.remove_node(node)
-                            break;
-
-
-                    ## Update stats if DAG has finished execution ##
-                    # self.stomp.dlock.acquire()
-                    if (len(dag_completed.graph.nodes()) == 0):
-                        dags_completed += 1
-                        # logging.info("%d: DAG id: %d completed" %(self.stomp.sim_time, dag_id_completed))
-                        if(dag_completed.priority == 1 and dag_id_completed >= last_promoted_id):
-                            # print("[%d]: Completed DAG id: %d priority: %d" %(self.stomp.sim_time, dag_id_completed, dag_completed.priority))
-                            dags_completed_per_interval += 1
-                        ## Calculate stats for the DAG
-                        # logging.info(str(self.params['simulation']['sched_policy_module'].split('.')[-1].split('_')[-1]) + ',' + str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
-                        # logging.info(str(dag_id_completed) + ',' + str(dag_completed.priority) + ',' +str(dag_completed.slack))
-                        end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time) #,dag_completed.energy)
-                        end_list.append(end_entry)
-                        # Remove DAG from active list
-                        self.dag_id_list.remove(dag_id_completed)
-                        del self.dag_dict[dag_id_completed]
-                    # self.stomp.dlock.release()
-            end = datetime.now()
-            ctime += end - start
-
-
-            start = datetime.now()
-
-            # Check for DAGs to be dropped
-            if(self.params['simulation']['drop'] == True):
-                for dag_id in self.dag_id_list:
-                    the_dag_sched = self.dag_dict[dag_id]
-
-                    if dag_id in stomp_drop_list and the_dag_sched.priority == 1:
-                        # print("[ID: %d]Dropping based on hint from task scheduler" %(dag_id))
-                        dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
-                        self.stomp.dags_dropped.append(dag_id)
-                        dropped_list.append(dropped_entry)
-                        dropped_dag_id_list.append(dag_id)
-                        continue
-
-                    for node,deg in the_dag_sched.graph.in_degree():
-                        if deg == 0:
-                            if node.scheduled == 0:
-                                if(self.meta_policy.dropping_policy(the_dag_sched, node)):
-                                    # logging.info("%d: [DROPPED] DAG id: %d dropped" %(self.stomp.sim_time, dag_id))
-                                    dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
-                                    self.stomp.dags_dropped.append(dag_id)
-                                    dropped_list.append(dropped_entry)
-                                    dropped_dag_id_list.append(dag_id)
-                                    break
-
-                # Remove Dropped DAGs from active DAG list
-                # self.stomp.dlock.acquire()
-                for dag_id_dropped in dropped_dag_id_list:
-                    self.dag_id_list.remove(dag_id_dropped)
-                    del self.dag_dict[dag_id_dropped]
-                # self.stomp.dlock.release()
-
-
-            ## Check for ready tasks ##
-            for dag_id in self.dag_id_list:
-                the_dag_sched = self.dag_dict[dag_id]
-
-                ## Push ready tasks into ready queue ##
-                for task_node,deg in the_dag_sched.graph.in_degree():
-                    if deg == 0:
-
-                        # #### DROPPED ##########
-                        # if(self.params['simulation']['drop'] == True):
-                        #     if(self.meta_policy.dropping_policy(the_dag_sched, task_node)):
-                        #         dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
-                        #         self.stomp.dags_dropped.append(dag_id)
-                        #         dropped_list.append(dropped_entry)
-                        #         dropped_dag_id_list.append(dag_id)
-                        #         break
-
-                        # PROMOTE DAGs
-                        if(self.params['simulation']['promote'] == True):
-                            if (the_dag_sched.arrival_time > time_interval + promote_interval and the_dag_sched.priority == 1 and task_node.tid == 0):
-                                # print("[%d]: [%d.%d.%d], atime: %d, time_threshold: %d, completed: %d\n" % (self.stomp.sim_time, dag_id, task_node.tid, the_dag_sched.priority, the_dag_sched.arrival_time, (time_interval + promote_interval), dags_completed_per_interval))
-                                # print("[%d]: DAG id: %d, atime: %d, completed DAGs: %d\n" % (self.stomp.sim_time, dag_id, the_dag_sched.arrival_time, dags_completed_per_interval))
-                                task_node.priority = 3
-                                the_dag_sched.priority = 3
-                                the_dag_sched.promoted = 1
-                                # print("%d: [%d,%d]Dag promoted\n" %(self.stomp.sim_time, dag_id, task_node.tid))
-                                time_interval = the_dag_sched.arrival_time
-
-                        if task_node.scheduled == 0:
-
-                            # PROMOTE DAGs
-                            if(self.params['simulation']['promote'] == True):
-                                # Revaluate promotion for non-zero tid
-                                if (the_dag_sched.promoted == 1 and the_dag_sched.perm_promoted == 0 and task_node.tid != 0):
-                                    if dags_completed_per_interval > 0:
-                                        task_node.priority = 1
-                                        the_dag_sched.priority = 1
-                                        the_dag_sched.promoted = 0
-                                        # print("%d: [%d,%d]Dag demoted completed:%d\n" %(self.stomp.sim_time, dag_id, task_node.tid,dags_completed_per_interval))
-                                    else:
-                                        # print("%d: [%d,%d]Dag remains promoted completed:%d\n" %(self.stomp.sim_time, dag_id, task_node.tid, dags_completed_per_interval))
-                                        the_dag_sched.perm_promoted = 1
-                                        last_promoted_id = dag_id
-                                    dags_completed_per_interval = 0
-
-
-                            if (task_node.tid == 0):
-                                atime = the_dag_sched.arrival_time
-                            else:
-                                atime = the_dag_sched.ready_time
-                            task_type = the_dag_sched.comp[task_node.tid][0]
-                            priority = the_dag_sched.priority
-                            deadline = int(the_dag_sched.slack)
-
-                            #Use SDR for task deadline calculation
-                            if (self.params['simulation']['policy'].startswith("ms1")):
-                                deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[task_node.tid][1]))
-                            elif (self.params['simulation']['policy'].startswith("ms3")):
-                                deadline = int(deadline*float(the_dag_sched.comp[task_node.tid][1]))
-
-
-                            # Initialize task during execution
-                            task_node.init_task(atime, dag_id, task_node.tid, task_type, self.params['simulation']['tasks'][task_type], priority, deadline, int(the_dag_sched.dtime))
-
-                            # Set task variables specific to the policy
-                            task_node.task_variables = self.meta_policy.set_task_variables(the_dag_sched, task_node)
-
-                            ## Update service_time of task on all servers
-                            stimes = []
-                            count = 0
-                            max_time = 0
-                            min_time = 100000
-                            # Iterate over each column of comp entry.
-                            for service_time in the_dag_sched.comp[task_node.tid]:
-                                # Ignore first two columns.
-                                if (count <= 1):
-                                    count += 1
-                                    continue
-                                else:
-                                    task_node.per_server_services.append(service_time)
-                                    if (service_time != "None"):
-                                        ## Warning; If number of entries in comp file changes, this needs to change
-                                        server_type = self.server_types[count-2]
-                                        task_node.per_server_service_dict[server_type] = round(float(service_time))
-                                        # print(str(server_type + "," + str(service_time))
-
-                                        # Min and max service time calculation
-                                        if (min_time > round(float(service_time))):
-                                            min_time = round(float(service_time))
-                                        if(max_time < float(service_time)):
-                                            max_time = float(service_time)
-
-                                count += 1
-
-                            # Dynamic Rank Assignment
-                            start1 = datetime.now()
-                            self.meta_policy.meta_dynamic_rank(self.stomp, task_node, the_dag_sched.comp, max_time, min_time, deadline, priority)
-                            end1 = datetime.now()
-                            dranktime += end1 - start1
-
-                            #### AFFINITY ####
-                            # Pass parent id and HW id of parents with task
-                            ####
-                            parent_data = []
-                            for parent in the_dag_sched.parent_dict[task_node.tid]:
-                                parent_data.append((parent,the_dag_sched.completed_peid[parent]))
-                            task_node.parent_data = parent_data
-
-                            ## Ready task found, push into temp ready task queue
-                            temp_task_trace.append(task_node)
-                            task_node.scheduled = 1
-
-            end = datetime.now()
-            rtime += end - start
-
-            self.stomp.lock.acquire()
-            ## Push all ready tasks in the order of their arrival time ##
-            while (len(temp_task_trace)):
-                # logging.info('Inserting : %d,DAG:%d,TID:%d' % (temp_task_trace[0].arrival_time,temp_task_trace[0].dag_id,temp_task_trace[0].tid))
-                self.stomp.global_task_trace.append(temp_task_trace.pop(0))
-                self.stomp.global_task_trace.sort(key=lambda tr_entry: tr_entry.arrival_time, reverse=False)
-
-            if (len(self.stomp.global_task_trace) and (self.stomp.next_cust_arrival_time != self.stomp.global_task_trace[0].arrival_time)):
-                self.stomp.next_cust_arrival_time = self.stomp.global_task_trace[0].arrival_time
-
-            self.stomp.tlock.acquire()
-            if(self.stomp.task_completed_flag == 1 and (len(self.stomp.tasks_completed) == 0)):
-                self.stomp.task_completed_flag = 0
-            if(self.stomp.task_dropped_flag == 1 and (len(self.stomp.final_drop_list) == 0)):
-                self.stomp.task_dropped_flag = 0
-            self.stomp.tlock.release()
-
-            self.stomp.lock.release()
-
-            ## Update META START after first iteration in META. Used to start TSCHED and STOMP processing
-            self.stomp.E_META_START = 1
-            self.stomp.stats['Tasks Generated by META'] = 1
-
-            ## If all DAGs have completed update META is done
-            if(len(self.dag_id_list) == 0):
-                self.stomp.E_META_DONE = 1
-                # logging.info("META completed")
-
+        # self.message("n")
         # Open output file and write DAG stats
         fho = open(self.params['general']['working_dir'] + '/run_stdout_' + self.params['general']['basename'] + '.out', 'w')
         fho.write("Dropped,DAG ID,DAG Priority,DAG Type,Slack,Response Time,No-Affinity Time\n")
@@ -578,21 +711,21 @@ class META:
             dropped_entry = dropped_list.pop(0)
             fho.write("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5]) + '\n')
 
-        if all_tasks_energy == 0:
+        if self.all_tasks_energy == 0:
             logging.error("Energy could not be computed.")
             exit(1)
 
         #(Processing time for completed task, ready task time, static-rank time, dynamic rank time, task assignment, task ordering)
         fho.write(("Time: %d,%d,%d,%d,%d,%d\n")%(ctime.microseconds, rtime.microseconds, sranktime.microseconds, dranktime.microseconds, self.stomp.ta_time.microseconds, self.stomp.to_time.microseconds))
-        if(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit != 0):
-            fho.write(("nan, nan,%lf,%lf,%d,%u\n")%(wtr_nocrit/tasks_completed_count_nocrit, lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time, all_tasks_energy))
-        elif(tasks_completed_count_crit != 0 and tasks_completed_count_nocrit == 0):
-            fho.write(("%lf,%lf, nan, nan,%d,%u\n")%(wtr_crit/tasks_completed_count_crit, lt_wcet_r_crit/tasks_completed_count_crit, self.stomp.sim_time, all_tasks_energy))
-        elif(tasks_completed_count_crit == 0 and tasks_completed_count_nocrit == 0):
-            fho.write(("nan, nan, nan, nan,%d,%u\n")%(self.stomp.sim_time, all_tasks_energy))
+        if self.tasks_completed_count_crit == 0 and self.tasks_completed_count_nocrit != 0:
+            fho.write(("nan, nan,%lf,%lf,%d,%u\n")%(self.wtr_nocrit/self.tasks_completed_count_nocrit, self.lt_wcet_r_nocrit/self.tasks_completed_count_nocrit, self.env.now, self.all_tasks_energy))
+        elif self.tasks_completed_count_crit != 0 and self.tasks_completed_count_nocrit == 0:
+            fho.write(("%lf,%lf, nan, nan,%d,%u\n")%(self.wtr_crit/self.tasks_completed_count_crit, self.lt_wcet_r_crit/self.tasks_completed_count_crit, self.env.now, self.all_tasks_energy))
+        elif self.tasks_completed_count_crit == 0 and self.tasks_completed_count_nocrit == 0:
+            fho.write(("nan, nan, nan, nan,%d,%u\n")%(self.env.now, self.all_tasks_energy))
         else:
-            fho.write(("%lf,%lf,%lf,%lf,%d,%u\n")%(wtr_crit/tasks_completed_count_crit, 
-                lt_wcet_r_crit/tasks_completed_count_crit, wtr_nocrit/tasks_completed_count_nocrit, 
-                lt_wcet_r_nocrit/tasks_completed_count_nocrit, self.stomp.sim_time, all_tasks_energy))
+            fho.write(("%lf,%lf,%lf,%lf,%d,%u\n")%(self.wtr_crit/self.tasks_completed_count_crit,
+                self.lt_wcet_r_crit/self.tasks_completed_count_crit, self.wtr_nocrit/self.tasks_completed_count_nocrit,
+                self.lt_wcet_r_nocrit/self.tasks_completed_count_nocrit, self.env.now, self.all_tasks_energy))
 
         fho.close()
