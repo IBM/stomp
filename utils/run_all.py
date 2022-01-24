@@ -53,8 +53,8 @@ PROMOTE          = True
 CONTENTION       = [True] #, False]
 
 APP              = ['synthetic'] #, 'mapping', 'package', 'synthetic']
-POLICY_SOTA      = ['ads', 'edf_ver5']
-POLICY_NEW       = ['simple_policy_ver5','ms1_hom','ms1_hetero','ms1_hyb', 'ms1_hyb_update']
+POLICY_SOTA      = ['ads', 'edf_ver5', 'rheft']
+POLICY_NEW       = ['simple_policy_ver5','ms1_hom','ms1_hetero','ms1_hyb', 'ms1_hyb_update', 'ms2_hom','ms2_hetero','ms2_hyb', 'ms2_hyb_update']
 POLICY           = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR     = [0.01] # percentages
 #NEW
@@ -62,15 +62,15 @@ ARRIVE_SCALE0     = [0.2, 0.2, 0.2, 1.0] # synthetic, ad
 ARRIVE_SCALE1     = [0.1, 0.1, 0.1, 0.1] # mapping
 ARRIVE_SCALE2     = [0.1, 0.1, 0.1, 0.1] # package
 
-#SOTA 
+#SOTA
 ARRIVE_SCALE3    = [0.2, 0.2, 0.2, 1.0] # synthetic, ad
 ARRIVE_SCALE4    = [0.1, 0.1, 0.1, 0.1] # mapping
 ARRIVE_SCALE5    = [0.1, 0.1, 0.1, 0.1] # package
-PROB             = [0.1, 0.2, 0.3, 0.5] 
+PROB             = [0.1, 0.2, 0.3, 0.5]
 DROP             = [False, True]
 dl_scale         = 1
 
-RUNS = 50#32#50
+RUNS = 1000#32#50
 DELTA = 0.1#5#1.0
 
 total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE0) * len(PROB) * len(DROP)
@@ -183,12 +183,12 @@ def main(argv):
                             print(x)
                             prob = PROB[x]
                             ARRIVE_SCALE = []
-                            
+
                             dl_scale = 1
-                            
+
                             #for arr_scale in ARRIVE_SCALE:
                             for y in range(0,RUNS):
-                                
+
                                 for policy in POLICY:
 
                                     if (policy in POLICY_SOTA):
@@ -319,7 +319,7 @@ def main(argv):
                                                             command_str = command_str + ' -g generated_trace_stdf_' + str(stdev_factor) + '.trc'
                                                         else:
                                                             command_str = command_str + ' -i generated_trace_stdf_' + str(stdev_factor) + '.trc'
-                                                    
+
                                                     if trace_debug:
                                                         command_str = command_str + ' -i ../user_traces/user_gen_trace_prob_' + str(prob) + '.trc.trim'
                                                     elif (use_user_input_trace):
@@ -347,7 +347,7 @@ def main(argv):
                                                             for p in process:
                                                                 p.wait()
                                                             del process[:]
-           
+
     for p in process:
         p.wait()
                                     # if (save_stdout):

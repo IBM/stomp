@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright 2018 IBM
-# 
+#
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
 # SCHEDULING POLICY DESCRIPTION:
 #  This scheduling policy tries to schedule the task at the head of the
@@ -28,7 +28,7 @@
 #   while factoring the remaining time of the preceding tasks in the list,
 #   and continues to do so until it has checked a number of tasks equal to
 #   the max_task_depth_to_check parm (defined below).
-#  This policy effectively attempts to provide the least utilization time 
+#  This policy effectively attempts to provide the least utilization time
 #  (overall) for all the servers during the run.  For highly skewed
 #  mean service times, this policy may delay the start time of a task until
 #  a fast server is available.
@@ -40,7 +40,7 @@
 from stomp import BaseSchedulingPolicy
 import logging
 import numpy
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
 
 max_task_depth_to_check = 10
 
@@ -63,7 +63,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         removable_tasks = []
         for task in tasks:
-            if task.dag_id in dags_dropped:
+            if dags_dropped.contains(task.dag_id):
                 removable_tasks.append(task)
                 if (task.priority > 1):
                     stomp_obj.num_critical_tasks -= 1
@@ -196,4 +196,3 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                 bin = ">" + str(bin)
         logging.info('')
-

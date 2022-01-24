@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright 2018 IBM
-# 
+#
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
 # SCHEDULING POLICY DESCRIPTION:
 #  This scheduling policy tries to schedule the task at the head of the
@@ -39,7 +39,7 @@
 from stomp import BaseSchedulingPolicy
 import logging
 import numpy
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
 
 max_task_depth_to_check = 10
 
@@ -146,7 +146,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         removable_tasks = []
         for task in tasks:
-            if task.dag_id in dags_dropped:
+            if dags_dropped.contains(task.dag_id):
                 removable_tasks.append(task)
                 if (task.priority > 1):
                     stomp_obj.num_critical_tasks -= 1
@@ -208,7 +208,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, t.arrival_time, max_time, min_time))
                         t.rank = 0
                         t.rank_type = 0
-                        stomp_obj.drop_hint_list.append(t.dag_id)
+                        stomp_obj.drop_hint_list.put(t.dag_id)
 
                         # print("[ID: %d] A hinting from task scheduler" %(t.dag_id))
                     else:
@@ -226,7 +226,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                             if(self.stomp_params['simulation']['drop'] == True):
                                 t.rank = 0
                                 t.rank_type = 0
-                                stomp_obj.drop_hint_list.append(t.dag_id)
+                                stomp_obj.drop_hint_list.put(t.dag_id)
                                 # print("[ID: %d] B hinting from task scheduler" %(t.dag_id))
 
                             else:
@@ -244,7 +244,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 else:
                     t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 2
-					
+
 			# Remove tasks to be dropped
             if(self.stomp_params['simulation']['drop'] == True and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
                 removable_tasks.append(t)
@@ -384,4 +384,3 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                 bin = ">" + str(bin)
         logging.info('')
-

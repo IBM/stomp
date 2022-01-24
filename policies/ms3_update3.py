@@ -119,7 +119,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             return None
 
         for task in tasks:
-            if task.dag_id in dags_dropped:
+            if dags_dropped.contains(task.dag_id):
                 # print("Removing dropped dag")
                 tasks.remove(task)
 
@@ -310,4 +310,3 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                 bin = ">" + str(bin)
         logging.info('')
-

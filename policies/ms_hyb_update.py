@@ -1,22 +1,22 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright 2018 IBM
-# 
+#
 # This is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # This software is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this software; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
 # SCHEDULING POLICY DESCRIPTION:
 #  This scheduling policy tries to schedule the task at the head of the
@@ -28,7 +28,7 @@
 #   while factoring the remaining time of the preceding tasks in the list,
 #   and continues to do so until it has checked a number of tasks equal to
 #   the max_task_depth_to_check parm (defined below).
-#  This policy effectively attempts to provide the least utilization time 
+#  This policy effectively attempts to provide the least utilization time
 #  (overall) for all the servers during the run.  For highly skewed
 #  mean service times, this policy may delay the start time of a task until
 #  a fast server is available.
@@ -40,7 +40,7 @@
 from stomp import BaseSchedulingPolicy
 import logging
 import numpy
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
 
 max_task_depth_to_check = 10
 
@@ -63,7 +63,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
         removable_tasks = []
         for task in tasks:
-            if task.dag_id in dags_dropped:
+            if dags_dropped.contains(task.dag_id):
                 removable_tasks.append(task)
                 if (task.priority > 1):
                     stomp_obj.num_critical_tasks -= 1
@@ -103,35 +103,35 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                 if (wcet_slack >= 0):
                     slack = 1 + wcet_slack
                     t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 3 
+                    t.rank_type = 3
                 elif (bcet_slack >= 0):
                     slack = 1 + bcet_slack
                     t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 4 
+                    t.rank_type = 4
                 else:
                     slack = 1 + 0.99/bcet_slack
                     t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 5 
+                    t.rank_type = 5
             else:
                 if (wcet_slack >= 0):
                     slack = 1 + wcet_slack
                     t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 2 
+                    t.rank_type = 2
                 elif (bcet_slack >= 0):
                     slack = 1 + bcet_slack
                     t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 1 
+                    t.rank_type = 1
                 else:
                     slack = 1 + 0.99/bcet_slack
                     t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 0
 
             if t.priority == 1 and (stomp_obj.num_critical_tasks > 0 and self.stomp_params['simulation']['drop'] == True) and t.rank_type < 2:
-                stomp_obj.drop_hint_list.append(t.dag_id)
+                stomp_obj.drop_hint_list.put(t.dag_id)
 
             # Remove tasks to be dropped
             if(self.stomp_params['simulation']['drop'] == True and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
-                stomp_obj.drop_hint_list.append(t.dag_id)
+                stomp_obj.drop_hint_list.put(t.dag_id)
                 removable_tasks.append(t)
 
         for task in removable_tasks:
@@ -232,4 +232,3 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                 bin = ">" + str(bin)
         logging.info('')
-

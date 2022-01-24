@@ -48,15 +48,10 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.avail_ptoks  = self.total_ptoks
 
     def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
-
+        # print(tasks)
         if (len(tasks) == 0):
             # There aren't tasks to serve
             return None
-
-        for task in tasks:
-            if task.dag_id in dags_dropped:
-                # print("Removing dropped dag")
-                tasks.remove(task)
 
         for target_server in tasks[0].mean_service_time_list:
             target_server_type = target_server[0]
@@ -74,8 +69,14 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
                     # Pop task in queue's head and assign it to server
                     task = tasks.pop(0)
+
+                    # if task.dag_id == 41 and task.tid == 0:
+                    #     print(sim_time, task)
+
                     task.ptoks_used = task.power_dict[server.type]
                     server.assign_task(sim_time, task)
+                    assert server.busy
+                    assert server.task != None
                     if self.pwr_mgmt:
                         self.avail_ptoks -= rqstd_ptoks
                     # print("Scheduled to server %s, remaining ptoks = %d/%d"
@@ -90,4 +91,3 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
     def output_final_stats(self, sim_time):
         pass
-

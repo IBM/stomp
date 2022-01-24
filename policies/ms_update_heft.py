@@ -122,7 +122,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
     def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
 
         for task in tasks:
-            if task.dag_id in dags_dropped:
+            if dags_dropped.contains(task.dag_id):
                 # print("Removing dropped dag")
                 tasks.remove(task)
                 if (task.priority > 1):
@@ -171,7 +171,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         # print("[%d] [%d,%d,%d] Critical tasks and min deadline exists deadline:%d, atime:%d, max_time: %d, min_time: %d" %
                         #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, t.arrival_time, max_time, min_time))
                         t.rank = 0
-                        stomp_obj.drop_hint_list.append(t.dag_id)
+                        stomp_obj.drop_hint_list.put(t.dag_id)
                         # print("[ID: %d] A hinting from task scheduler" %(t.dag_id))
                     else:
                         if((t.deadline -(sim_time-t.arrival_time) - (min_time)) >= 0):
@@ -185,7 +185,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                             #     (sim_time, t.dag_id, t.tid, t.priority, t.type, t.deadline,t.arrival_time, max_time, min_time))
                             if(self.stomp_params['simulation']['drop']== True):
                                 t.rank = 0
-                                stomp_obj.drop_hint_list.append(t.dag_id)
+                                stomp_obj.drop_hint_list.put(t.dag_id)
                                 # print("[ID: %d] B hinting from task scheduler" %(t.dag_id))
 
                             else:
@@ -205,7 +205,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             #     # print("[%d] [%d,%d,%d] Critical tasks and min deadline exists deadline:%d, atime:%d, max_time: %d, min_time: %d" %
             #     #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, t.arrival_time, max_time, min_time))
             #     t.rank = 0
-            #     drop_hint_list.append(t.dag_id)
+            #     stomp_obj.drop_hint_list.put(t.dag_id)
             #     print("[ID: %d] C hinting from task scheduler" %(t.dag_id))
 
         # tasks.sort(key=lambda task: (task.rank), reverse=True)
@@ -372,4 +372,3 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             else:
                 bin = ">" + str(bin)
         logging.info('')
-
