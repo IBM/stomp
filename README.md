@@ -10,13 +10,17 @@ STOMP is based on its predecesor C-based <a href="https://ieeexplore.ieee.org/do
 ## Usage
 
 STOMP is invoked using the `stomp_main.py` script which supports the following options:
-
- * `-h` or `--help` : Print the usage information
- * `-d` or `--debug` : Output run-time debugging messages
- * `-c` *_S_* or `--conf-file=`*_S_* : Specifies *_S_* as a json configuration file for STOMP to use this run
- * `-j` *_S_* or `--conf-json=`*_S_* : Specifies *_S_* as a json string that includes the configuration information for STOMP to use this run
- * `-i` *_S_* or `--input-trace=`*_S_* : Specifies *_S_* as the filename from which STOMP should read an input DAG trace
-
+```
+optional arguments:
+  -h, --help            show this help message and exit
+  --conf-file CONF_FILE, -c CONF_FILE
+                        specifies a json configuration file for STOMP to use this run
+  --input-trace INPUT_TRACE, -i INPUT_TRACE
+                        specifies the filename from which STOMP should read an input DAG trace
+  --conf-json CONF_JSON, -j CONF_JSON
+                        specifies a json string that includes the configuration information for STOMP to use this run
+  --debug, -d           Output run-time debugging messages
+```
 
 ## Traces
 
