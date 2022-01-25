@@ -1,3 +1,23 @@
+#!/usr/bin/env python
+#
+# Copyright 2022 IBM
+#
+# This is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3, or (at your option)
+# any later version.
+#
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this software; see the file COPYING.  If not, write to
+# the Free Software Foundation, Inc., 51 Franklin Street,
+# Boston, MA 02110-1301, USA.
+#
+
 from __future__ import division
 from __future__ import print_function
 from abc import ABCMeta, abstractmethod
@@ -180,24 +200,20 @@ class META:
             self.sranktime = timedelta(microseconds=0)
             self.dranktime = timedelta(microseconds=0)
 
-    # E_PWR_MGMT          = 1
-    # E_TASK_ARRIVAL      = 2
-    # E_SERVER_FINISHES   = 3
-    # E_NOTHING           = 4
-    #
-    # E_META_DONE         = 0
-
-    def __init__(self, env, max_timesteps, tsched_eventq, meta_eventq, global_task_trace, tasks_completed, dags_dropped, drop_hint_list, lock, tlock, meta_params, stomp_sim, meta_policy):
+    def __init__(self, sharedObjs, meta_params, stomp_sim, meta_policy):
+        self.env               = sharedObjs.env
+        self.max_timesteps     = sharedObjs.max_timesteps
+        self.tsched_eventq     = sharedObjs.tsched_eventq
+        self.meta_eventq       = sharedObjs.meta_eventq
+        self.global_task_trace = sharedObjs.global_task_trace
+        self.tasks_completed   = sharedObjs.tasks_completed
+        self.dags_dropped      = sharedObjs.dags_dropped
+        self.drop_hint_list    = sharedObjs.drop_hint_list
 
         self.profiler = self.Profiler()
 
         self.dags_completed = 0
         self.dags_completed_per_interval = 0
-
-        self.tsched_eventq  = tsched_eventq
-        self.meta_eventq    = meta_eventq
-
-        self.tsched_proc = stomp_sim.action
 
         # Cumulative energy for all tasks executed by the system
         self.all_tasks_energy = 0
@@ -208,10 +224,6 @@ class META:
         self.lt_wcet_r_nocrit = 0
         self.wtr_nocrit = 0
         self.tasks_completed_count_nocrit = 0
-
-
-        self.lock = lock
-        self.tlock = tlock
 
         self.params         = meta_params
         self.stomp          = stomp_sim
@@ -229,11 +241,6 @@ class META:
         self.input_trace_file               = self.params['general']['input_trace_file']
         self.stdev_factor                   = self.params['simulation']['stdev_factor']
 
-        self.global_task_trace = global_task_trace
-        self.drop_hint_list   = drop_hint_list
-        self.tasks_completed   = tasks_completed
-        self.dags_dropped = dags_dropped
-
         self.dag_dict                       = {}
         self.dag_id_list                    = []
         self.server_types                   = []
@@ -247,9 +254,7 @@ class META:
                     self.server_types.append(server_type)
                     break
 
-        self.env = env
-        self.max_timesteps = max_timesteps
-        self.action = env.process(self.run())
+        self.action = self.env.process(self.run())
 
     def print(self, string):
         pass
@@ -259,7 +264,7 @@ class META:
         if self.tasks_completed.empty():
             return
         task_completed = self.tasks_completed.get()
-        self.print("task_completed = {}".format(task_completed))
+        # self.print("task_completed = {}".format(task_completed))
         dag_id_completed = task_completed.dag_id
 
         # Calculate energy per task and accumulate.
@@ -315,7 +320,6 @@ class META:
                     break
 
             ## Update stats if DAG has finished execution ##
-            # self.stomp.dlock.acquire()
             if not dag_completed.graph.nodes():
                 self.dags_completed += 1
                 # logging.info("%d: DAG id: %d completed" %(self.stomp.sim_time, dag_id_completed))
@@ -330,7 +334,6 @@ class META:
                 # Remove DAG from active list
                 self.dag_id_list.remove(dag_id_completed)
                 del self.dag_dict[dag_id_completed]
-            # self.stomp.dlock.release()
 
     def push_ready_tasks(self):
         # Check for DAGs to be dropped
@@ -370,7 +373,7 @@ class META:
                 del self.dag_dict[dag_id_dropped]
 
         ## Check for ready tasks ##
-        self.print("dag_id_list: {}".format(self.dag_id_list))
+        # self.print("dag_id_list: {}".format(self.dag_id_list))
         for dag_id in self.dag_id_list:
             the_dag_sched = self.dag_dict[dag_id]
 
@@ -484,7 +487,7 @@ class META:
         ## If all DAGs have completed update META is done
         if not self.dag_id_list:
             self.tsched_eventq.put(self.env.now, events.META_DONE)
-            self.print("Meta interrupting TSCHED")
+            # self.print("Meta interrupting TSCHED")
             self.stomp.action.interrupt()
             self.meta_eventq.put(self.env.now, events.META_DONE)
 
@@ -542,7 +545,7 @@ class META:
         logging.info(in_trace_name)
 
         # wait for TSCHED to start
-        self.env.all_of([self.tsched_proc])
+        self.env.all_of([self.stomp.action])
 
         ## Read trace file and populate DAG information ##
         ## This adds dags into dag_id_list in the order of their arrival time
@@ -552,12 +555,12 @@ class META:
         self.push_ready_tasks()
         self.profiler.rtime += datetime.now() - start
 
-        self.print("Running event loop")
+        # self.print("Running event loop")
 
         while True:
             tick, event = yield from handle_event(self.env, self.meta_eventq)
             message_decode_event(self, event)
-            self.print("tick: {}, event: {}".format(tick, event))
+            # self.print("tick: {}, event: {}".format(tick, event))
 
             if event == events.TASK_COMPLETED:
                 start = datetime.now()
@@ -567,7 +570,7 @@ class META:
                 self.push_ready_tasks()
                 self.profiler.rtime += datetime.now() - start
             elif event == events.META_DONE:
-                self.print("Meta done!")
+                # self.print("Meta done!")
                 break
             elif event == events.SIM_LIMIT:
                 assert False
@@ -582,7 +585,6 @@ class META:
         while self.end_list:
             end_entry = self.end_list.pop(0)
             fho.write("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + '\n')
-            # end_entry = (dag_id_completed,dag_completed.priority,dag_completed.dag_type,dag_completed.slack, dag_completed.resp_time, dag_completed.noaffinity_time)
 
         self.dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
         while self.dropped_list:

@@ -40,7 +40,7 @@ from subprocess import check_output
 from collections import defaultdict
 from builtins import str
 
-JOBS_LIM = 16
+JOBS_LIM = 32
 
 PWR_MGMT     = [False]
 PTOKS        = [100000] # [6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000] # , 10500, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000, 100000]
@@ -54,7 +54,7 @@ CONTENTION       = [True] #, False]
 
 APP              = ['synthetic'] #, 'mapping', 'package', 'synthetic']
 POLICY_SOTA      = ['ads', 'edf_ver5', 'rheft']
-POLICY_NEW       = ['simple_policy_ver5','ms1_hom','ms1_hetero','ms1_hyb', 'ms1_hyb_update', 'ms2_hom','ms2_hetero','ms2_hyb', 'ms2_hyb_update']
+POLICY_NEW       = ['simple_policy_ver5','ms1_hom','ms1_hetero','ms1_hyb', 'ms1_hyb_update'] # , 'ms2_hom','ms2_hetero','ms2_hyb', 'ms2_hyb_update']
 POLICY           = POLICY_SOTA + POLICY_NEW
 STDEV_FACTOR     = [0.01] # percentages
 #NEW
@@ -70,10 +70,11 @@ PROB             = [0.1, 0.2, 0.3, 0.5]
 DROP             = [False, True]
 dl_scale         = 1
 
-RUNS = 1000#32#50
-DELTA = 0.1#5#1.0
+RUNS = 20#32#50
+DELTA = 0.5#5#1.0
 
 total_count = len(APP) * len(POLICY) * len(STDEV_FACTOR) * len(ARRIVE_SCALE0) * len(PROB) * len(DROP)
+print("Total jobs launched: {}".format(total_count))
 
 def usage_and_exit(exit_code):
     stdout.write('\nusage: run_all.py [--help] [--verbose] [--csv-out] [--save-stdout] [--pre-gen-tasks] [--arrival-trace] [--input-trace] [--user-input-trace] [--user-input-trace-debug] [--run_hetero]\n\n')
@@ -342,6 +343,7 @@ def main(argv):
                                                         print("Running command")
                                                         p = subprocess.Popen(command_str, stdout=out, stderr=subprocess.STDOUT, shell=True)
                                                         process.append(p)
+                                                        print("Process count now: {} (lim {})".format(len(process), JOBS_LIM))
                                                         if len(process) >= JOBS_LIM:
                                                             print(str(run_count) + "/" + str(total_count))
                                                             for p in process:

@@ -1,6 +1,26 @@
 #!/usr/bin/env python
+#
+# Copyright 2022 IBM
+#
+# This is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3, or (at your option)
+# any later version.
+#
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this software; see the file COPYING.  If not, write to
+# the Free Software Foundation, Inc., 51 Franklin Street,
+# Boston, MA 02110-1301, USA.
+#
+
 from queue import PriorityQueue
 from queue import Queue
+from multiprocessing.managers import SyncManager
 import simpy
 
 class bcolors:
@@ -132,3 +152,25 @@ def message_decode_event(obj, event_name):
         obj.print("TASK_COMPLETED")
     else:
         raise NotImplementedError
+
+class SharedObjs:
+    def __init__(self, max_timesteps):
+        self.env = simpy.Environment()
+        self.max_timesteps = max_timesteps
+
+        SyncManager.register("MyPriorityQueue", MyPriorityQueue)  # Register a shared PriorityQueue
+        SyncManager.register("EventQueue", EventQueue)  # Register a shared EventQueue
+        SyncManager.register("CheckableQueue", CheckableQueue)  # Register a shared CheckableQueue
+        self.m = SyncManager()
+        self.m.start()
+
+    def setup_env(self):
+        self.tsched_eventq      = self.m.EventQueue()
+        self.meta_eventq        = self.m.EventQueue()
+        self.global_task_trace  = self.m.MyPriorityQueue()
+        self.tasks_completed    = self.m.Queue()
+        self.dags_dropped       = self.m.CheckableQueue()
+        self.drop_hint_list     = self.m.CheckableQueue()
+
+    def run(self):
+        self.env.run(until=self.max_timesteps)
