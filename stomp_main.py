@@ -49,13 +49,13 @@ def update(d, u):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--conf-file', '-c', type=str, default="stomp.json",
-                help="Stomp configuration JSON file.")
+                help="specifies a json configuration file for STOMP to use this run")
     parser.add_argument('--input-trace', '-i', type=str,
-                help="External input trace file.")
+                help="specifies the filename from which STOMP should read an input DAG trace")
     parser.add_argument('--conf-json', '-j', type=str,
-                help="String JSON configuration to override configuration read from conf-file.")
+                help="specifies a json string that includes the configuration information for STOMP to use this run")
     parser.add_argument('--debug', '-d', action="store_true",
-                help="Enable debug prints.")
+                help="Output run-time debugging messages")
     args = parser.parse_args()
     return args
 
