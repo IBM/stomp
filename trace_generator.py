@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys, getopt
 import importlib
 import json
@@ -48,7 +48,7 @@ class TRACE:
                 # trace_entry = (atime,dag_id,dag_type,priority,deadline_dag)
                 output_trace[prob].write('%d,%d,%s,%s,%d\n' % (atime,dag_id,dag_type,priority,deadline_dag))
 
-            self.sim_time = int(round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time']*self.params['simulation']['arrival_time_scale'], size=1)))
+            self.sim_time = int(numpy.round(self.sim_time + numpy.random.exponential(scale=self.params['simulation']['mean_arrival_time']*self.params['simulation']['arrival_time_scale'], size=1)))
             self.count_dags += 1
 
 if __name__ == "__main__":

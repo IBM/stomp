@@ -79,18 +79,22 @@ class Server:
     def communication_cost(self, task):
         # communication_cost[task.type][parent_server_type][self.server_type]
         noaffinity_time = 0
+        server_type = self.type
+        if(server_type.endswith("accel")):
+            server_type = "accel"
         for parent in task.parent_data:
             if parent[1]  == self.id and parent[0] == self.last_task_id and task.dag_id == self.last_dag_id:
                 noaffinity_time             += 0
             else:
                 parent_server_type          = self.stomp_obj.servers[parent[1]].type
-                server_type = self.type
                 if(parent_server_type.endswith("accel")):
                     parent_server_type = "accel"
-                if(server_type.endswith("accel")):
-                    server_type = "accel"
                 noaffinity_time             += self.stomp_obj.params['simulation']['tasks'][task.type]['comm_cost'][parent_server_type][server_type]
                 # noaffinity_time             += 0.25 * task.mean_service_time_dict[self.type]
+        
+        # Add time for data read not from a parent node. Eg: Weights for Neural network or twiddle factors for FFT
+        noaffinity_time += self.stomp_obj.params['simulation']['tasks'][task.type]['data_cost'][server_type]
+        
         return float(noaffinity_time)
 
     def assign_task(self, sim_time, task, service_time_scale=None):
@@ -274,6 +278,7 @@ class STOMP:
             'task_tid,'
             'task_priority,'
             'dag_dtime,'
+            'task_subdeadline,'
             'task_parent_ids,'
             'task_arrival_time,'
             'curr_job_start_time,'
@@ -388,7 +393,7 @@ class STOMP:
 
         assert self.stats['Tasks Serviced'] != 0
         avg_resp_time = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
-        self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%d,%d,%d,%d,%s,%d,%d,%d\n' % (
+        self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%d,%d,%d,%d,%d,%s,%d,%d,%d\n' % (
             self.env.now,
             avg_resp_time,
             server.task.trace_id,
@@ -400,6 +405,7 @@ class STOMP:
             server.task.tid,
             server.task.priority,
             server.task.dtime,
+            server.task.deadline,
             str([x for (x,y) in server.task.parent_data]).replace(',', '')[1:-1],
             server.task.arrival_time,
             server.curr_job_start_time,

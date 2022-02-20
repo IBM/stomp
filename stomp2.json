@@ -15,7 +15,7 @@
     "simulation" : {
         "application":         "ad",
         "meta_policy_module":  "meta_policies.ms",
-        "sched_policy_module": "policies.simple_policy_ver2",
+        "sched_policy_module": "policies.ms_update",
         "policy":              "ms1",
         "contention":          false,
         "drop":                false,
@@ -225,6 +225,11 @@
                         "accel"     : 10.887
                     }
                 },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
+                },
                 "priority" : 1,
                 "deadline" : 1000
             },
@@ -261,6 +266,11 @@
                         "gpu"       : 9.172,
                         "accel"     : 104.515
                     }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
                 },
                 "priority" : 2,
                 "deadline" : 1000
@@ -299,6 +309,11 @@
                         "accel"     : 2.177
                     }
                 },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
+                },
                 "priority" : 3,
                 "deadline" : 1000
             },
@@ -329,6 +344,11 @@
                         "gpu"       : 0.000,
                         "accel"     : 0.000
                     }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
                 },
                 "priority" : 4,
                 "deadline" : 1000
@@ -361,6 +381,11 @@
                         "accel"     : 0.000
                     }
                 },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
+                },
                 "priority" : 5,
                 "deadline" : 1000
             },
@@ -391,6 +416,11 @@
                         "gpu"       : 0.000,
                         "accel"     : 0.000
                     }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
                 },
                 "priority" : 6,
                 "deadline" : 1000
@@ -423,6 +453,11 @@
                         "accel"     : 0.000
                     }
                 },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
+                },
                 "priority" : 7,
                 "deadline" : 1000
             },
@@ -453,6 +488,11 @@
                         "accel"     : 0.000
                     }
                 },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
+                },
                 "priority" : 8,
                 "deadline" : 1000
             },
@@ -482,6 +522,11 @@
                         "gpu"       : 0.000,
                         "accel"     : 0.000
                     }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
                 },
                 "priority" : 9,
                 "deadline" : 1000
@@ -516,6 +561,11 @@
                         "accel"     : 0.000
                     }
                 },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
+                },
                 "priority" : 10,
                 "deadline" : 1000
             },
@@ -548,6 +598,11 @@
                         "gpu"       : 22.284,
                         "accel"     : 0.000
                     }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
                 },
                 "priority" : 11,
                 "deadline" : 1000
