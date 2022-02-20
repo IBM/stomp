@@ -92,8 +92,9 @@ class Server:
                 noaffinity_time             += self.stomp_obj.params['simulation']['tasks'][task.type]['comm_cost'][parent_server_type][server_type]
                 # noaffinity_time             += 0.25 * task.mean_service_time_dict[self.type]
         
-        # Add time for data read not from a parent node. Eg: Weights for Neural network or twiddle factors for FFT
-        noaffinity_time += self.stomp_obj.params['simulation']['tasks'][task.type]['data_cost'][server_type]
+        # Add time for data read not from a parent node if same task was performed on the server before. Eg: Weights for Neural network or twiddle factors for FFT
+        if(self.task == None or self.task.type != task.type):
+            noaffinity_time += self.stomp_obj.params['simulation']['tasks'][task.type]['data_cost'][server_type]
         
         return float(noaffinity_time)
 
