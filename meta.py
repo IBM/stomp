@@ -81,7 +81,8 @@ class TASK:
         self.rank                       = -1
         self.processor                  = -1
 
-    def init_task(self, arrival_time, dag_id, tid, type, params, priority, deadline, dag_dtime):
+    def init_task(self, arrival_time, dag_type, dag_id, tid, type, params, priority, deadline, dag_dtime):
+        self.dag_type                   = dag_type
         self.dag_id                     = dag_id
         self.tid                        = tid
         self.type                       = type  # The task type
@@ -426,7 +427,7 @@ class META:
                             deadline = int(deadline*float(the_dag_sched.comp[task_node.tid][1]))
 
                         # Initialize task during execution
-                        task_node.init_task(atime, dag_id, task_node.tid, task_type, self.params['simulation']['tasks'][task_type], priority, deadline, int(the_dag_sched.dtime))
+                        task_node.init_task(atime, the_dag_sched.dag_type, dag_id, task_node.tid, task_type, self.params['simulation']['tasks'][task_type], priority, deadline, int(the_dag_sched.dtime))
 
                         # Set task variables specific to the policy
                         task_node.task_variables = self.meta_policy.set_task_variables(the_dag_sched, task_node)

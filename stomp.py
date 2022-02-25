@@ -275,7 +275,8 @@ class STOMP:
             'id,'
             'type,'
             'curr_service_time,'
-            'task_dag_id,'
+            'dag_type,'
+            'dag_id,'
             'task_tid,'
             'task_priority,'
             'dag_dtime,'
@@ -394,7 +395,7 @@ class STOMP:
 
         assert self.stats['Tasks Serviced'] != 0
         avg_resp_time = self.stats['Avg Resp Time'] / self.stats['Tasks Serviced']
-        self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%d,%d,%d,%d,%d,%s,%d,%d,%d\n' % (
+        self.task_trace_file.write('%ld,%.1f,%d,%s,%d,%s,%d,%s,%d,%d,%d,%d,%d,%s,%d,%d,%d\n' % (
             self.env.now,
             avg_resp_time,
             server.task.trace_id,
@@ -402,6 +403,7 @@ class STOMP:
             server.id,
             server.type,
             server.curr_service_time,
+            server.task.dag_type,
             server.task.dag_id,
             server.task.tid,
             server.task.priority,
