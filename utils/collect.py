@@ -75,7 +75,7 @@ def main(argv):
     if(app == "synthetic"):
         conf_file    = './stomp.json'
     else:
-        conf_file    = './stomp2.json'
+        conf_file    = './stomp_real.json'
  
     # Load stomp params from json file
     stomp_params = {}
