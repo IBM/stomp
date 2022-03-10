@@ -40,7 +40,6 @@
         "power_mgmt_enabled":  false,
         "max_queue_size":      1000000,
         "arrival_time_scale":  1.0,
-        "deadline_scale":      1,
         "progress_intvl_f":    1000,
 
         "applications": {
@@ -103,61 +102,89 @@
         },
 
         "policies": {
-            "ms1" : {
-                "meta_policy" : "ms",
-                "tsched_policy": "ms"
-            },
-            "ms2" : {
-                "meta_policy" : "ms",
-                "tsched_policy": "ms"
-            },
-            "ms3" : {
-                "meta_policy" : "ms",
-                "tsched_policy": "ms"
-            },
-            "ms1_update" : {
-                "meta_policy" : "ms",
-                "tsched_policy": "ms_update"
-            },
-            "ms2_update" : {
-                "meta_policy" : "ms",
-                "tsched_policy": "ms_update"
-            },
-            "ms3_update" : {
-                "meta_policy" : "ms",
-                "tsched_policy": "ms_update"
-            },
             "heft" : {
                 "meta_policy" : "heft",
-                "tsched_policy": "heft"
+                "task_policy" : "heft"
             },
             "rheft" : {
                 "meta_policy" : "rheft",
-                "tsched_policy": "rheft"
+                "task_policy" : "rheft"
             },
             "edf" : {
                 "meta_policy" : "edf",
-                "tsched_policy": "edf"
+                "task_policy" : "edf"
             },
-            "edf_ver5" : {
+            "edf_eft" : {
                 "meta_policy" : "edf",
-                "tsched_policy": "edf_ver5"
+                "task_policy" : "edf_eft"
             },
             "simple_policy_ver2": {
                 "meta_policy" : "edf",
-                "tsched_policy": "simple_policy_ver2"
+                "task_policy" : "simple_policy_ver2"
             },
-            "simple_policy_ver5": {
+            "ts_eft": {
                 "meta_policy" : "edf",
-                "tsched_policy": "simple_policy_ver5"
+                "task_policy" : "ts_eft"
             },
             "ads" : {
                 "meta_policy" : "heft",
-                "tsched_policy": "ads"
+                "task_policy" : "ads"
             },
-            "ms3_heft" : {
+            "ms1" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms"
+            },
+            "ms2" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms"
+            },
+            "ms1_hom" : {
+                "meta_policy" : "ms_wcet",
+                "task_policy" : "ms_hom"
+            },
+            "ms2_hom" : {
+                "meta_policy" : "ms_wcet",
+                "task_policy" : "ms_hom"
+            },
+            "ms1_hetero" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hetero"
+            },
+            "ms2_hetero" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hetero"
+            },
+            "ms1_hyb" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb"
+            },
+            "ms2_hyb" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb"
+            },
+            "ms1_hyb_update" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb_update"
+            },
+            "ms2_hyb_update" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb"
+            },
+            "ms1_heft" : {
                 "meta_policy" : "heft",
-                "tsched_policy": "ms_update_heft"
+                "task_policy" : "ms_update_heft"
+            },
+            "ms2_heft" : {
+                "meta_policy" : "heft",
+                "task_policy" : "ms_update_heft"
+            },
+            "ms1_dvfs" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb_update_dvfs"
+            },
+            "ms2_dvfs" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb_update_dvfs"
             }
         },
         "servers": {

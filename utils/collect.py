@@ -73,28 +73,15 @@ def main(argv):
 
     # Choose json file base on application
     if(app == "synthetic"):
-        conf_file    = './stomp.json'
+        conf_file    = './inputs/stomp.json'
     else:
-        conf_file    = './stomp_real.json'
+        conf_file    = './inputs/stomp_real.json'
  
     # Load stomp params from json file
     stomp_params = {}
     with open(conf_file) as conf_file:
         stomp_params = json.load(conf_file)
 
-    # dl_scale to have all applications have the same mean arrival time
-    # TODO: Get rid of this by generating traces for all applications at the same mean arrival time
-    dl_scale = 1
-    if(app == "ad"):
-        dl_scale = 5
-        mean_arrival_time = 50
-    elif(app == "mapping" or app == "package"):
-        dl_scale = 2.5
-        mean_arrival_time = 25
-    elif(app == "synthetic"):
-        dl_scale = 1
-        mean_arrival_time = 10
-    
     # Per policy metrics to collect 
     # TODO: Make this more general: "_1" for priority 1 DAGs and "_2" for priority 2 DAGS
     cnt_1                   = {}
@@ -177,8 +164,7 @@ def main(argv):
             if (pwr_mgmt == False):
                 assert(slack_perc == 0 and ptoks == 1000000)
 
-            # Normalize arr_scale for mean_arrival_time
-            arr_scale = float(arr_scale) / dl_scale
+            arr_scale = float(arr_scale) 
 
             #Initialize metrics
             priority_1_slack[policy]        = 0
@@ -262,7 +248,7 @@ def main(argv):
                             if (int(dropped) == 1):
                                 cnt_dropped_1[policy] += 1
                             else:
-                                deadline = stomp_params['simulation']['applications'][app]['dag_types'][dag_type]['deadline'] * (arr_scale * dl_scale)
+                                deadline = stomp_params['simulation']['applications'][app]['dag_types'][dag_type]['deadline'] * (arr_scale)
                                 priority_1_slack[policy] += float(slack)/deadline
 
                                 if(float(slack) >= 0):
@@ -273,7 +259,7 @@ def main(argv):
                             if (int(dropped) == 1):
                                 cnt_dropped_2[policy] += 1
                             else:
-                                deadline = stomp_params['simulation']['applications'][app]['dag_types'][dag_type]['deadline'] * (arr_scale * dl_scale)
+                                deadline = stomp_params['simulation']['applications'][app]['dag_types'][dag_type]['deadline'] * (arr_scale)
                                 priority_2_slack[policy] += float(slack)/deadline
                                 # If slack of Priority 2 DAGs are negative => Mission has failed
                                 if(float(slack) >= 0):

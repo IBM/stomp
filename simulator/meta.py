@@ -420,7 +420,7 @@ class META:
                         #Use SDR for task deadline calculation
                         if (self.params['simulation']['policy'].startswith("ms1")):
                             deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[task_node.tid][1]))
-                        elif (self.params['simulation']['policy'].startswith("ms3")):
+                        elif (self.params['simulation']['policy'].startswith("ms2")):
                             deadline = int(deadline*float(the_dag_sched.comp[task_node.tid][1]))
 
                         # Initialize task during execution
@@ -511,12 +511,12 @@ class META:
                     parent_dict[node.tid] = parent_list
                     # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
                 comp_file = "inputs/{0}/dag_input/dag_{1}.txt".format(application, dag_type)
-                # if (self.params['simulation']['policy'].startswith("ms3")):
+                # if (self.params['simulation']['policy'].startswith("ms2")):
                 #    comp_file = "inputs/{0}/dag_input/dag_{1}_slack.txt".format(application, dag_type)
 
                 comp = read_matrix(comp_file)
                 priority = int(tmp.pop(0))
-                deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale']*self.params['simulation']['deadline_scale'])
+                deadline = int(tmp.pop(0))*(self.params['simulation']['arrival_time_scale'])
                 dtime = atime + deadline
 
                 the_dag_trace = DAG(graph, comp, parent_dict, atime, deadline, dtime, priority, dag_type)

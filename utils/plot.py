@@ -766,29 +766,27 @@ if __name__ == "__main__":
             main(
                  fsize=fsize,
                  path=res_root + "/rank_ordering.csv",
-                 Pol=["TS2", "MS1", "MS2", "MS3"],
+                 Pol=["TS2", "MS1", "MS2"],
                  Prob=[0.1, 0.2, 0.3],
                  basePol=[("TS2", False),("TS2", False),("TS2", False)],
-                 competingPol=[("MS1", False),("MS2", False),("MS3", False)],
+                 competingPol=[("MS1", False),("MS2", False)],
                  Drop=[False],
                  bbox=(0.5, 1),
-                 Ylabs=["MS1", "MS2", "MS3"],
+                 Ylabs=["MS1", "MS2"],
                  ncol=4)
         # if "drop" in choices:
         #     workload = "synthetic"
         #     main(
         #          fsize=(5,2.75),
         #          path=res_root + "/dropping.csv",
-        #          Pol=["MS1", "MS2", "MS3"],
+        #          Pol=["MS1", "MS2"],
         #          Prob=[0.1, 0.2, 0.3],
         #          basePol=[("MS1", False),
-        #                   ("MS2", False),
-        #                   ("MS3", False)],
+        #                   ("MS2", False)],
         #          competingPol=[("MS1", True),
-        #                        ("MS2", True),
-        #                        ("MS3", True)],
+        #                        ("MS2", True)],
         #          Drop=[True, False],
-        #          Ylabs=["MS1", "MS2", "MS3"],
+        #          Ylabs=["MS1", "MS2"],
         #          bbox=(0.5, 1),
         #          ncol=3)
         # if "update_drop" in choices:
@@ -796,16 +794,14 @@ if __name__ == "__main__":
         #     main(
         #          fsize=(5,2.75),
         #          path=res_root + "/dropping1.csv",
-        #          Pol=["MS1_Update", "MS2_Update", "MS3_Update"],
+        #          Pol=["MS1_Update", "MS2_Update"],
         #          Prob=[0.1, 0.2, 0.3],
         #          basePol=[("MS1_Update", False),
-        #                   ("MS2_Update", False),
-        #                   ("MS3_Update", False)],
+        #                   ("MS2_Update", False)],
         #          competingPol=[("MS1_Update", True),
-        #                        ("MS2_Update", True),
-        #                        ("MS3_Update", True)],
+        #                        ("MS2_Update", True)],
         #          Drop=[True, False],
-        #          Ylabs=["MS1", "MS2", "MS3"],
+        #          Ylabs=["MS1", "MS2"],
         #          bbox=(0.5, 1),
         #          ncol=3)
         if choice == "drop":
@@ -816,24 +812,20 @@ if __name__ == "__main__":
                  Pol=[
                       "MS1",
                       "MS2",
-                      "MS3",
                      ],
                  Prob=[0.1, 0.2, 0.3],
                  basePol=[
                           ("MS1", False),
-                          ("MS2", False),
-                          ("MS3", False)
+                          ("MS2", False)
                          ],
                  competingPol=[
                                ("MS1", True),
                                ("MS2", True),
-                               ("MS3", True),
                                ],
                  Drop=[True, False],
                  Ylabs=[
                         "MS1_Drop", 
                         "MS2_Drop", 
-                        "MS3_Drop",
                        ],
                  bbox=(0.5, 1),
                  ncol=3,
@@ -847,27 +839,22 @@ if __name__ == "__main__":
                  Pol=[
                       "MS1",
                       "MS2",
-                      "MS3",
                       "MS1_Update", 
                       "MS2_Update", 
-                      "MS3_Update",
                      ],
                  Prob=[0.1, 0.2, 0.3],
                  basePol=[
                           ("MS1", False),
-                          ("MS2", False),
-                          ("MS3", False)
+                          ("MS2", False)
                          ],
                  competingPol=[
                                ("MS1_Update", False),
                                ("MS2_Update", False),
-                               ("MS3_Update", False),
                                ],
                  Drop=[False],
                  Ylabs=[
                         "MS1_Update", 
                         "MS2_Update", 
-                        "MS3_Update",
                        ],
                  bbox=(0.5, 1),
                  ncol=3,
@@ -881,27 +868,22 @@ if __name__ == "__main__":
                  Pol=[
                       "MS1_Update",
                       "MS2_Update",
-                      "MS3_Update",
                       "MS1",
                       "MS2",
-                      "MS3",
                      ],
                  Prob=[0.1, 0.2, 0.3],
                  basePol=[
                           ("MS1", False),
-                          ("MS2", False),
-                          ("MS3", False)
+                          ("MS2", False)
                          ],
                  competingPol=[
                                ("MS1_Update", True),
                                ("MS2_Update", True),
-                               ("MS3_Update", True),
                                ],
                  Drop=[True, False],
                  Ylabs=[
                         "MS1_Drop_Update", 
                         "MS2_Drop_Update", 
-                        "MS3_Drop_Update",
                        ],
                  bbox=(1, 1),
                  ncol=3,
@@ -912,34 +894,30 @@ if __name__ == "__main__":
         #     main(
         #          fsize=(5,2.75),
         #          path=res_root + "/rank_update1.csv",
-        #          Pol=["MS1", "MS2", "MS3", "MS1_Update", "MS2_Update", "MS3_Update"],
+        #          Pol=["MS1", "MS2", "MS1_Update", "MS2_Update"],
         #          Prob=[0.1, 0.2, 0.3],
         #          basePol=[("MS1", False),
-        #                   ("MS2", False),
-        #                   ("MS3", False)],
+        #                   ("MS2", False)],
         #          competingPol=[("MS1_Update", False),
         #                        ("MS2_Update", False),
-        #                        ("MS3_Update", False)],
         #          Drop=[False],
         #          bbox=(0.5, 1),
-        #          Ylabs=["MS1", "MS2", "MS3"],
+        #          Ylabs=["MS1", "MS2"],
         #          ncol=3)
         # if "drop_update" in choices:
         #     workload = "synthetic"
         #     main(
         #          fsize=(5,2.75),
         #          path=res_root + "/rank_update.csv",
-        #          Pol=["MS1", "MS2", "MS3", "MS1_Update", "MS2_Update", "MS3_Update"],
+        #          Pol=["MS1", "MS2", "MS1_Update", "MS2_Update"],
         #          Prob=[0.1, 0.2, 0.3],
         #          basePol=[("MS1", True),
         #                   ("MS2", True),
-        #                   ("MS3", True)],
         #          competingPol=[("MS1_Update", True),
         #                        ("MS2_Update", True),
-        #                        ("MS3_Update", True)],
         #          Drop=[True],
         #          bbox=(0.5, 1),
-        #          Ylabs=["MS1", "MS2", "MS3"],
+        #          Ylabs=["MS1", "MS2"],
         #          ncol=3)
         if choice == "hetero":
             workload = "synthetic"
@@ -1070,17 +1048,16 @@ if __name__ == "__main__":
         # main(
         #      fsize=(3.5,3.25),
         #      path=res_root + "/rank_update.csv",
-        #      Pol=["MS1", "MS2", "MS3", "MS1_Update", "MS2_Update", "MS3_Update"],
+        #      Pol=["MS1", "MS2", "MS1_Update", "MS2_Update"],
         #      Prob=[0.1, 0.2, 0.3],
         #      basePol=[("MS1", True),
-        #               ("MS2", True),
-        #               ("MS3", True)],
+        #               ("MS2", True)],
         #      Drop=[True],
         #      ncol=3)
         # main(
         #      fsize=(3.5,3.25),
         #      path=res_root + "/motiv.csv",
-        #      Pol=["2step_EDF", "MS1_Update", "MS3_Update"],
+        #      Pol=["2step_EDF", "MS1_Update", "MS2_Update"],
         #      Prob=[0.1, 0.2, 0.3],
         #      basePol=("2step_EDF", False),
         #      Drop=[True, False],

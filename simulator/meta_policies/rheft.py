@@ -27,7 +27,7 @@ class MetaPolicy(BaseMetaPolicy):
         self.pre_schd_data = {}
         for dag_type in dag_types:
             self.pre_schd_data[dag_type]=[]
-            pre_schd_file = "pre_schd/" + application + "_dag_" + dag_type
+            pre_schd_file = "inputs/" + application + "/dag_input/preschd_dag_" + dag_type + ".txt"
             with open(pre_schd_file, 'r') as input_data:
                 for line in input_data.readlines():
                 #   print(line)

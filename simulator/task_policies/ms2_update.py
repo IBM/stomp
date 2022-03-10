@@ -36,7 +36,7 @@
 #
 
 
-# MS3 Update 2 + power constraints + DVFS + reserving task for originally selected server overriding power constraints
+# MS2 Update 2 + power constraints + DVFS + reserving task for originally selected server overriding power constraints
 
 from stomp import BaseSchedulingPolicy
 import logging

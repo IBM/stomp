@@ -52,11 +52,10 @@ CONF_FILE        = None #Automatically set based on app
 PROMOTE          = True
 CONTENTION       = [True] #, False]
 
-APP              = ['synthetic'] #, 'mapping', 'package', 'synthetic']
-POLICY_SOTA      = ['ads', 'edf_ver5', 'rheft']
-POLICY_NEW       = ['simple_policy_ver5','ms1_hom','ms1_hetero','ms1_hyb', 'ms1_hyb_update'] # , 'ms2_hom','ms2_hetero','ms2_hyb', 'ms2_hyb_update']
+APP              = ['synthetic', 'ad', 'mapping', 'package']
+POLICY_SOTA      = ['ads', 'edf_eft', 'rheft', 'heft']
+POLICY_NEW       = ['ts_eft','ms1_hom','ms1_hetero','ms1_hyb', 'ms1_hyb_update', 'ms2_hom','ms2_hetero','ms2_hyb', 'ms2_hyb_update']
 POLICY           = POLICY_SOTA + POLICY_NEW
-STDEV_FACTOR     = [0.01] # percentages
 #NEW
 ARRIVE_SCALE0     = [0.2, 0.2, 0.2, 1.0] # synthetic, ad
 ARRIVE_SCALE1     = [0.1, 0.1, 0.1, 0.1] # mapping
@@ -68,7 +67,6 @@ ARRIVE_SCALE4    = [0.1, 0.1, 0.1, 0.1] # mapping
 ARRIVE_SCALE5    = [0.1, 0.1, 0.1, 0.1] # package
 PROB             = [0.1, 0.2, 0.3, 0.5]
 DROP             = [False, True]
-dl_scale         = 1
 
 RUNS = 1#32#50
 DELTA = 0.5#5#1.0
@@ -136,9 +134,9 @@ def main(argv):
         # We open the JSON config file and update the corresponding
         # parameters directly in the stomp_params dicttionary
         if app == "synthetic":
-            CONF_FILE = './stomp.json'
+            CONF_FILE = './inputs/stomp.json'
         else:
-            CONF_FILE = './stomp_real.json'
+            CONF_FILE = './inputs/stomp_real.json'
 
         with open(CONF_FILE) as conf_file:
             stomp_params = json.load(conf_file)
@@ -162,8 +160,6 @@ def main(argv):
                             print(x)
                             prob = PROB[x]
                             ARRIVE_SCALE = []
-
-                            dl_scale = 1
 
                             #for arr_scale in ARRIVE_SCALE:
                             for y in range(0,RUNS):
@@ -199,11 +195,6 @@ def main(argv):
 
                                     print("Running", policy, drop, arr_scale, run_count)
 
-                                    if(app == "ad"):
-                                        dl_scale = 5
-                                    elif(app == "mapping" or app == "package"):
-                                        dl_scale = 2.5
-                                    arr_scale = arr_scale/dl_scale
                                     for ptoks in PTOKS_:
                                         sim_output[arr_scale] = {}
                                         stomp_params['simulation']['pwr_mgmt'] = pwr_mgmt
@@ -246,13 +237,9 @@ def main(argv):
                                                     # the specific parameters in the input JSON data
                                                     stomp_params['simulation']['application'] = app
                                                     stomp_params['simulation']['policy'] = policy
-                                                    stomp_params['simulation']['sched_policy_module'] = 'policies.' + stomp_params['simulation']["policies"][policy]['tsched_policy']
-                                                    stomp_params['simulation']['meta_policy_module'] = 'meta_policies.' + stomp_params['simulation']["policies"][policy]['meta_policy']
-                                                    stomp_params['simulation']['deadline_scale'] = dl_scale
-                                                    if(app == "ad"):
-                                                        stomp_params['simulation']['mean_arrival_time'] = 50
-                                                    elif(app == "mapping" or app == "package"):
-                                                        stomp_params['simulation']['mean_arrival_time'] = 25
+                                                    print(stomp_params['simulation']["policies"][policy])
+                                                    stomp_params['simulation']['sched_policy_module'] = 'task_policies.' + stomp_params['simulation']["policies"][policy]["task_policy"]
+                                                    stomp_params['simulation']['meta_policy_module'] = 'meta_policies.' + stomp_params['simulation']["policies"][policy]["meta_policy"]
 
                                                     stomp_params['general']['basename'] = policy + \
                                                         "_pwr_mgmt_" + str(pwr_mgmt) + \
@@ -270,14 +257,14 @@ def main(argv):
                                                     ###########################################################################################
                                                     # Create command and execute the simulation
 
-                                                    command = ['./stomp_main.py'
+                                                    command = ['./simulator/stomp_main.py'
                                                                + ' -c ' + CONF_FILE
                                                                + ' -j \'' + conf_str + '\''
                                                                ]
 
                                                     command_str = ' '.join(command)
 
-                                                    command_str = command_str + ' -i ../inputs/' + str(app) + '/trace_files/' + str(app) + '_trace_prob_' + str(prob) + '.trc'
+                                                    command_str = command_str + ' -i ../inputs/' + str(app) + '/trace_files/' + str(app) + '_trace_' + str(prob) + '.trc'
                                                     if (verbose):
                                                         print('Running', command_str)
 

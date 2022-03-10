@@ -181,72 +181,41 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                         min_time = float(service_time)
                     num_servers += 1
 
-            min_slack = t.deadline -(sim_time-t.arrival_time) - (max_time)
-            max_slack = t.deadline -(sim_time-t.arrival_time) - (min_time)
-
-            # Min slack, i.e. slack when executed on slowest server.
-            if (min_slack < 0):
-                if (t.priority > 1):
-                    # Max slack, i.e. slack when executed on fastest server.
-                    if(max_slack >= 0):
-                        slack = 1 + max_slack
-                        t.rank = int((100000 * (t.priority))/slack)
-                        t.rank_type = 4
-                        # print("[%d] [%d,%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
-                        #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, slack, t.arrival_time, max_time, min_time))
-
-                    else:
-                        slack = 1 + 0.99/max_slack
-                        t.rank = int((100000 * (t.priority))/slack)
-                        t.rank_type = 5
-                        # print("[%d] [%d,%d,%d] Deadline passed deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
-                        #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, slack, t.arrival_time, max_time, min_time))
-
-                else:
-                    if (stomp_obj.num_critical_tasks > 0 and self.stomp_params['simulation']['drop'] == True):
-                        # print("[%d] [%d,%d,%d] Critical tasks and min deadline exists deadline:%d, atime:%d, max_time: %d, min_time: %d" %
-                        #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, t.arrival_time, max_time, min_time))
-                        t.rank = 0
-                        t.rank_type = 0
-                        stomp_obj.drop_hint_list.put(t.dag_id)
-
-                        # print("[ID: %d] A hinting from task scheduler" %(t.dag_id))
-                    else:
-                        if(max_slack >= 0):
-                            slack = 1 + max_slack
-                            t.rank = int((100000 * (t.priority))/slack)
-                            t.rank_type = 1
-                            # print("B", t.rank)
-                            # print("[%d] [%d,%d,%d] Min deadline exists deadline:%d, slack: %d, atime:%d, max_time: %d, min_time: %d" %
-                            #     (sim_time, t.dag_id, t.tid, t.priority, t.deadline, slack, t.arrival_time, max_time, min_time))
-
-                        else:
-                            # print("[%d] [%d,%d,%d] Min deadline doesnt exist/priority 1 type:%s with no max deadline:%d, atime:%d, max_time: %d, min_time: %d" %
-                            #     (sim_time, t.dag_id, t.tid, t.priority, t.type, t.deadline,t.arrival_time, max_time, min_time))
-                            if(self.stomp_params['simulation']['drop'] == True):
-                                t.rank = 0
-                                t.rank_type = 0
-                                stomp_obj.drop_hint_list.put(t.dag_id)
-                                # print("[ID: %d] B hinting from task scheduler" %(t.dag_id))
-
-                            else:
-                                slack = 1 + 0.99/max_slack
-                                t.rank = int((100000 * (t.priority))/slack)
-                                t.rank_type = 0
-                                # print("A", t.rank)
-
-
-            else:
-                slack = 1 + min_slack
-                if (t.priority > 1):
+            wcet_slack = t.deadline -(sim_time-t.arrival_time) - (max_time)
+            bcet_slack = t.deadline -(sim_time-t.arrival_time) - (min_time)
+            if (t.priority > 1):
+                if (wcet_slack >= 0):
+                    slack = 1 + wcet_slack
                     t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 3
+                elif (bcet_slack >= 0):
+                    slack = 1 + bcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 4
                 else:
+                    slack = 1 + 0.99/bcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 5
+            else:
+                if (wcet_slack >= 0):
+                    slack = 1 + wcet_slack
                     t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 2
+                elif (bcet_slack >= 0):
+                    slack = 1 + bcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 1
+                else:
+                    slack = 1 + 0.99/bcet_slack
+                    t.rank = int((100000 * (t.priority))/slack)
+                    t.rank_type = 0
 
-			# Remove tasks to be dropped
+            if t.priority == 1 and (stomp_obj.num_critical_tasks > 0 and self.stomp_params['simulation']['drop'] == True) and t.rank_type < 2:
+                stomp_obj.drop_hint_list.put(t.dag_id)
+
+            # Remove tasks to be dropped
             if(self.stomp_params['simulation']['drop'] == True and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
+                stomp_obj.drop_hint_list.put(t.dag_id)
                 removable_tasks.append(t)
 
         for task in removable_tasks:
@@ -254,7 +223,6 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         removable_tasks = []
 
         tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
-
         end = datetime.now()
         self.to_time += end - start
 
@@ -276,37 +244,31 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             for server in self.servers:
 
                 # logging.debug('[%10ld] Checking server %s' % (sim_time, server.type))
-                if (self.stomp_params['simulation']['application'] == "synthetic"):
-                    condition = ((task.priority == 1 and ((server.type == "cpu_core") or stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
-                else:
-                    condition = ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
-                if (condition):
-                    if (server.type in task.mean_service_time_dict):
-                        if (server.busy):
-                            remaining_time  = server.curr_job_end_time - sim_time
-                            for stask in window:
-                                if(stask == task):
-                                    break
-                                if (self.servers.index(server) == stask.possible_server_idx):
-                                    assert stask.possible_mean_service_time != None
-                                    remaining_time += stask.possible_mean_service_time # + server.communication_cost(stask) # set when server for stask is reserved
-                                    if not self.pwr_mgmt:
-                                        assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
-                        else:
-                            remaining_time  = 0
-
-                        mean_service_time   = task.mean_service_time_dict[server.type]
-                        if self.pwr_mgmt and self.dvfs:
-                            slack = task.calc_slack(sim_time, mean_service_time, remaining_time)
-                            usable_slack = slack * self.slack_perc / 100.
-                            # Update mean service time with slack.
-                            mean_service_time += usable_slack
-
-                        actual_service_time = mean_service_time + remaining_time
-
-                        target_servers.append(actual_service_time)
+                condition = ((task.priority == 1 and (stomp_obj.num_critical_tasks <= 0)) or task.priority > 1)
+                if (server.type in task.mean_service_time_dict): #and condition:
+                    if (server.busy):
+                        remaining_time  = server.curr_job_end_time - sim_time
+                        for stask in window:
+                            if(stask == task):
+                                break
+                            if (self.servers.index(server) == stask.possible_server_idx):
+                                assert stask.possible_mean_service_time != None
+                                remaining_time += stask.possible_mean_service_time # + server.communication_cost(stask) # set when server for stask is reserved
+                                if not self.pwr_mgmt:
+                                    assert stask.possible_mean_service_time == stask.mean_service_time_dict[server.type]
                     else:
-                        target_servers.append(float("inf"))
+                        remaining_time  = 0
+
+                    mean_service_time   = task.mean_service_time_dict[server.type]
+                    if self.pwr_mgmt and self.dvfs:
+                        slack = task.calc_slack(sim_time, mean_service_time, remaining_time)
+                        usable_slack = slack * self.slack_perc / 100.
+                        # Update mean service time with slack.
+                        mean_service_time += usable_slack
+
+                    actual_service_time = mean_service_time + remaining_time
+
+                    target_servers.append(actual_service_time)
                 else:
                     target_servers.append(float("inf"))
 

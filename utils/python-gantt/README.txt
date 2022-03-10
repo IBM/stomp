@@ -121,8 +121,6 @@ Example
     tcm21 = gantt.Task(name='tcm21', start=datetime.date(2014, 12, 30), duration=4, depends_of=[ms1])
     tcm22 = gantt.Task(name='tcm22', start=datetime.date(2014, 12, 30), duration=6, depends_of=[ms1])
     ms2 = gantt.Milestone(name='MS2', depends_of=[ms1, tcm21, tcm22])
-    tcm31 = gantt.Task(name='tcm31', start=datetime.date(2014, 12, 30), duration=6, depends_of=[ms2])
-    ms3 = gantt.Milestone(name='MS3', depends_of=[ms1])
 
 
     ptcm.add_task(tcm11)
@@ -131,8 +129,6 @@ Example
     ptcm.add_task(tcm21)
     ptcm.add_task(tcm22)
     ptcm.add_task(ms2)
-    ptcm.add_task(tcm31)
-    ptcm.add_task(ms3)
 
 
     p.add_task(ptcm)

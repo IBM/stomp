@@ -174,7 +174,7 @@ class SchedulingPolicy(BaseSchedulingPolicy):
 
                     mean_service_time   = task.mean_service_time_dict[server.type]
                     actual_service_time = mean_service_time + remaining_time
-                    # logging.debug('[%10ld] Server %s : mst %d ast %d ' % (sim_time, server.type, mean_service_time, actual_service_time))
+
                     target_servers.append(actual_service_time)
                 else:
                     target_servers.append(float("inf"))

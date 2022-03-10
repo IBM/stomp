@@ -35,15 +35,18 @@ Once a trace has been generated, subsequent STOMP runs can use that trace in the
 The requirements to run STOMP are listed in `requirements.txt`.
 
 ## Running STOMP
-
-STOMP can be configured using the `stomp.json` file. To run it:
-
+STOMP can be run with the default parameters:
 ```
-./stomp_main.py
+make run_syn # For synthetic application
+make run_ad  # For the ADSuite application
 ```
-Also checkout the script `run_all_2.py` in utils to run multiple runs for varying scheduling policies and parameters. To run with preloaded parameters and all scheduling policies run:
+STOMP can be configured using the `inputs/stomp.json` for the synthetic application and `inputs/stomp_real.json` for the real-world applications. 
+The inputs required to run STOMP are organized in `inputs`. It contains a folder per application.
+
+Also checkout the script `run_all.py` in utils to run multiple runs and `collect.py` to collect the stats for varying scheduling policies and parameters. To run and collect stats for preloaded parameters and all scheduling policies run:
 ```
 ./utils/run_all.py -ucsv
+./utils/collect.py <output_sim_dir> <application_name> 
 ```
 
 ## Contributors and Current Maintainers
