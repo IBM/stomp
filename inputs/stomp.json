@@ -16,8 +16,8 @@
     "simulation" : {
         "application":         "synthetic",
         "meta_policy_module":  "meta_policies.ms",
-        "sched_policy_module": "task_policies.ms_update",
-        "policy":              "ms1",
+        "sched_policy_module": "task_policies.ms_hyb_update",
+        "policy":              "ms1_hyb_update",
         "contention":          true,
         "drop":                false,
 
