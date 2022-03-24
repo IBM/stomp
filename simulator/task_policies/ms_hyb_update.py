@@ -57,20 +57,21 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.stats['Task Issue Posn'] = numpy.zeros(self.num_bins, dtype=int)  # N-bin histogram
         self.ta_time      = timedelta(microseconds=0)
         self.to_time      = timedelta(microseconds=0)
+        self.drop         = stomp_params['simulation']['drop']
 
 
     def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
+        if self.drop:
+            removable_tasks = []
+            for task in tasks:
+                if dags_dropped.contains(task.dag_id):
+                    removable_tasks.append(task)
+                    if (task.priority > 1):
+                        stomp_obj.num_critical_tasks -= 1
 
-        removable_tasks = []
-        for task in tasks:
-            if dags_dropped.contains(task.dag_id):
-                removable_tasks.append(task)
-                if (task.priority > 1):
-                    stomp_obj.num_critical_tasks -= 1
-
-        for task in removable_tasks:
-            tasks.remove(task)
-        removable_tasks = []
+            for task in removable_tasks:
+                tasks.remove(task)
+            removable_tasks = []
 
         if (len(tasks) == 0):
             # There aren't tasks to serve
@@ -126,17 +127,18 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     t.rank = int((100000 * (t.priority))/slack)
                     t.rank_type = 0
 
-            if t.priority == 1 and (stomp_obj.num_critical_tasks > 0 and self.stomp_params['simulation']['drop'] == True) and t.rank_type < 2:
+            if t.priority == 1 and (stomp_obj.num_critical_tasks > 0 and self.drop) and t.rank_type < 2:
                 stomp_obj.drop_hint_list.put(t.dag_id)
 
             # Remove tasks to be dropped
-            if(self.stomp_params['simulation']['drop'] == True and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
+            if(self.drop and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
                 stomp_obj.drop_hint_list.put(t.dag_id)
                 removable_tasks.append(t)
 
-        for task in removable_tasks:
-            tasks.remove(task)
-        removable_tasks = []
+        if self.drop:
+            for task in removable_tasks:
+                tasks.remove(task)
+            removable_tasks = []
 
         tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
         end = datetime.now()

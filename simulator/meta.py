@@ -28,7 +28,7 @@ import simpy
 import operator
 import logging
 from datetime import datetime, timedelta
-
+from tqdm import tqdm
 import time
 import networkx as nx
 from csv import reader
@@ -320,6 +320,19 @@ class META:
             ## Update stats if DAG has finished execution ##
             if not dag_completed.graph.nodes():
                 self.dags_completed += 1
+                # if self.dags_completed == 40:
+                #     exit(1)
+                # update progressbar
+                self.pbar.update(n=1)
+
+                # print(f"-- {self.dags_completed} DAGs completed")
+                # print(f"tsched_eventq size = {self.tsched_eventq.qsize()}")
+                # print(f"meta_eventq size = {self.meta_eventq.qsize()}")
+                # print(f"global_task_trace size = {self.global_task_trace.qsize()}")
+                # print(f"tasks_completed size = {self.tasks_completed.qsize()}")
+                # print(f"dags_dropped size = {self.dags_dropped.qsize()}")
+                # print(f"drop_hint_list size = {self.drop_hint_list.qsize()}")
+
                 # logging.info("%d: DAG id: %d completed" %(self.stomp.sim_time, dag_id_completed))
                 if(dag_completed.priority == 1 and dag_id_completed >= self.last_promoted_dag_id):
                     # print("[%d]: Completed DAG id: %d priority: %d" %(self.stomp.sim_time, dag_id_completed, dag_completed.priority))
@@ -530,6 +543,8 @@ class META:
                 start = datetime.now()
                 self.meta_policy.meta_static_rank(self.stomp, the_dag_trace)
                 self.profiler.sranktime += datetime.now() - start
+        
+        self.pbar = tqdm(total=len(self.dag_id_list))
 
     def run(self):
         self.meta_policy.init(self.params)
