@@ -20,6 +20,7 @@
 
 from queue import PriorityQueue
 from queue import Queue
+from threading import Lock
 from multiprocessing.managers import SyncManager
 import simpy
 
@@ -107,10 +108,23 @@ class EventQueue(PriorityQueue):
     def __repr__(self):
         return self.__str__()
 
-class CheckableQueue(Queue):
+class SharedSet():
+    def __init__(self):
+        self.mutex = Lock()
+        self.set_  = {}
+
     def contains(self, item):
         with self.mutex:
-            return item in self.queue
+            return item in self.set_.keys()
+
+    def add(self, item_list):
+        with self.mutex:
+            for item in item_list:
+                self.set_[item] = ""
+
+    def remove(self, item):
+        with self.mutex:
+            del self.set_[item]
 
 def handle_event(env, q):
     # print("waiting for event, eventq size now:{}".format(q.qsize()))
@@ -160,7 +174,7 @@ class SharedObjs:
 
         SyncManager.register("MyPriorityQueue", MyPriorityQueue)  # Register a shared PriorityQueue
         SyncManager.register("EventQueue", EventQueue)  # Register a shared EventQueue
-        SyncManager.register("CheckableQueue", CheckableQueue)  # Register a shared CheckableQueue
+        SyncManager.register("SharedSet", SharedSet)  # Register a shared SharedSet
         self.m = SyncManager()
         self.m.start()
 
@@ -169,8 +183,8 @@ class SharedObjs:
         self.meta_eventq        = self.m.EventQueue()
         self.global_task_trace  = self.m.MyPriorityQueue()
         self.tasks_completed    = self.m.Queue()
-        self.dags_dropped       = self.m.CheckableQueue()
-        self.drop_hint_list     = self.m.CheckableQueue()
+        self.dags_dropped       = self.m.SharedSet()
+        self.drop_hint_list     = self.m.SharedSet()
 
     def run(self):
         self.env.run(until=self.max_timesteps)

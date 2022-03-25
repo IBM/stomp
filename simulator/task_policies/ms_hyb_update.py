@@ -59,95 +59,74 @@ class SchedulingPolicy(BaseSchedulingPolicy):
         self.to_time      = timedelta(microseconds=0)
         self.drop         = stomp_params['simulation']['drop']
 
-
-    def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
-        if self.drop:
-            removable_tasks = []
-            for task in tasks:
-                if dags_dropped.contains(task.dag_id):
-                    removable_tasks.append(task)
-                    if (task.priority > 1):
-                        stomp_obj.num_critical_tasks -= 1
-
-            for task in removable_tasks:
-                tasks.remove(task)
-            removable_tasks = []
-
-        if (len(tasks) == 0):
-            # There aren't tasks to serve
-            return None
-
-        if (len(tasks) > max_task_depth_to_check):
-            window_len = max_task_depth_to_check
+    def assign_rank_and_type(self, t, wcet_slack, bcet_slack):
+        if (t.priority > 1):
+            if (wcet_slack >= 0):
+                slack = 1 + wcet_slack
+                t.rank = int((100000 * (t.priority))/slack)
+                t.rank_type = 3
+            elif (bcet_slack >= 0):
+                slack = 1 + bcet_slack
+                t.rank = int((100000 * (t.priority))/slack)
+                t.rank_type = 4
+            else:
+                slack = 1 + 0.99/bcet_slack
+                t.rank = int((100000 * (t.priority))/slack)
+                t.rank_type = 5
         else:
-            window_len = len(tasks)
+            if (wcet_slack >= 0):
+                slack = 1 + wcet_slack
+                t.rank = int((100000 * (t.priority))/slack)
+                t.rank_type = 2
+            elif (bcet_slack >= 0):
+                slack = 1 + bcet_slack
+                t.rank = int((100000 * (t.priority))/slack)
+                t.rank_type = 1
+            else:
+                slack = 1 + 0.99/bcet_slack
+                t.rank = int((100000 * (t.priority))/slack)
+                t.rank_type = 0
 
-        start = datetime.now()
+    def calculate_slacks(self, t, sim_time):
+        # Done now at META init.
+        #
+        # max_time = 0
+        # min_time = 100000
+        # for stype in t.per_server_service_dict:
+        #     service_time   = t.per_server_service_dict[stype]
+        #     if(max_time < float(service_time)):
+        #         max_time = float(service_time)
+        #     if(min_time > float(service_time)):
+        #         min_time = float(service_time)
+        # assert max_time == t.max_time
+        # assert min_time == t.min_time
+        wcet_slack = t.deadline -(sim_time-t.arrival_time) - (t.max_time)
+        bcet_slack = t.deadline -(sim_time-t.arrival_time) - (t.min_time)
+        return wcet_slack, bcet_slack
 
+    def rank_tasks(self, stomp_obj, sim_time, tasks):
+        removable_tasks = []
+        drop_hint_list = set()
         for t in tasks:
             # Get the min and max service_time of this task across all servers.
-            max_time = 0
-            min_time = 100000
-            num_servers = 0
-            for server in self.servers:
-                if (server.type in t.per_server_service_dict):
-                    service_time   = t.per_server_service_dict[server.type]
-                    if(max_time < float(service_time)):
-                        max_time = float(service_time)
-                    if(min_time > float(service_time)):
-                        min_time = float(service_time)
-                    num_servers += 1
+            wcet_slack, bcet_slack = self.calculate_slacks(t, sim_time)
+            self.assign_rank_and_type(t, wcet_slack, bcet_slack)
 
-            wcet_slack = t.deadline -(sim_time-t.arrival_time) - (max_time)
-            bcet_slack = t.deadline -(sim_time-t.arrival_time) - (min_time)
-            if (t.priority > 1):
-                if (wcet_slack >= 0):
-                    slack = 1 + wcet_slack
-                    t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 3
-                elif (bcet_slack >= 0):
-                    slack = 1 + bcet_slack
-                    t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 4
-                else:
-                    slack = 1 + 0.99/bcet_slack
-                    t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 5
-            else:
-                if (wcet_slack >= 0):
-                    slack = 1 + wcet_slack
-                    t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 2
-                elif (bcet_slack >= 0):
-                    slack = 1 + bcet_slack
-                    t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 1
-                else:
-                    slack = 1 + 0.99/bcet_slack
-                    t.rank = int((100000 * (t.priority))/slack)
-                    t.rank_type = 0
+            if self.drop:
+                if t.priority == 1:
+                    if (stomp_obj.num_critical_tasks > 0 and t.rank_type < 2) or (t.rank == 0 and t.rank_type == 0):
+                        removable_tasks.append(t)
+                        drop_hint_list.add(t.dag_id)
 
-            if t.priority == 1 and (stomp_obj.num_critical_tasks > 0 and self.drop) and t.rank_type < 2:
-                stomp_obj.drop_hint_list.put(t.dag_id)
+        stomp_obj.drop_hint_list.add(drop_hint_list)
 
-            # Remove tasks to be dropped
-            if(self.drop and t.rank == 0 and t.rank_type == 0 and t.priority == 1):
-                stomp_obj.drop_hint_list.put(t.dag_id)
-                removable_tasks.append(t)
-
-        if self.drop:
+        if self.drop and removable_tasks:
             for task in removable_tasks:
                 tasks.remove(task)
             removable_tasks = []
 
-        tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
-        end = datetime.now()
-        self.to_time += end - start
-
-        window = tasks[:window_len]
-
-        tidx = 0;
-        start = datetime.now()
+    def assign_task(self, stomp_obj, sim_time, tasks, window):
+        tidx = 0
         free_cpu_count = 0
         for server in self.servers:
             if not server.busy and server.type == "cpu_core":
@@ -204,19 +183,50 @@ class SchedulingPolicy(BaseSchedulingPolicy):
                     bin = len(self.stats['Task Issue Posn']) - 1
                 # logging.debug('[          ] Set BIN from %d / %d to %d vs %d = %d' % (tidx, self.bin_size, int(tidx / self.bin_size), len(self.stats['Task Issue Posn']), bin))
                 self.stats['Task Issue Posn'][bin] += 1
-                end = datetime.now()
-                self.ta_time += end - start
                 return server
             else:
                 task.possible_server_idx = server_idx
             tidx += 1  # Increment task idx
+        return None
+
+    def assign_task_to_server(self, sim_time, tasks, dags_dropped, stomp_obj):
+        if self.drop:
+            removable_tasks = []
+            for task in tasks:
+                if dags_dropped.contains(task.dag_id):
+                    removable_tasks.append(task)
+                    if (task.priority > 1):
+                        stomp_obj.num_critical_tasks -= 1
+
+            for task in removable_tasks:
+                tasks.remove(task)
+            removable_tasks = []
+
+        if (len(tasks) == 0):
+            # There aren't tasks to serve
+            return None
+
+        if (len(tasks) > max_task_depth_to_check):
+            window_len = max_task_depth_to_check
+        else:
+            window_len = len(tasks)
+
+        start = datetime.now()
+        self.rank_tasks(stomp_obj, sim_time, tasks)
+        tasks.sort(key=lambda task: (task.rank_type,task.rank), reverse=True)
+        end = datetime.now()
+        self.to_time += end - start
+
+        window = tasks[:window_len]
+
+        start = datetime.now()
+        server_assigned = self.assign_task(stomp_obj, sim_time, tasks, window)
         end = datetime.now()
         self.ta_time += end - start
-        return None
+        return server_assigned
 
     def remove_task_from_server(self, sim_time, server):
         pass
-
 
     def output_final_stats(self, sim_time):
         logging.info('   Task Issue Position: %s' % (', '.join(map(str,self.stats['Task Issue Posn']))))

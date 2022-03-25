@@ -96,6 +96,8 @@ class TASK:
         self.departure_time             = None
         self.per_server_services        = []    # Holds ordered list of service times
         self.per_server_service_dict    = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
+        self.max_time                   = None
+        self.min_time                   = None
         self.task_service_time          = None  # To be set upon scheduling, since it depends on the target server
         self.task_lifetime              = None  # To be set upon finishing; includes time span from arrival to departure
         self.trace_id                   = None
@@ -228,6 +230,8 @@ class META:
         self.stomp          = stomp_sim
         self.meta_policy    = meta_policy
 
+        self.drop           = self.params['simulation']['drop']
+
         self.ticks_since_last_promote = 0
         self.last_promoted_dag_id = 0
         self.promote_interval = 100*self.params['simulation']['arrival_time_scale']*self.params['simulation']['mean_arrival_time']
@@ -348,7 +352,7 @@ class META:
 
     def push_ready_tasks(self):
         # Check for DAGs to be dropped
-        if(self.params['simulation']['drop'] == True):
+        if self.drop == True:
             temp_dropped_id_list = [] #Temporary list to remove dropped DAGs from main DAG ID list and DAG dict
             for dag_id in self.dag_id_list:
                 the_dag_sched = self.dag_dict[dag_id]
@@ -361,7 +365,6 @@ class META:
                 if self.drop_hint_list.contains(dag_id) and the_dag_sched.priority == 1:
                     # print("[ID: %d]Dropping based on hint from task scheduler" %(dag_id))
                     dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
-                    self.dags_dropped.put(dag_id)
                     self.dropped_list.append(dropped_entry)
                     temp_dropped_id_list.append(dag_id)
                     continue
@@ -372,7 +375,7 @@ class META:
                             if(self.meta_policy.dropping_policy(the_dag_sched, node)):
                                 # logging.info("%d: [DROPPED] DAG id: %d dropped" %(self.stomp.sim_time, dag_id))
                                 dropped_entry = (dag_id,the_dag_sched.priority,the_dag_sched.dag_type,the_dag_sched.slack, the_dag_sched.resp_time, the_dag_sched.noaffinity_time)
-                                self.dags_dropped.put(dag_id)
+                                self.dags_dropped.add(dag_id)
                                 self.dropped_list.append(dropped_entry)
                                 temp_dropped_id_list.append(dag_id)
                                 break
@@ -382,6 +385,7 @@ class META:
             for dag_id_dropped in temp_dropped_id_list:
                 self.dag_id_list.remove(dag_id_dropped)
                 del self.dag_dict[dag_id_dropped]
+            self.dags_dropped.add(temp_dropped_id_list)
 
         ## Check for ready tasks ##
         # self.print("dag_id_list: {}".format(self.dag_id_list))
@@ -469,6 +473,8 @@ class META:
 
                             count += 1
 
+                        task_node.max_time = max_time
+                        task_node.min_time = min_time
                         # Dynamic Rank Assignment
                         start = datetime.now()
                         self.meta_policy.meta_dynamic_rank(self.stomp, task_node, the_dag_sched.comp, max_time, min_time, deadline, priority)
@@ -544,7 +550,7 @@ class META:
                 self.meta_policy.meta_static_rank(self.stomp, the_dag_trace)
                 self.profiler.sranktime += datetime.now() - start
         
-        self.pbar = tqdm(total=len(self.dag_id_list))
+        self.pbar = tqdm(total=len(self.dag_id_list) if not self.drop else None)
 
     def run(self):
         self.meta_policy.init(self.params)
@@ -598,10 +604,11 @@ class META:
             end_entry = self.end_list.pop(0)
             fho.write("0," + str(end_entry[0]) + ',' + str(end_entry[1]) + ',' + str(end_entry[2]) + ',' + str(end_entry[3]) + ',' + str(end_entry[4]) + ',' + str(end_entry[5]) + '\n')
 
-        self.dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
-        while self.dropped_list:
-            dropped_entry = self.dropped_list.pop(0)
-            fho.write("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5]) + '\n')
+        if self.drop:
+            self.dropped_list.sort(key=lambda dropped_entry: dropped_entry[0], reverse=False)
+            while self.dropped_list:
+                dropped_entry = self.dropped_list.pop(0)
+                fho.write("1," + str(dropped_entry[0]) + ',' + str(dropped_entry[1]) + ',' + str(dropped_entry[2]) + ',' + str(dropped_entry[3]) + ',' + str(dropped_entry[4]) + ',' + str(dropped_entry[5]) + '\n')
 
         if self.all_tasks_energy == 0:
             logging.error("Energy could not be computed.")

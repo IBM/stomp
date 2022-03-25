@@ -4,3 +4,4 @@ sim_*
 *.swp
 *.swo
 *.csv
+*.out
