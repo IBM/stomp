@@ -66,6 +66,10 @@ STOMP-viz outputs different views of tasks' execution over time
 A screenshot of the output of STOMP-viz on an example trace execution is shown below.
 ![](stomp-viz-example.png)
 
+## Citation
+If you use the meta-wip branch please cite our paper:
+A. Amarnath et al., "Heterogeneity-Aware Scheduling on SoCs for Autonomous Vehicles," in IEEE Computer Architecture Letters, vol. 20, no. 2, pp. 82-85, 1 July-Dec. 2021
+
 ## Contributors and Current Maintainers
 
  * Aporva Amarnath (IBM) -- aporva.amarnath@ibm.com
