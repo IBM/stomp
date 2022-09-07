@@ -80,6 +80,9 @@ class TASK:
         self.scheduled                  = 0
         self.rank                       = -1
         self.processor                  = -1
+        self.logical_obs                = {}
+        self.static_server_id           = None
+        # self.key = key
 
     def init_task(self, arrival_time, dag_type, dag_id, tid, type, params, priority, deadline, dag_dtime):
         self.dag_type                   = dag_type
@@ -107,6 +110,8 @@ class TASK:
         self.possible_mean_service_time = None
         self.peid                       = None
         self.parent_data                = []
+        # TODO: LNN: populate this
+        self.children_data              = []
         self.server_type                = None
         self.ptoks_used                 = None  # Power consumed during actual execution on servers[server_type]
         self.power_dict                 = params['power']
@@ -121,7 +126,8 @@ class TASK:
         return self.deadline - wait_time - actual_time
 
     def __str__(self):
-        return ('[{}.{}]'.format(self.dag_id, self.tid) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
+        return ('[{}]'.format(self.tid))
+        # return ('[{}.{}]'.format(self.dag_id, self.tid) + ' ( ' + self.type + ' ) ' + str(self.arrival_time))
 
     def __repr__(self):
         return self.__str__()
@@ -263,9 +269,13 @@ class META:
         #logging.info(bcolors.WARNING + "[%10ld][  META] " % self.env.now + str(string) + bcolors.ENDC)
 
     def handle_task_completion(self):
+
+        # TODO: LNN monitors the task completion - Maybe create an event for all the complete task siblings
+        
         if self.tasks_completed.empty():
             return
         task_completed = self.tasks_completed.get()
+                
         # self.print("task_completed = {}".format(task_completed))
         dag_id_completed = task_completed.dag_id
 
@@ -392,7 +402,11 @@ class META:
         for dag_id in self.dag_id_list:
             the_dag_sched = self.dag_dict[dag_id]
 
+            siblings = []
             ## Push ready tasks into ready queue ##
+            for task_node, deg in the_dag_sched.graph.in_degree():
+                if deg == 0:
+                    siblings.append(task_node)
             for task_node, deg in the_dag_sched.graph.in_degree():
                 if deg == 0:
                     # PROMOTE DAGs
@@ -518,6 +532,16 @@ class META:
 
                 graphml_file = "inputs/{0}/dag_input/dag{1}.graphml".format(application, dag_type)
                 graph = nx.read_graphml(graphml_file, TASK)
+
+                # Read static assignment and update each task node
+                graph_prop = nx.read_graphml(graphml_file)
+                leaf_nodes = [node for node in graph_prop.nodes()]
+                static_server_dict = nx.get_node_attributes(graph_prop, 'server_id')
+                for node in graph.nodes():
+                    node.static_server_id = int(static_server_dict[str(node.tid)])
+
+
+                # TODO: LNN: MartOpt reads the static server assigned id of all tasks
 
                 #### AFFINITY ####
                 # Add matrix to maintain parent node id's

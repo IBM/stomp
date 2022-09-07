@@ -33,6 +33,37 @@ from utils import MyPriorityQueue, EventQueue, message_decode_event, events, bco
 
 from meta import TASK
 
+class MARTOpt:
+    def __init__(self, id):
+        self.server_id = id
+        self.task_assigned = None 
+        self.admissible_actions = {}
+
+    def request_tokens(self):
+        return 100
+    
+    def predict_token_needs_v1(self, task_assigned, admissible_actions):
+        # task not assigned -> 0 token
+        if not task_assigned.logical_obs["TaskAssigned"]:
+            return 0
+
+        # task assigned but parent tasks are not completed -> 0 token
+        if task_assigned.logical_obs["TaskAssigned"] and not task_assigned.logical_obs["ParentTasksCompleted"]:
+            return 0
+
+        # task assigned, parent tasks are completed and no sibling tasks -> 100 tokens
+        if task_assigned.logical_obs["TaskAssigned"] and task_assigned.logical_obs["ParentTasksCompleted"] and not task_assigned.logical_obs["SiblingTasks"]:
+            return 100
+
+        # task assigned, parent tasks are completed and sibling task exists -> tokens with highest Eff
+        if task_assigned.logical_obs["TaskAssigned"] and task_assigned.logical_obs["ParentTasksCompleted"] and task_assigned.logical_obs["SiblingTasks"]:
+            action_probs = {action: task_assigned.logical_obs.get(f'Eff_{action}', 0) for action in admissible_actions}
+            return max(action_probs, key=action_probs.get)
+
+        return 0
+
+
+
 ###############################################################################
 # This class represents a 'server' in the system; i.e. an entity that can     #
 # process tasks. Each server has an associated 'type' (e.g. CPU, GPU, etc.)   #
@@ -50,7 +81,9 @@ class Server:
         self.busy_time          = 0
         self.last_dag_id        = None
         self.last_task_id       = None
-
+        self.martopt            = MARTOpt(id)
+        #TODO: parameters for fraction calculation of task running on server
+        
         self.stats                            = {}
         self.stats['Tasks Serviced']          = 0
         self.stats['Tasks Serviced per Type'] = {}
@@ -339,6 +372,9 @@ class STOMP:
             #self.supported_servers.append(server_type)
 
     def release_server(self, server):
+
+        # TODO: LNN: Task completed, sibling tasks updated in other server
+
         # Update statistics
         task_type = server.task.type
 
@@ -743,6 +779,10 @@ class STOMP:
                 curtick, next_serv_end = self.released_servers.get()
                 assert curtick == self.env.now
                 assert next_serv_end.task != None
+
+                #TODO: LNN: Update % of completed for all tiles and broadcast to the LNN agents
+
+
                 self.release_server(next_serv_end)
 
                 self.stats['Running Tasks'] -= 1
