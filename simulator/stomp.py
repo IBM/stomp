@@ -82,7 +82,7 @@ class Server:
         self.last_dag_id        = None
         self.last_task_id       = None
         self.martopt            = MARTOpt(id)
-        #TODO: parameters for fraction calculation of task running on server
+        #TODO: LNN: parameters for fraction calculation of task running on server
         
         self.stats                            = {}
         self.stats['Tasks Serviced']          = 0
@@ -781,7 +781,9 @@ class STOMP:
                 assert next_serv_end.task != None
 
                 #TODO: LNN: Update % of completed for all tiles and broadcast to the LNN agents
-
+                #TODO: LNN: Recalculation for sibling task server 
+                # for every server of the siblings:
+                #     server.martopt.recalculate_tokens()
 
                 self.release_server(next_serv_end)
 
