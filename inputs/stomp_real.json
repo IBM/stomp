@@ -18,7 +18,7 @@
         "meta_policy_module":  "meta_policies.ms",
         "sched_policy_module": "task_policies.ms_hyb_update",
         "policy":              "ms1_hyb_update",
-        "contention":          true,
+        "contention":          false,
         "drop":                false,
 
         "pwr_mgmt": false,
@@ -263,7 +263,7 @@
                     "cpu_core" : {
                         "cpu_core"  : 40.924,
                         "gpu"       : 14.788,
-                        "accel"     : 135.883
+                        "accel"     : 13.883
                     },
                     "gpu" : {
                         "cpu_core"  : 0.000,
@@ -353,6 +353,38 @@
                 },
                 "priority" : 4,
                 "deadline" : 1000
+            },
+            "source": {
+                "mean_service_time": {
+                    "cpu_core": 1
+                },
+                "power": {
+                    "cpu_core": 500
+                },
+                "comm_cost": {
+                    "cpu_core": {
+                        "cpu_core": 0.000,
+                        "gpu": 0.000,
+                        "accel": 0.000
+                    },
+                    "gpu": {
+                        "cpu_core": 0.000,
+                        "gpu": 0.000,
+                        "accel": 0.000
+                    },
+                    "accel": {
+                        "cpu_core": 0.000,
+                        "gpu": 0.000,
+                        "accel": 0.000
+                    }
+                },
+                "data_cost": {
+                    "cpu_core": 0.0,
+                    "gpu": 0.0,
+                    "accel": 0.0
+                },
+                "priority": 4,
+                "deadline": 1000
             },
 
             "mission" : {

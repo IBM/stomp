@@ -5,29 +5,29 @@
   <graph edgedefault="directed">
     <node id="0">
       <data key="d0">1</data>
-      <data key="d1">2</data>
+      <data key="d1">3</data>
     </node>
     <node id="1">
       <data key="d0">5</data>
-      <data key="d1">2</data>
+      <data key="d1">3</data>
     </node>
     <node id="2">
       <data key="d0">2</data>
-      <data key="d1">1</data>
+      <data key="d1">3</data>
     </node>
     <node id="3">
       <data key="d0">18</data>
-      <data key="d1">2</data>
+      <data key="d1">6</data>
     </node>
     <node id="4">
       <data key="d0">1</data>
-      <data key="d1">1</data>
+      <data key="d1">4</data>
     </node>
-    <edge source="0" target="1" />
+    <edge source="0" target="2" />
     <edge source="0" target="3" />
     <edge source="0" target="4" />
     <edge source="2" target="1" />
     <edge source="3" target="1" />
-    <edge source="4" target="2" />
+    <edge source="4" target="1" />
   </graph>
 </graphml>

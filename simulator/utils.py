@@ -57,6 +57,22 @@ class MyPriorityQueue(PriorityQueue):
         priority, _, item = self.queue[0]
         return priority, item
 
+    def find_item(self, item):
+        for idx in range(0,len(self.queue)):
+            priority, _, i = (self.queue[idx])
+            if item == i:
+                return idx, priority
+        return None
+    def print_items(self):
+        for idx in range(0,len(self.queue)):
+            p, e, i = (self.queue[idx])
+            print("Queue size", len(self.queue), p, e, i)
+        return None
+
+    def remove_item(self, idx):
+        a, b, c = self.queue[idx]
+        self.queue.remove((a,b,c))
+
     def get(self, *args, **kwargs):
         priority, _, item = PriorityQueue.get(self, *args, **kwargs)
         return priority, item
@@ -89,9 +105,30 @@ class EventQueue(PriorityQueue):
         priority, item, _ = self.queue[0]
         return priority, item
 
+    def find_event(self, priority, event):
+        for idx in range(0,len(self.queue)):
+            p, e, _ = (self.queue[idx])
+            # print("Queue size", len(self.queue), p, e, i)
+            if event == e and priority == p:
+                return idx
+        return None
+    def print_events(self):
+        for idx in range(0,len(self.queue)):
+            p, e, i = (self.queue[idx])
+            print("Queue size", len(self.queue), p, e, i)
+    
+    def remove_event(self, idx):
+        a, b, c = self.queue[idx]
+        self.queue.remove((a,b,c))
+
     def get(self, *args, **kwargs):
         priority, item, _ = PriorityQueue.get(self, *args, **kwargs)
         return priority, item
+
+    def __lt__(self, other):
+        selfPriority = self[0]
+        otherPriority = other[0]
+        return selfPriority < otherPriority    
 
     def __str__(self):
         s = ""

@@ -1,9 +1,8 @@
 type,P1,P2,...,Pn
-loc,0.98,165,95,10,None,None
-detect,0.66,3530,156,None,96,None
-track,0.34,1820,17,None,None,2
-track,0.34,1820,17,None,None,2
-fusion,0.000184,1,None,None,None,None
-mission,0.000011,1,None,None,None,None
-motion,0.0014,8,None,None,None,None
-track,0.34,1820,17,None,None,2
+source,0.0025,1,None,None,None,None
+detect,0.6,3531,156,None,96,None
+track,0.3,1825,17,None,None,2
+loc,0.9,165,95,10,None,None
+fusion,0.0025,1,None,None,None,None
+mission,0.0025,1,None,None,None,None
+motion,0.02,8,None,None,None,None

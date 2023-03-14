@@ -167,11 +167,11 @@ class SchedulingPolicy(BaseSchedulingPolicy):
             # logging.debug('[%10ld] Attempting to schedule task %2d : %s' % (sim_time, tidx, task.type))
 
             server_idx = task.static_server_id
-            print(server_idx)
             server = self.servers[server_idx]
 
             #Request tokens from LNN Advisor
             rqstd_ptoks = server.martopt.request_tokens() * self.total_ptoks / 100
+            task.curr_tokens = server.martopt.request_tokens()
             mean_service_time = task.mean_service_time_dict[server.type]
 
             if not server.busy:           # Server is not busy.

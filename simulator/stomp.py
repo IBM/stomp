@@ -33,34 +33,186 @@ from utils import MyPriorityQueue, EventQueue, message_decode_event, events, bco
 
 from meta import TASK
 
+MAX_TOKENS = 100
+
 class MARTOpt:
-    def __init__(self, id):
+    def __init__(self, id, server, max_tokens):
         self.server_id = id
         self.task_assigned = None 
-        self.admissible_actions = {}
+        self.max_tokens = MAX_TOKENS
+        self.admissible_actions = [i for i in numpy.arange(5, self.max_tokens, 5)]
+        self.server = server
 
     def request_tokens(self):
-        return 100
+        return self.max_tokens
+
+    # Calculating Optimizer Function (Optfunc) for various token sharing ratios
+# Uses task_frac_completed which is sum over all the task_fraction upto current event time
+    def generate_opt_func(self, sim_time):
+        task = self.server.task
+        sibling_task = None
+        
+        #This function is only supported for one sibling
+        assert len(self.server.stomp_obj.sibling_tasks) == 2
+        if self.server.stomp_obj.sibling_tasks[0] == task:
+            sibling_task = self.server.stomp_obj.sibling_tasks[1]
+        else:
+            sibling_task = self.server.stomp_obj.sibling_tasks[0]
+
+        sibling_server = self.server.stomp_obj.servers[sibling_task.exec_server_id]
+        optvals = []
+        for tokens in numpy.arange(5, self.max_tokens, 5):
+            # Calculate remaining time for self and sibling tasks for each token_needs selection
+            self_task_time = self.server.estimate_task_time(tokens=tokens, task_frac=1 - task.task_fraction_completed, max_tokens=self.max_tokens)
+
+            sibling_task_time = sibling_server.estimate_task_time(tokens=self.max_tokens - tokens,
+                                                        task_frac=1 - sibling_task.task_fraction_completed, max_tokens=self.max_tokens)
+
+            # Initialize task start times to current time if just starting (no value found in table for task_start_time)
+            self_task_start_time = task.exec_start_time  #if task not in self.task_start_time else self.task_start_time[task]
+            sibling_task_start_time = sibling_task.exec_start_time # if other_task not in self.task_start_time else self.task_start_time[other_task]
+
+            # Calculate the actual service time ratio and the ideal service time ratio
+            task_time_ratio = (sim_time + self_task_time - self_task_start_time) / (sim_time + sibling_task_time - sibling_task_start_time)
+                    
+            sub_deadline_ratio = task.deadline / sibling_task.deadline
+
+            # Calculate the Optimizer Function value for the token_needs selection
+            optvals.append(abs(task_time_ratio - sub_deadline_ratio))
+
+        # Calculate the normalized rounded Optimizer Function
+        optvals = [1 - (_ - min(optvals)) / (max(optvals) - min(optvals)) for _ in optvals] # scale to 0 to 1 range
+        for j, tokens in enumerate(numpy.arange(5, self.max_tokens, 5)):
+            task.logical_obs['Optfunc_{}'.format(tokens)] = round(optvals[j], 5)
+            # print(self.server.type, tokens, round(optvals[j], 5))
     
-    def predict_token_needs_v1(self, task_assigned, admissible_actions):
+    # Calculating Optimizer Function (Optfunc) for various token sharing ratios
+# Uses task_frac_completed which is sum over all the task_fraction upto current event time
+    def generate_opt_func_new(self, sim_time):
+        task = self.server.task
+        sibling_task = None
+        
+        #This function is only supported for one sibling
+        assert len(self.server.stomp_obj.sibling_tasks) > 1
+        s_idx = 0 #sibling idx
+        sibling_tasks = {}
+        sibling_servers = {}
+        sibling_task_time = {}
+        sibling_task_power_factor = {}
+        sibling_power_ratio = {}
+        sibling_task_time_est = {}
+        sibling_task_exec_time = {}
+
+        #Find task in sibling tasks
+        for cnt, ttask in enumerate(self.server.stomp_obj.sibling_tasks):
+            if ttask == task:
+                task_idx = cnt
+            else:
+                sibling_tasks[s_idx] = ttask
+                sibling_servers[s_idx] = self.server.stomp_obj.servers[ttask.exec_server_id]
+                s_idx += 1
+
+        num_siblings = len(self.server.stomp_obj.sibling_tasks) - 1
+        # if self.server.stomp_obj.sibling_tasks[0] == task:
+        #     sibling_task = self.server.stomp_obj.sibling_tasks[1]
+        # else:
+        #     sibling_task = self.server.stomp_obj.sibling_tasks[0]
+
+        #Calculate the fractions for time and deadline with max_tokens
+        all_tasks_time_tot = 0
+        all_tasks_deadline_tot = 0
+        self_task_time = self.server.estimate_task_time(tokens=self.max_tokens, task_frac=1 - task.task_fraction_completed, max_tokens=self.max_tokens)
+        all_tasks_time_tot += self_task_time
+        all_tasks_deadline_tot += task.deadline
+
+        for s_idx in range(0, num_siblings):
+            sibling_task_time[s_idx] = sibling_servers[s_idx].estimate_task_time(tokens=self.max_tokens,
+                                                        task_frac=1 - sibling_tasks[s_idx].task_fraction_completed, max_tokens=self.max_tokens)
+            all_tasks_time_tot += sibling_task_time[s_idx]   
+            all_tasks_deadline_tot += sibling_tasks[s_idx].deadline
+        
+        self_task_time_ratio = self_task_time / all_tasks_time_tot
+        self_task_deadline_ratio = task.deadline / all_tasks_deadline_tot
+        self_task_ideal_by_actual = self_task_deadline_ratio / self_task_time_ratio
+        self_task_power_factor = 1 / (self_task_ideal_by_actual * self_task_ideal_by_actual)
+        # print("Ideal siblings ratios:", task.type, task.server_type, self_task_power_factor)
+        
+        sibling_tasks_power_tot = 0
+        for s_idx in range(0, num_siblings):
+            sibling_task_time_ratio = sibling_task_time[s_idx] / all_tasks_time_tot
+            sibling_task_deadline_ratio = sibling_tasks[s_idx].deadline / all_tasks_deadline_tot
+            sibling_task_ideal_by_actual = sibling_task_deadline_ratio / sibling_task_time_ratio
+            sibling_task_power_factor[s_idx] = 1 / (sibling_task_ideal_by_actual * sibling_task_ideal_by_actual)
+            sibling_tasks_power_tot += sibling_task_power_factor[s_idx]
+            # print("Ideal siblings ratios:", sibling_tasks[s_idx].type, sibling_tasks[s_idx].server_type, sibling_task_power_factor[s_idx])
+
+        # Power ratios
+        for s_idx in range(0, num_siblings):
+            sibling_power_ratio[s_idx] = sibling_task_power_factor[s_idx] / sibling_tasks_power_tot
+            # print("Ideal siblings ratios:", sibling_tasks[s_idx].type, sibling_tasks[s_idx].server_type, sibling_task_power_factor[s_idx], sibling_power_ratio[s_idx])
+
+
+        optvals = []
+        for tokens in numpy.arange(5, self.max_tokens, 5):
+            # Calculate remaining time for self and sibling tasks for each token_needs selection
+            self_task_time_est = self.server.estimate_task_time(tokens=tokens, task_frac=1 - task.task_fraction_completed, max_tokens=self.max_tokens)
+            # Initialize task start times to current time if just starting (no value found in table for task_start_time)
+            self_task_exec_time = (sim_time + self_task_time_est - task.exec_start_time)  #if task not in self.task_start_time else self.task_start_time[task]
+            # print("Self power tokens:", task.type, task.server_type, tokens)
+
+            for s_idx in range(0, num_siblings):
+                sibling_power_tokens = (self.max_tokens - tokens) * sibling_power_ratio[s_idx]
+                # print("Siblings power tokens:", sibling_tasks[s_idx].type, sibling_tasks[s_idx].server_type, sibling_power_tokens)
+
+                sibling_task_time_est[s_idx] = sibling_servers[s_idx].estimate_task_time(tokens=sibling_power_tokens,
+                                                        task_frac=1 - sibling_tasks[s_idx].task_fraction_completed, max_tokens=self.max_tokens)
+                # Initialize task start times to current time if just starting (no value found in table for task_start_time)
+                sibling_task_exec_time[s_idx] = (sim_time + sibling_task_time_est[s_idx] - sibling_tasks[s_idx].exec_start_time) # if other_task not in self.task_start_time else self.task_start_time[other_task]
+
+            # Calculate the actual service time ratio and the ideal service time ratio
+            task_time_ratio = self_task_exec_time / (sum(sibling_task_exec_time.values()) + self_task_exec_time)
+                    
+            sub_deadline_ratio = task.deadline / (sum(stask.deadline for stask in sibling_tasks.values()) + task.deadline)
+
+            # Calculate the Optimizer Function value for the token_needs selection
+            optvals.append(abs(task_time_ratio - sub_deadline_ratio))
+
+        # Calculate the normalized rounded Optimizer Function
+        optvals = [1 - (_ - min(optvals)) / (max(optvals) - min(optvals)) for _ in optvals] # scale to 0 to 1 range
+        for j, tokens in enumerate(numpy.arange(5, self.max_tokens, 5)):
+            task.logical_obs['Optfunc_{}'.format(tokens)] = round(optvals[j], 5)
+            print(self.server.type, tokens, round(optvals[j], 5))
+
+
+    def predict_token_needs_v1(self, sim_time):
         # task not assigned -> 0 token
-        if not task_assigned.logical_obs["TaskAssigned"]:
-            return 0
+        task_assigned = self.server.task
+        if task_assigned is not None:
+            if not task_assigned.logical_obs["TaskAssigned"]:
+                return 0, 0
 
-        # task assigned but parent tasks are not completed -> 0 token
-        if task_assigned.logical_obs["TaskAssigned"] and not task_assigned.logical_obs["ParentTasksCompleted"]:
-            return 0
+            # task assigned but parent tasks are not completed -> 0 token
+            if task_assigned.logical_obs["TaskAssigned"] and not task_assigned.logical_obs["ParentTasksCompleted"]:
+                return 0, 0
 
-        # task assigned, parent tasks are completed and no sibling tasks -> 100 tokens
-        if task_assigned.logical_obs["TaskAssigned"] and task_assigned.logical_obs["ParentTasksCompleted"] and not task_assigned.logical_obs["SiblingTasks"]:
-            return 100
+            # task assigned, parent tasks are completed and no sibling tasks -> 100 tokens
+            if task_assigned.logical_obs["TaskAssigned"] and task_assigned.logical_obs["ParentTasksCompleted"] and not task_assigned.logical_obs["SiblingTasks"]:
+                return self.max_tokens, self.server.get_frequency(self.max_tokens)
 
-        # task assigned, parent tasks are completed and sibling task exists -> tokens with highest Eff
-        if task_assigned.logical_obs["TaskAssigned"] and task_assigned.logical_obs["ParentTasksCompleted"] and task_assigned.logical_obs["SiblingTasks"]:
-            action_probs = {action: task_assigned.logical_obs.get(f'Eff_{action}', 0) for action in admissible_actions}
-            return max(action_probs, key=action_probs.get)
+            # task assigned, parent tasks are completed and sibling task exists -> tokens with highest Eff
+            if task_assigned.logical_obs["TaskAssigned"] and task_assigned.logical_obs["ParentTasksCompleted"] and task_assigned.logical_obs["SiblingTasks"]:
+                if task_assigned.logical_obs["HW"]:
+                    return self.max_tokens/2, self.server.get_frequency(self.max_tokens/2)
+                else:
+                    self.generate_opt_func_new(sim_time)
+                    action_probs = {action: task_assigned.logical_obs.get(f'Optfunc_{action}', 0) for action in self.admissible_actions}
+                    lnn_tokens = max(action_probs, key=action_probs.get)
+                    return lnn_tokens, self.server.get_frequency(lnn_tokens)
+                # 
 
-        return 0
+            return 0, 0
+        else:
+            return None, None
 
 
 
@@ -81,8 +233,9 @@ class Server:
         self.busy_time          = 0
         self.last_dag_id        = None
         self.last_task_id       = None
-        self.martopt            = MARTOpt(id)
+        self.martopt            = MARTOpt(id, self, stomp_obj.params['simulation']['total_ptoks'])
         #TODO: LNN: parameters for fraction calculation of task running on server
+        self.task_time_exp      = 0.5
         
         self.stats                            = {}
         self.stats['Tasks Serviced']          = 0
@@ -98,14 +251,40 @@ class Server:
 
         logging.debug('Server %d of type %s created' % (self.id, self.type))
 
+        self.frequency_scales = [0,380,788,1036,1220,1450,1512] #in MHz
+        self.power_scales = [0,2.63,5.47,8.38,11.51,15.73,19.28]
+    # Calculating task_fraction completed for given tokens in time_window
+    # Use default value of task_time_exp[tile] = 0.5
+    # Use time_window = current_time - last_event_time
+
+    def get_frequency(self, tokens):
+        return numpy.interp(tokens, self.power_scales, self.frequency_scales)
+
+    def estimate_task_time(self, tokens, task_frac=1.0, max_tokens=MAX_TOKENS):
+        frequency = self.get_frequency(tokens)
+        # est_time =  (self.orig_service_time * task_frac) * 1000 / frequency #time in ms
+        est_time =  self.orig_service_time * task_frac * (max_tokens / tokens) ** self.task_time_exp
+        # print("orig time", self.orig_service_time, "task_frac", task_frac, "tokens:", tokens, "max_tokens:", max_tokens, "est_time:", est_time)
+        return est_time
+
+    def task_fraction_completed_in_window(self, sim_time, tokens, max_tokens):
+        if tokens == 0:
+            return 0
+        task_time = self.estimate_task_time(tokens, max_tokens=max_tokens)
+        time_window = sim_time - self.last_frac_time
+        self.last_frac_time = sim_time
+        return time_window/task_time
+
     def reset(self):
 
         self.busy                   = False
         self.reserved               = False
+        self.orig_service_time      = None
         self.curr_service_time      = None
         self.curr_job_start_time    = None
         self.curr_job_end_time      = None
         self.last_usage_started_at  = None
+        self.last_frac_time         = None
         self.task                   = None
         self.curr_job_ptoks         = 0
 
@@ -141,6 +320,7 @@ class Server:
         task_deadline                   = task.deadline
         mean_service_time               = task.mean_service_time_dict[self.type]
         service_time                    = task.per_server_service_dict[self.type] # Use the per-server type service time, indexed by server_type
+        self.orig_service_time          = task.per_server_service_dict[self.type] # Time at 100% tokens assigned
         if service_time_scale != None:
             service_time_new            = round(service_time * service_time_scale)
             # assert service_time == service_time_new, "==================xxxxxxxxxxxxxx=================="
@@ -178,7 +358,10 @@ class Server:
                     # print("No Affinity for parent %lf" % (noaffinity_time))
         task.noaffinity_time = int(round(noaffinity_time))
         task.server_type = self.type
+        task.exec_server_id = self.id
         task.task_service_time              = service_time + task.noaffinity_time
+        task.exec_start_time                = sim_time
+        task.logical_obs["TaskAssigned"]    = True
         # print("service_time=%u, task_service_time=%u" % (service_time, task.task_service_time))
 
         self.busy                           = True
@@ -186,6 +369,7 @@ class Server:
         self.curr_job_start_time            = sim_time
         self.curr_job_end_time              = self.curr_job_start_time + self.curr_service_time
         self.curr_job_end_time_estimated    = self.curr_job_start_time + mean_service_time + task.noaffinity_time
+        self.last_frac_time                 = sim_time
         self.last_usage_started_at          = sim_time
         self.num_reqs                       += 1
         self.task                           = task
@@ -245,6 +429,7 @@ class STOMP:
         self.drop_hint_list    = sharedObjs.drop_hint_list
 
         self.released_servers = MyPriorityQueue()
+        self.sibling_tasks         = []
 
         self.params       = stomp_params
         self.meta         = None
@@ -472,7 +657,7 @@ class STOMP:
         ##### DUMP STATISTICS TO STDOUT #####
 
         logging.info('\n==================== Simulation Statistics ====================')
-        logging.info(' Total simulation time: %ld' % self.env.now)
+        logging.info(f' Total simulation time: {self.env.now}')
         logging.info(' Tasks serviced:        %ld' % self.stats['Tasks Serviced'])
         logging.info('')
 
@@ -643,6 +828,7 @@ class STOMP:
 \____/  \_/  \___/\_|  |_/\_|
         """)
         self.print("Starting simulation...")
+        print([(server_idx, server.type) for server_idx, server in enumerate(self.servers)]) 
 
     def update_histogram(self, queue_size):
         bin         = int(queue_size / self.bin_size)
@@ -707,6 +893,15 @@ class STOMP:
             # self.print("Task NOT assigned to server")
             if server == None:
                 continue
+
+            #TODO:LNN: Populate ready and assigned tasks into the sibling tasks
+            self.sibling_tasks.append(server.task)
+            if len(self.sibling_tasks) > 1:
+                for task in self.sibling_tasks:
+                    task.logical_obs["SiblingTasks"] = True
+
+            print("Sibling Added", self.env.now, [(x.dag_id, x.tid, x.type, x.server_type) for x in self.sibling_tasks])
+
             self.ta_time = self.sched_policy.ta_time
             self.to_time = self.sched_policy.to_time
 
@@ -714,6 +909,32 @@ class STOMP:
             self.released_servers.put(server.curr_job_end_time, server)
 
             self.tsched_eventq.put(server.curr_job_end_time, events.SERVER_FINISHED)
+            
+            #TODO: LNN: revaluate when a new task is assigned
+            for sibling_task in self.sibling_tasks:
+                if sibling_task.exec_server_id != None:
+                    sibling_server = self.servers[sibling_task.exec_server_id]
+                    sibling_task.curr_tokens, sibling_task.curr_freq = sibling_server.martopt.predict_token_needs_v1(self.env.now)
+                    print("Tokens, freq after assigned: ", sibling_task.curr_tokens, sibling_task.curr_freq , sibling_task.type, sibling_task.server_type)
+
+            #TODO: LNN: Update server's curr_service_time and remove/modify prev server finished event
+            for sibling_task in self.sibling_tasks:
+                if sibling_task.exec_server_id != None:
+                    sibling_server = self.servers[sibling_task.exec_server_id]
+                    item_idx, end_time = self.released_servers.find_item(sibling_server)
+                    # self.tsched_eventq.put(server.curr_job_end_time, events.SERVER_FINISHED)
+                    event_idx = self.tsched_eventq.find_event(end_time, events.SERVER_FINISHED)
+                    # print("Found server at:", item_idx, "with end time:", end_time, "and event:", events.SERVER_FINISHED, " at queue idx", event_idx)
+                    self.released_servers.remove_item(item_idx)
+                    self.tsched_eventq.remove_event(event_idx)
+
+                    prev_end_time = sibling_server.curr_job_end_time
+                    sibling_server.curr_job_end_time = self.env.now + sibling_server.estimate_task_time(tokens=sibling_task.curr_tokens, task_frac=1 - sibling_task.task_fraction_completed, max_tokens=MAX_TOKENS)
+                    print("Changing task: ", sibling_task.type, "end time from ", prev_end_time, "to ", sibling_server.curr_job_end_time, "exec time from", prev_end_time - self.env.now, "to ", sibling_server.curr_job_end_time - self.env.now)
+                    self.released_servers.put(sibling_server.curr_job_end_time, sibling_server)
+                    self.tsched_eventq.put(sibling_server.curr_job_end_time, events.SERVER_FINISHED)
+                    a,b = self.tsched_eventq.get()
+                    self.tsched_eventq.put(a,b)
 
             self.stats['Running Tasks']                  += 1
             self.stats['Busy Servers']                   += 1
@@ -730,7 +951,7 @@ class STOMP:
         # This is because some scheduling policies may need to know about
         # the existent servers in order to make scheduling decisions
         self.sched_policy.init(self.servers, self.stats, self.params)
-
+    
         # STOMP variables are initialized, wait for Meta to start
         self.env.all_of([self.meta.action])
 
@@ -777,13 +998,50 @@ class STOMP:
             elif event == events.SERVER_FINISHED:
                 assert not self.released_servers.empty()
                 curtick, next_serv_end = self.released_servers.get()
+                if curtick != self.env.now:
+                    print(curtick, self.env.now)
                 assert curtick == self.env.now
                 assert next_serv_end.task != None
 
                 #TODO: LNN: Update % of completed for all tiles and broadcast to the LNN agents
-                #TODO: LNN: Recalculation for sibling task server 
-                # for every server of the siblings:
-                #     server.martopt.recalculate_tokens()
+                self.sibling_tasks.remove(next_serv_end.task)
+                print("Sibling Removed", self.env.now, [(x.dag_id, x.tid, x.type, x.server_type) for x in self.sibling_tasks])
+
+                for sibling_task in self.sibling_tasks:
+                    if sibling_task.exec_server_id != None:
+                        sibling_server = self.servers[sibling_task.exec_server_id]
+                        sibling_task.task_fraction_completed += sibling_server.task_fraction_completed_in_window(curtick, sibling_task.curr_tokens, max_tokens=MAX_TOKENS)
+                
+                if len(self.sibling_tasks) <= 1:
+                    for task in self.sibling_tasks:
+                        task.logical_obs["SiblingTasks"] = False
+
+                #TODO: LNN: Recalculation of tokens for sibling task server 
+                for sibling_task in self.sibling_tasks:
+                    if sibling_task.exec_server_id != None:
+                        sibling_server = self.servers[sibling_task.exec_server_id]
+                        sibling_task.curr_tokens, sibling_task.curr_freq = sibling_server.martopt.predict_token_needs_v1(self.env.now)
+                        print("Tokens, freq after removal: ", sibling_task.curr_tokens, sibling_task.curr_freq, sibling_task.type, sibling_task.server_type)
+
+                #TODO: LNN: Update server's curr_service_time and remove/modify prev server finished event
+                for sibling_task in self.sibling_tasks:
+                    if sibling_task.exec_server_id != None:
+                        sibling_server = self.servers[sibling_task.exec_server_id]
+                        item_idx, end_time = self.released_servers.find_item(sibling_server)
+                        # self.tsched_eventq.put(server.curr_job_end_time, events.SERVER_FINISHED)
+                        event_idx = self.tsched_eventq.find_event(end_time, events.SERVER_FINISHED)
+                        # print("Found server at:", item_idx, "with end time:", end_time, "and event:", events.SERVER_FINISHED, " at queue idx", event_idx)
+                        self.released_servers.remove_item(item_idx)
+                        self.tsched_eventq.remove_event(event_idx)
+
+                        prev_end_time = sibling_server.curr_job_end_time
+                        # print("TF:", sibling_task.task_fraction_completed)
+                        sibling_server.curr_job_end_time = self.env.now + sibling_server.estimate_task_time(tokens=sibling_task.curr_tokens, task_frac=1 - sibling_task.task_fraction_completed, max_tokens=MAX_TOKENS)
+                        print("Changing task: ", sibling_task.type, "end time from ", prev_end_time, "to ", sibling_server.curr_job_end_time)
+                        self.released_servers.put(sibling_server.curr_job_end_time, sibling_server)
+                        self.tsched_eventq.put(sibling_server.curr_job_end_time, events.SERVER_FINISHED)
+                        a,b = self.tsched_eventq.get()
+                        self.tsched_eventq.put(a,b)
 
                 self.release_server(next_serv_end)
 

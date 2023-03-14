@@ -145,24 +145,24 @@
         "servers": {
             "cpu_core" : {
                 "id": 0,
-                "count" : 1
+                "count" : 3
             },
             "gpu" : {
                 "id": 1,
-                "count" : 1
+                "count" : 3
             },
             "fft_accel" : {
                 "id": 2,
-                "count" : 1
+                "count" : 3
             }
         },
 
         "tasks": {
             "fft_64" : {
                 "mean_service_time" : {
-                    "cpu_core"  : 9,
-                    "gpu"       : 8,
-                    "fft_accel" : 1
+                    "cpu_core"  : 64,
+                    "gpu"       : 64,
+                    "fft_accel" : 64
                 },
                 "power" : {
                     "cpu_core"  : 1132,
@@ -202,9 +202,9 @@
             },
             "fft_128" : {
                 "mean_service_time" : {
-                    "cpu_core"  : 83,
-                    "gpu"       : 8,
-                    "fft_accel" : 1
+                    "cpu_core"  : 128,
+                    "gpu"       : 128,
+                    "fft_accel" : 128
                 },
                 "power" : {
                     "cpu_core"  : 883,
@@ -243,9 +243,50 @@
             },
             "fft_256" : {
                 "mean_service_time" : {
-                    "cpu_core"  : 319,
-                    "gpu"       : 10,
-                    "fft_accel" : 1
+                    "cpu_core"  : 256,
+                    "gpu"       : 256,
+                    "fft_accel" : 256
+                },
+                "power" : {
+                    "cpu_core"  : 1036,
+                    "gpu"       : 6364,
+                    "fft_accel" : 1273
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 3.2,
+                    "gpu"       : 0.1,
+                    "fft_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 3.164,
+                        "gpu"       : 3.164,
+                        "accel"     : 5.212
+                    },
+                    "gpu" : {
+                        "cpu_core"  : 0.000,
+                        "gpu"       : 0.000,
+                        "accel"     : 2.048
+                    },
+                    "accel" : {
+                        "cpu_core"  : 2.048,
+                        "gpu"       : 2.048,
+                        "accel"     : 4.096
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "gpu"       : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000
+            },
+            "fft_512" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 512,
+                    "gpu"       : 512,
+                    "fft_accel" : 512
                 },
                 "power" : {
                     "cpu_core"  : 1036,

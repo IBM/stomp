@@ -34,6 +34,7 @@ import networkx as nx
 from csv import reader
 
 from utils import message_decode_event, events, bcolors, handle_event
+MAX_TOKENS = 100
 
 def read_matrix(matrix):
     lmatrix = []
@@ -85,39 +86,50 @@ class TASK:
         # self.key = key
 
     def init_task(self, arrival_time, dag_type, dag_id, tid, type, params, priority, deadline, dag_dtime):
-        self.dag_type                   = dag_type
-        self.dag_id                     = dag_id
-        self.tid                        = tid
-        self.type                       = type  # The task type
-        self.priority                   = priority  # Task input priority
-        self.deadline                   = deadline  # Task input deadline
-        self.dtime                      = dag_dtime
-        self.mean_service_time_dict     = params['mean_service_time']
-        self.mean_service_time_list     = sorted(params['mean_service_time'].items(), key=operator.itemgetter(1))
-        self.arrival_time               = arrival_time
-        self.noaffinity_time            = 0
-        self.departure_time             = None
-        self.per_server_services        = []    # Holds ordered list of service times
-        self.per_server_service_dict    = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
-        self.max_time                   = None
-        self.min_time                   = None
-        self.task_service_time          = None  # To be set upon scheduling, since it depends on the target server
-        self.task_lifetime              = None  # To be set upon finishing; includes time span from arrival to departure
-        self.trace_id                   = None
-        self.wpower                     = None
-        self.current_time               = 0
-        self.possible_server_idx        = None
-        self.possible_mean_service_time = None
-        self.peid                       = None
-        self.parent_data                = []
-        # TODO: LNN: populate this
-        self.children_data              = []
-        self.server_type                = None
-        self.ptoks_used                 = None  # Power consumed during actual execution on servers[server_type]
-        self.power_dict                 = params['power']
-        self.rank_type                  = 0
+        self.dag_type                                   = dag_type
+        self.dag_id                                     = dag_id
+        self.tid                                        = tid
+        self.type                                       = type  # The task type
+        self.priority                                   = priority  # Task input priority
+        self.deadline                                   = deadline  # Task input deadline
+        self.dtime                                      = dag_dtime
+        self.mean_service_time_dict                     = params['mean_service_time']
+        self.mean_service_time_list                     = sorted(params['mean_service_time'].items(), key=operator.itemgetter(1))
+        self.arrival_time                               = arrival_time
+        self.noaffinity_time                            = 0
+        self.departure_time                             = None
+        self.per_server_services                        = []    # Holds ordered list of service times
+        self.per_server_service_dict                    = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
+        self.max_time                                   = None
+        self.min_time                                   = None
+        self.task_service_time                          = None  # To be set upon scheduling, since it depends on the target server
+        self.task_lifetime                              = None  # To be set upon finishing; includes time span from arrival to departure
+        self.task_fraction_completed                    = 0
+        self.exec_server_id                             = None
+        self.exec_start_time                            = None
+        self.trace_id                                   = None
+        self.wpower                                     = None
+        self.current_time                               = 0
+        self.possible_server_idx                        = None
+        self.possible_mean_service_time                 = None
+        self.peid                                       = None
+        self.parent_data                                = []
+        # TODO: LNN: populate this              
+        self.children_data                              = []
+        self.server_type                                = None
+        self.ptoks_used                                 = None  # Power consumed during actual execution on servers[server_type]
+        self.power_dict                                 = params['power']
+        self.rank_type                                  = 0
 
-        self.reserved_server_id         = None
+        self.reserved_server_id                         = None
+        
+        self.max_tokens                                     = MAX_TOKENS
+        self.logical_obs["TaskAssigned"]                    = False
+        self.logical_obs["ParentTasksCompleted"]            = True
+        self.logical_obs["SiblingTasks"]                    = False
+        self.logical_obs["HW"]                              = False
+        for tokens in numpy.arange(5, self.max_tokens, 5):
+            self.logical_obs['Optfunc_{}'.format(tokens)]   = None
 
     def calc_slack(self, sim_time, service_time, remaining_time):
         # print("[%10u][%u.%u] Deadline: %u" % (sim_time, self.dag_id, self.tid, self.arrival_time + self.deadline))
@@ -449,7 +461,7 @@ class META:
                         deadline = int(the_dag_sched.slack)
 
                         #Use SDR for task deadline calculation
-                        if (self.params['simulation']['policy'].startswith("ms1")):
+                        if (self.params['simulation']['policy'].startswith("ms1") or self.params['simulation']['policy'].startswith("static") ):
                             deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[task_node.tid][1]))
                         elif (self.params['simulation']['policy'].startswith("ms2")):
                             deadline = int(deadline*float(the_dag_sched.comp[task_node.tid][1]))
@@ -530,7 +542,7 @@ class META:
                 dag_id = int(tmp.pop(0))
                 dag_type = tmp.pop(0)
 
-                graphml_file = "inputs/{0}/dag_input/dag{1}.graphml".format(application, dag_type)
+                graphml_file = "inputs/{0}/dag_input_toy_3/dag{1}_light.graphml".format(application, dag_type)
                 graph = nx.read_graphml(graphml_file, TASK)
 
                 # Read static assignment and update each task node
@@ -553,9 +565,9 @@ class META:
                         parent_list.append(pred_node.tid)
                     parent_dict[node.tid] = parent_list
                     # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
-                comp_file = "inputs/{0}/dag_input/dag_{1}.txt".format(application, dag_type)
+                comp_file = "inputs/{0}/dag_input_toy_3/dag_{1}.txt".format(application, dag_type)
                 # if (self.params['simulation']['policy'].startswith("ms2")):
-                #    comp_file = "inputs/{0}/dag_input/dag_{1}_slack.txt".format(application, dag_type)
+                #    comp_file = "inputs/{0}/dag_input_toy/dag_{1}_slack.txt".format(application, dag_type)
 
                 comp = read_matrix(comp_file)
                 priority = int(tmp.pop(0))
