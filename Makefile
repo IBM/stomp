@@ -8,6 +8,9 @@ run_ad: simulator/stomp_main.py simulator/stomp.py simulator/meta.py inputs/stom
 run_pm: simulator/stomp_main.py simulator/stomp.py simulator/meta.py inputs/stomp_pm.json
 	python ./simulator/stomp_main.py --conf-file=inputs/stomp_pm.json
 
+run_era: simulator/stomp_main.py simulator/stomp.py simulator/meta.py inputs/stomp_era.json
+	python ./simulator/stomp_main.py --conf-file=inputs/stomp_era.json
+
 clean:
 	rm sched.* run_stdout_*
 

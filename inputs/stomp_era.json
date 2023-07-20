@@ -1,0 +1,1680 @@
+{
+
+    "general" : {
+        "logging_level":        "INFO",
+        "random_seed":          0,
+        "working_dir":          ".",
+        "basename":             "sched",
+        "pre_gen_arrivals":     false,
+        "input_trace_file":	    "inputs/era/trace_files/era_trace_0.1.trc",
+        "output_trace_file":    "",
+        "unit_of_time":         "10^-5s",
+        "unit_of_power":        "mW",
+        "comment":              "Power values derived from Jetson TX1 dev board. CPU power numbers are scaled to 1/N where N is the number of cores on the TX1. Accel power values are placeholders right now and are set to 1/5th of corresponding GPU power numbers."
+    },
+
+    "simulation" : {
+        "application":         "era",
+        "meta_policy_module":  "meta_policies.edf",
+        "sched_policy_module": "task_policies.static_dvfs",
+        "policy":              "static_era",
+        "contention":          true,
+        "drop":                false,
+
+        "pwr_mgmt": false,
+        "pwr_model": "simple",
+        "total_ptoks": 1000,
+        "slack_perc": 0,
+        "dvfs": 1,
+
+        "base_clk" : 1.0,
+        "min_clk_f" : 0.1,
+        "v_nom" : 0.80,
+        "v_th"  : 0.35,
+        "v_min" : 0.45,
+        "power_scale" : 2.5,
+        "no_completed_activity_check": true,
+        "promote":             true,
+        "max_tasks_simulated": 10000,
+        "mean_arrival_time":   10,
+        "power_mgmt_enabled":  false,
+        "max_queue_size":      1000000,
+        "arrival_time_scale":  1.0,
+        "progress_intvl_f":    1000,
+
+        "applications": {
+            "era": {
+                "dag_types": {
+                    "0": {
+                        "deadline" : 250
+                    }
+                }
+            }
+        },
+
+        "policies": {
+            "heft" : {
+                "meta_policy" : "heft",
+                "task_policy" : "heft"
+            },
+            "rheft" : {
+                "meta_policy" : "rheft",
+                "task_policy" : "rheft"
+            },
+            "edf" : {
+                "meta_policy" : "edf",
+                "task_policy" : "edf"
+            },
+            "edf_eft" : {
+                "meta_policy" : "edf",
+                "task_policy" : "edf_eft"
+            },
+            "simple_policy_ver2": {
+                "meta_policy" : "edf",
+                "task_policy" : "simple_policy_ver2"
+            },
+            "ts_eft": {
+                "meta_policy" : "edf",
+                "task_policy" : "ts_eft"
+            },
+            "ads" : {
+                "meta_policy" : "heft",
+                "task_policy" : "ads"
+            },
+            "ms1" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms"
+            },
+            "ms2" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms"
+            },
+            "ms1_hom" : {
+                "meta_policy" : "ms_wcet",
+                "task_policy" : "ms_hom"
+            },
+            "ms2_hom" : {
+                "meta_policy" : "ms_wcet",
+                "task_policy" : "ms_hom"
+            },
+            "ms1_hetero" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hetero"
+            },
+            "ms2_hetero" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hetero"
+            },
+            "ms1_hyb" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb"
+            },
+            "ms2_hyb" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb"
+            },
+            "ms1_hyb_update" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb_update"
+            },
+            "ms2_hyb_update" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb"
+            },
+            "ms1_heft" : {
+                "meta_policy" : "heft",
+                "task_policy" : "ms_update_heft"
+            },
+            "ms2_heft" : {
+                "meta_policy" : "heft",
+                "task_policy" : "ms_update_heft"
+            },
+            "ms1_dvfs" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb_update_dvfs"
+            },
+            "ms2_dvfs" : {
+                "meta_policy" : "ms",
+                "task_policy" : "ms_hyb_update_dvfs"
+            },
+            "static_era" : {
+                "meta_policy" : "edf",
+                "task_policy" : "static_dvfs"
+            }
+        },
+        "servers": {
+            "cpu_core" : {
+                "id": 0,
+                "count" : 4
+            },
+            "fft_accel" : {
+                "id": 1,
+                "count" : 4
+            },
+            "vit_accel" : {
+                "id": 2,
+                "count" : 2
+            },
+            "mat_accel" : {
+                "id": 3,
+                "count" : 1
+            }
+
+        },
+
+        "tasks": {
+            "souurce" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "cmplx_conj_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "cmplx_mag_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "cmplx_mag2_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "cmplx_mult_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "decode_signal_end_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "decode_signal_start_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "decompress_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "detect_early_exit_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "division_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "do_rcv_fft_work_end_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "do_sdr_decoding" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "ffir_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "ffirc_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "fft_ri_for_loop_wrappertask" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "gr_equalize_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "gridFusion_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "logging_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "process_input_to_compute_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "sdr_decode_end_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "sdr_decode_start_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "sdr_descrambler_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "sync_long_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "sync_short_task_body" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "wrapper_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "siink" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000    
+            },
+            "carrier_alloc_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "chuck_strm_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "cloudToOccgrid_Timer_End_Task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "compressMap_Task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "cyclic_prefix_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "fft_ri_task_loop" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "initCostmap_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "Logging_And_cloudToOccgrid_Timer_Start_Task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "logging_end_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "logging_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "mac_data_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "mapper_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "packer_hdr_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "padding_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "updateBounds_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            },
+            "updateOrigin_task" : {
+                "mean_service_time" : {
+                    "cpu_core"  : 10,
+                    "fft_accel" : 10,
+                    "vit_accel" : 10,
+                    "mat_accel" : 10
+                },
+                "power" : {
+                    "cpu_core"  : 1000,
+                    "fft_accel" : 1000,
+                    "vit_accel" : 1000,
+                    "mat_accel" : 1000
+                },
+                "stdev_service_time" : {
+                    "cpu_core"  : 0.01,
+                    "fft_accel" : 0.01,
+                    "vit_accel" : 0.01,
+                    "mat_accel" : 0.01
+                },
+                "comm_cost": {
+                    "cpu_core" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    },
+                    "accel" : {
+                        "cpu_core"  : 0.25,
+                        "accel"     : 0.25
+                    }
+                },
+                "data_cost": {
+                    "cpu_core"  : 0.0,
+                    "accel"     : 0.0
+                },
+                "priority" : 1,
+                "deadline" : 1000   
+            }
+        }
+    }
+}

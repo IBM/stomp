@@ -24,10 +24,10 @@ class MetaPolicy(BaseMetaPolicy):
     def meta_static_rank(self, stomp, dag):
         pass
 
-    def meta_dynamic_rank(self, stomp, task, comp, max_time, min_time, deadline, priority): 
+    def meta_dynamic_rank(self, stomp, task, comp, deadline, priority): 
 
-        wcet_slack = deadline - max_time
-        bcet_slack = deadline - min_time
+        wcet_slack = deadline - task.max_time
+        bcet_slack = deadline - task.min_time
         if (priority > 1):
             if (wcet_slack >= 0):
                 slack = 1 + wcet_slack

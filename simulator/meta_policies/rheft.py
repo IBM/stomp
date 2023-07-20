@@ -116,7 +116,7 @@ class MetaPolicy(BaseMetaPolicy):
                         node.rank = sum/(num_servers) + max(parent_rank)       
                         parents[node.tid] = node.rank
 
-    def meta_dynamic_rank(self, stomp, task, comp, max_time, min_time, deadline, priority):
+    def meta_dynamic_rank(self, stomp, task, comp, deadline, priority):
         pass  
 
     def dropping_policy(self, dag, task_node):  

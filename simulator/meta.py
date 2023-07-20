@@ -82,6 +82,10 @@ class TASK:
         self.rank                       = -1
         self.processor                  = -1
         self.logical_obs                = {}
+        self.max_time                   = None
+        self.min_time                   = None
+        self.sdr                        = 0
+        self.sr                         = 0
         self.static_server_id           = None
         # self.key = key
 
@@ -100,8 +104,6 @@ class TASK:
         self.departure_time                             = None
         self.per_server_services                        = []    # Holds ordered list of service times
         self.per_server_service_dict                    = {}    # Holds (server_type : service_time) key-value pairs; same content as services list really
-        self.max_time                                   = None
-        self.min_time                                   = None
         self.task_service_time                          = None  # To be set upon scheduling, since it depends on the target server
         self.task_lifetime                              = None  # To be set upon finishing; includes time span from arrival to departure
         self.task_fraction_completed                    = 0
@@ -167,6 +169,63 @@ class TASK:
 
 class DAG:
 
+    def set_max_min_time(self, graph):
+        for task_node in graph.nodes():
+            ## Update service_time of task on all servers
+            stimes = []
+            count = 0
+            max_time = 0
+            min_time = 100000
+            # Iterate over each column of comp entry.
+            for service_time in self.comp[task_node.tid]:
+                # Ignore first two columns.
+                if (count <= 1):
+                    count += 1
+                    continue
+                else:
+                    if (service_time != "None"):
+                        # Min and max service time calculation
+                        if (min_time > round(float(service_time))):
+                            min_time = round(float(service_time))
+                        if(max_time < float(service_time)):
+                            max_time = float(service_time)
+
+                count += 1
+
+            task_node.max_time = max_time
+            task_node.min_time = min_time
+        return graph
+    
+    def gen_task_deadline_ratio(self, graph):
+        sink_nodes = [node for node, outdegree in graph.out_degree(graph.nodes()) if outdegree == 0]
+        source_nodes = [node for node, indegree in graph.in_degree(graph.nodes()) if indegree == 0]
+        for source, sink in [(source, sink) for sink in sink_nodes for source in source_nodes]:
+            for path in nx.all_simple_paths(graph, source=source, target=sink):
+                
+                # Slack ratio calculation for MS_DYN
+                path_nodes = []
+                for xnode in path:
+                    for gnode in graph.nodes():
+                        if gnode == xnode:
+                            path_nodes.append(gnode)
+                for nid, node in enumerate(path_nodes):
+                    path_time = sum([xnode.min_time for xnode in path_nodes[nid:]])
+                    if (path_time != 0):
+                        bcet = node.min_time
+                        sr = bcet/path_time
+                        node.sr = min(sr, node.sr)
+                    else:
+                        node.sr = 0.
+                
+                # Sub deadline ratio calculation for MS STAT
+                path_time = sum([node.min_time for node in path_nodes])
+                for node in path_nodes:
+                    bcet = node.min_time
+                    sdr = bcet/path_time
+                    node.sdr = min(sdr, node.sdr)
+        
+        return graph
+
     def __init__(self, graph, comp, parent_dict, atime, deadline, dtime, priority, dag_type):
         self.graph              = graph
         self.comp               = comp
@@ -185,6 +244,10 @@ class DAG:
         self.completed_peid     = {}
         self.noaffinity_time    = 0
         self.energy             = 0
+        self.set_max_min_time(self.graph)
+        self.gen_task_deadline_ratio(self.graph)
+
+                
 
 class BaseMetaPolicy:
 
@@ -203,7 +266,7 @@ class BaseMetaPolicy:
     def meta_static_rank(self, stomp, dag): pass
 
     @abstractmethod
-    def meta_dynamic_rank(self, stomp, task, comp, max_time, min_time, deadline): pass
+    def meta_dynamic_rank(self, stomp, task, comp, deadline): pass
 
     @abstractmethod
     def dropping_policy(self, dag, task_node): pass
@@ -462,9 +525,9 @@ class META:
 
                         #Use SDR for task deadline calculation
                         if (self.params['simulation']['policy'].startswith("ms1") or self.params['simulation']['policy'].startswith("static") ):
-                            deadline = int(the_dag_sched.deadline*float(the_dag_sched.comp[task_node.tid][1]))
+                            deadline = max(1,int(the_dag_sched.deadline*float(task_node.sdr)))
                         elif (self.params['simulation']['policy'].startswith("ms2")):
-                            deadline = int(deadline*float(the_dag_sched.comp[task_node.tid][1]))
+                            deadline = max(1,int(deadline*float(task_node.sr)))
 
                         # Initialize task during execution
                         task_node.init_task(atime, the_dag_sched.dag_type, dag_id, task_node.tid, task_type, self.params['simulation']['tasks'][task_type], priority, deadline, int(the_dag_sched.dtime))
@@ -475,8 +538,7 @@ class META:
                         ## Update service_time of task on all servers
                         stimes = []
                         count = 0
-                        max_time = 0
-                        min_time = 100000
+
                         # Iterate over each column of comp entry.
                         for service_time in the_dag_sched.comp[task_node.tid]:
                             # Ignore first two columns.
@@ -491,19 +553,11 @@ class META:
                                     task_node.per_server_service_dict[server_type] = round(float(service_time))
                                     # print(str(server_type + "," + str(service_time))
 
-                                    # Min and max service time calculation
-                                    if (min_time > round(float(service_time))):
-                                        min_time = round(float(service_time))
-                                    if(max_time < float(service_time)):
-                                        max_time = float(service_time)
-
                             count += 1
 
-                        task_node.max_time = max_time
-                        task_node.min_time = min_time
                         # Dynamic Rank Assignment
                         start = datetime.now()
-                        self.meta_policy.meta_dynamic_rank(self.stomp, task_node, the_dag_sched.comp, max_time, min_time, deadline, priority)
+                        self.meta_policy.meta_dynamic_rank(self.stomp, task_node, the_dag_sched.comp, deadline, priority)
                         self.profiler.dranktime += datetime.now() - start
 
                         #### AFFINITY ####
@@ -542,7 +596,7 @@ class META:
                 dag_id = int(tmp.pop(0))
                 dag_type = tmp.pop(0)
 
-                graphml_file = "inputs/{0}/dag_input_toy_3/dag{1}_light.graphml".format(application, dag_type)
+                graphml_file = "inputs/{0}/dag_input/dag{1}.graphml".format(application, dag_type)
                 graph = nx.read_graphml(graphml_file, TASK)
 
                 # Read static assignment and update each task node
@@ -551,9 +605,6 @@ class META:
                 static_server_dict = nx.get_node_attributes(graph_prop, 'server_id')
                 for node in graph.nodes():
                     node.static_server_id = int(static_server_dict[str(node.tid)])
-
-
-                # TODO: LNN: MartOpt reads the static server assigned id of all tasks
 
                 #### AFFINITY ####
                 # Add matrix to maintain parent node id's
@@ -565,7 +616,7 @@ class META:
                         parent_list.append(pred_node.tid)
                     parent_dict[node.tid] = parent_list
                     # logging.info(str(node.tid) + ": " + str(parent_dict[node.tid]))
-                comp_file = "inputs/{0}/dag_input_toy_3/dag_{1}.txt".format(application, dag_type)
+                comp_file = "inputs/{0}/dag_input/dag_{1}.txt".format(application, dag_type)
                 # if (self.params['simulation']['policy'].startswith("ms2")):
                 #    comp_file = "inputs/{0}/dag_input_toy/dag_{1}_slack.txt".format(application, dag_type)
 

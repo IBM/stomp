@@ -181,7 +181,7 @@ class MARTOpt:
         optvals = [1 - (_ - min(optvals)) / (max(optvals) - min(optvals)) for _ in optvals] # scale to 0 to 1 range
         for j, tokens in enumerate(numpy.arange(5, self.max_tokens, 5)):
             task.logical_obs['Optfunc_{}'.format(tokens)] = round(optvals[j], 5)
-            print(self.server.type, tokens, round(optvals[j], 5))
+            # print(self.server.type, tokens, round(optvals[j], 5))
 
 
     def predict_token_needs_v1(self, sim_time):
