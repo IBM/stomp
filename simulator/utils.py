@@ -115,7 +115,7 @@ class EventQueue(PriorityQueue):
     def print_events(self):
         for idx in range(0,len(self.queue)):
             p, e, i = (self.queue[idx])
-            print("Queue size", len(self.queue), p, e, i)
+            print("Queue size", len(self.queue), p, e, i, flush=True)
     
     def remove_event(self, idx):
         a, b, c = self.queue[idx]

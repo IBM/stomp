@@ -36,9 +36,10 @@ from meta import TASK
 MAX_TOKENS = 100
 
 class MARTOpt:
-    def __init__(self, id, server, max_tokens):
+    def __init__(self, id, server, pm_mode, max_tokens):
         self.server_id = id
         self.task_assigned = None 
+        self.pm_mode = pm_mode
         self.max_tokens = MAX_TOKENS
         self.admissible_actions = [i for i in numpy.arange(5, self.max_tokens, 5)]
         self.server = server
@@ -50,14 +51,15 @@ class MARTOpt:
 # Uses task_frac_completed which is sum over all the task_fraction upto current event time
     def generate_opt_func(self, sim_time):
         task = self.server.task
+        dag_id = self.server.task.dag_id
         sibling_task = None
         
         #This function is only supported for one sibling
-        assert len(self.server.stomp_obj.sibling_tasks) == 2
-        if self.server.stomp_obj.sibling_tasks[0] == task:
-            sibling_task = self.server.stomp_obj.sibling_tasks[1]
+        assert len(self.server.stomp_obj.sibling_tasks[dag_id]) == 2
+        if self.server.stomp_obj.sibling_tasks[dag_id][0] == task:
+            sibling_task = self.server.stomp_obj.sibling_tasks[dag_id][1]
         else:
-            sibling_task = self.server.stomp_obj.sibling_tasks[0]
+            sibling_task = self.server.stomp_obj.sibling_tasks[dag_id][0]
 
         sibling_server = self.server.stomp_obj.servers[sibling_task.exec_server_id]
         optvals = []
@@ -90,10 +92,11 @@ class MARTOpt:
 # Uses task_frac_completed which is sum over all the task_fraction upto current event time
     def generate_opt_func_new(self, sim_time):
         task = self.server.task
+        dag_id = self.server.task.dag_id
         sibling_task = None
         
         #This function is only supported for one sibling
-        assert len(self.server.stomp_obj.sibling_tasks) > 1
+        assert len(self.server.stomp_obj.sibling_tasks[dag_id]) > 1
         s_idx = 0 #sibling idx
         sibling_tasks = {}
         sibling_servers = {}
@@ -104,7 +107,7 @@ class MARTOpt:
         sibling_task_exec_time = {}
 
         #Find task in sibling tasks
-        for cnt, ttask in enumerate(self.server.stomp_obj.sibling_tasks):
+        for cnt, ttask in enumerate(self.server.stomp_obj.sibling_tasks[dag_id]):
             if ttask == task:
                 task_idx = cnt
             else:
@@ -112,11 +115,7 @@ class MARTOpt:
                 sibling_servers[s_idx] = self.server.stomp_obj.servers[ttask.exec_server_id]
                 s_idx += 1
 
-        num_siblings = len(self.server.stomp_obj.sibling_tasks) - 1
-        # if self.server.stomp_obj.sibling_tasks[0] == task:
-        #     sibling_task = self.server.stomp_obj.sibling_tasks[1]
-        # else:
-        #     sibling_task = self.server.stomp_obj.sibling_tasks[0]
+        num_siblings = len(self.server.stomp_obj.sibling_tasks[dag_id]) - 1
 
         #Calculate the fractions for time and deadline with max_tokens
         all_tasks_time_tot = 0
@@ -201,7 +200,7 @@ class MARTOpt:
 
             # task assigned, parent tasks are completed and sibling task exists -> tokens with highest Eff
             if task_assigned.logical_obs["TaskAssigned"] and task_assigned.logical_obs["ParentTasksCompleted"] and task_assigned.logical_obs["SiblingTasks"]:
-                if task_assigned.logical_obs["HW"]:
+                if self.pm_mode == "HW":
                     return self.max_tokens/2, self.server.get_frequency(self.max_tokens/2)
                 else:
                     self.generate_opt_func_new(sim_time)
@@ -228,12 +227,13 @@ class Server:
         self.id                 = id
         self.type               = type
         self.stomp_obj          = stomp_obj
-        self.pmode              = None
         self.num_reqs           = 0
         self.busy_time          = 0
         self.last_dag_id        = None
         self.last_task_id       = None
-        self.martopt            = MARTOpt(id, self, stomp_obj.params['simulation']['total_ptoks'])
+
+        self.pm_mode            = stomp_obj.pm_mode
+        self.martopt            = MARTOpt(id, self, self.pm_mode, stomp_obj.params['simulation']['total_ptoks'])
         #TODO: LNN: parameters for fraction calculation of task running on server
         self.task_time_exp      = 0.5
         
@@ -429,7 +429,6 @@ class STOMP:
         self.drop_hint_list    = sharedObjs.drop_hint_list
 
         self.released_servers = MyPriorityQueue()
-        self.sibling_tasks         = []
 
         self.params       = stomp_params
         self.meta         = None
@@ -439,6 +438,10 @@ class STOMP:
         self.num_tasks_generated = 0
         self.contention_factor = [1.00, 1.27, 1.40, 1.52, 1.69, 1.73, 1.97, 2.29, 2.38, 2.67, 2.84, 3.03, 3.25]
         self.time_since_last_completed = 0
+
+        self.lnn_eval        = self.params['simulation']['lnn_eval']
+        self.pm_mode         = self.params['simulation']['pm_mode']
+        self.sibling_tasks   = {}
 
         logging.basicConfig(level=eval('logging.' + self.params['general']['logging_level']),
                             format="%(message)s",
@@ -894,13 +897,17 @@ class STOMP:
             if server == None:
                 continue
 
+            if self.lnn_eval:
+                s_dag_id = server.task.dag_id
             #TODO:LNN: Populate ready and assigned tasks into the sibling tasks
-            self.sibling_tasks.append(server.task)
-            if len(self.sibling_tasks) > 1:
-                for task in self.sibling_tasks:
-                    task.logical_obs["SiblingTasks"] = True
+                if s_dag_id not in self.sibling_tasks.keys():
+                    self.sibling_tasks[s_dag_id] = []
+                self.sibling_tasks[s_dag_id].append(server.task)
+                if len(self.sibling_tasks[s_dag_id]) > 1:
+                    for task in self.sibling_tasks[s_dag_id]:
+                        task.logical_obs["SiblingTasks"] = True
 
-            print("Sibling Added", self.env.now, [(x.dag_id, x.tid, x.type, x.server_type) for x in self.sibling_tasks])
+                print(f"{self.env.now}: Sibling[{s_dag_id}] Added into", [(x.tid, x.type, x.server_type) for x in self.sibling_tasks[s_dag_id]])
 
             self.ta_time = self.sched_policy.ta_time
             self.to_time = self.sched_policy.to_time
@@ -911,30 +918,36 @@ class STOMP:
             self.tsched_eventq.put(server.curr_job_end_time, events.SERVER_FINISHED)
             
             #TODO: LNN: revaluate when a new task is assigned
-            for sibling_task in self.sibling_tasks:
-                if sibling_task.exec_server_id != None:
-                    sibling_server = self.servers[sibling_task.exec_server_id]
-                    sibling_task.curr_tokens, sibling_task.curr_freq = sibling_server.martopt.predict_token_needs_v1(self.env.now)
-                    print("Tokens, freq after assigned: ", sibling_task.curr_tokens, sibling_task.curr_freq , sibling_task.type, sibling_task.server_type)
+            if self.lnn_eval:
+                for sibling_task in self.sibling_tasks[s_dag_id]:
+                    if sibling_task.exec_server_id != None:
+                        sibling_server = self.servers[sibling_task.exec_server_id]
+                        sibling_task.task_fraction_completed += sibling_server.task_fraction_completed_in_window(self.env.now, sibling_task.curr_tokens, max_tokens=MAX_TOKENS)
 
-            #TODO: LNN: Update server's curr_service_time and remove/modify prev server finished event
-            for sibling_task in self.sibling_tasks:
-                if sibling_task.exec_server_id != None:
-                    sibling_server = self.servers[sibling_task.exec_server_id]
-                    item_idx, end_time = self.released_servers.find_item(sibling_server)
-                    # self.tsched_eventq.put(server.curr_job_end_time, events.SERVER_FINISHED)
-                    event_idx = self.tsched_eventq.find_event(end_time, events.SERVER_FINISHED)
-                    # print("Found server at:", item_idx, "with end time:", end_time, "and event:", events.SERVER_FINISHED, " at queue idx", event_idx)
-                    self.released_servers.remove_item(item_idx)
-                    self.tsched_eventq.remove_event(event_idx)
+                for sibling_task in self.sibling_tasks[s_dag_id]:
+                    if sibling_task.exec_server_id != None:
+                        sibling_server = self.servers[sibling_task.exec_server_id]
+                        sibling_task.curr_tokens, sibling_task.curr_freq = sibling_server.martopt.predict_token_needs_v1(self.env.now)
+                        print(f"[{self.env.now}] Tokens, freq after assigned: ", sibling_task.curr_tokens, sibling_task.curr_freq , sibling_task.type, sibling_task.server_type)
 
-                    prev_end_time = sibling_server.curr_job_end_time
-                    sibling_server.curr_job_end_time = self.env.now + sibling_server.estimate_task_time(tokens=sibling_task.curr_tokens, task_frac=1 - sibling_task.task_fraction_completed, max_tokens=MAX_TOKENS)
-                    print("Changing task: ", sibling_task.type, "end time from ", prev_end_time, "to ", sibling_server.curr_job_end_time, "exec time from", prev_end_time - self.env.now, "to ", sibling_server.curr_job_end_time - self.env.now)
-                    self.released_servers.put(sibling_server.curr_job_end_time, sibling_server)
-                    self.tsched_eventq.put(sibling_server.curr_job_end_time, events.SERVER_FINISHED)
-                    a,b = self.tsched_eventq.get()
-                    self.tsched_eventq.put(a,b)
+                #TODO: LNN: Update server's curr_service_time and remove/modify prev server finished event
+                for sibling_task in self.sibling_tasks[s_dag_id]:
+                    if sibling_task.exec_server_id != None:
+                        sibling_server = self.servers[sibling_task.exec_server_id]
+                        item_idx, end_time = self.released_servers.find_item(sibling_server)
+                        # self.tsched_eventq.put(server.curr_job_end_time, events.SERVER_FINISHED)
+                        event_idx = self.tsched_eventq.find_event(end_time, events.SERVER_FINISHED)
+                        # print("Found server at:", item_idx, "with end time:", end_time, "and event:", events.SERVER_FINISHED, " at queue idx", event_idx)
+                        self.released_servers.remove_item(item_idx)
+                        self.tsched_eventq.remove_event(event_idx)
+
+                        prev_end_time = sibling_server.curr_job_end_time
+                        sibling_server.curr_job_end_time = self.env.now + sibling_server.estimate_task_time(tokens=sibling_task.curr_tokens, task_frac=1 - sibling_task.task_fraction_completed, max_tokens=MAX_TOKENS)
+                        print(f"1 Changing task ({sibling_task.task_fraction_completed}/1):  ", sibling_task.type, "end time from ", prev_end_time, "to ", sibling_server.curr_job_end_time, "exec time from", prev_end_time - self.env.now, "to ", sibling_server.curr_job_end_time - self.env.now)
+                        self.released_servers.put(sibling_server.curr_job_end_time, sibling_server)
+                        self.tsched_eventq.put(sibling_server.curr_job_end_time, events.SERVER_FINISHED)
+                        a,b = self.tsched_eventq.get()
+                        self.tsched_eventq.put(a,b)
 
             self.stats['Running Tasks']                  += 1
             self.stats['Busy Servers']                   += 1
@@ -1004,44 +1017,48 @@ class STOMP:
                 assert next_serv_end.task != None
 
                 #TODO: LNN: Update % of completed for all tiles and broadcast to the LNN agents
-                self.sibling_tasks.remove(next_serv_end.task)
-                print("Sibling Removed", self.env.now, [(x.dag_id, x.tid, x.type, x.server_type) for x in self.sibling_tasks])
+                if self.lnn_eval:
+                    s_dag_id = next_serv_end.task.dag_id
+                    self.sibling_tasks[s_dag_id].remove(next_serv_end.task)
+                    print(f"{self.env.now}: Sibling[{s_dag_id}] Removed from", [(x.tid, x.type, x.server_type) for x in self.sibling_tasks[s_dag_id]])
 
-                for sibling_task in self.sibling_tasks:
-                    if sibling_task.exec_server_id != None:
-                        sibling_server = self.servers[sibling_task.exec_server_id]
-                        sibling_task.task_fraction_completed += sibling_server.task_fraction_completed_in_window(curtick, sibling_task.curr_tokens, max_tokens=MAX_TOKENS)
-                
-                if len(self.sibling_tasks) <= 1:
-                    for task in self.sibling_tasks:
-                        task.logical_obs["SiblingTasks"] = False
+                    for sibling_task in self.sibling_tasks[s_dag_id]:
+                        if sibling_task.exec_server_id != None:
+                            sibling_server = self.servers[sibling_task.exec_server_id]
+                            sibling_task.task_fraction_completed += sibling_server.task_fraction_completed_in_window(curtick, sibling_task.curr_tokens, max_tokens=MAX_TOKENS)
 
-                #TODO: LNN: Recalculation of tokens for sibling task server 
-                for sibling_task in self.sibling_tasks:
-                    if sibling_task.exec_server_id != None:
-                        sibling_server = self.servers[sibling_task.exec_server_id]
-                        sibling_task.curr_tokens, sibling_task.curr_freq = sibling_server.martopt.predict_token_needs_v1(self.env.now)
-                        print("Tokens, freq after removal: ", sibling_task.curr_tokens, sibling_task.curr_freq, sibling_task.type, sibling_task.server_type)
+                    if len(self.sibling_tasks[s_dag_id]) <= 1:
+                        for task in self.sibling_tasks[s_dag_id]:
+                            task.logical_obs["SiblingTasks"] = False
+                    if len(self.sibling_tasks[s_dag_id]) == 0:
+                        self.sibling_tasks.pop(s_dag_id)
+                    else:
+                        #TODO: LNN: Recalculation of tokens for sibling task server 
+                        for sibling_task in self.sibling_tasks[s_dag_id]:
+                            if sibling_task.exec_server_id != None:
+                                sibling_server = self.servers[sibling_task.exec_server_id]
+                                sibling_task.curr_tokens, sibling_task.curr_freq = sibling_server.martopt.predict_token_needs_v1(self.env.now)
+                                print(f"[{self.env.now}] Tokens, freq after removal: ", sibling_task.curr_tokens, sibling_task.curr_freq, sibling_task.type, sibling_task.server_type)
 
-                #TODO: LNN: Update server's curr_service_time and remove/modify prev server finished event
-                for sibling_task in self.sibling_tasks:
-                    if sibling_task.exec_server_id != None:
-                        sibling_server = self.servers[sibling_task.exec_server_id]
-                        item_idx, end_time = self.released_servers.find_item(sibling_server)
-                        # self.tsched_eventq.put(server.curr_job_end_time, events.SERVER_FINISHED)
-                        event_idx = self.tsched_eventq.find_event(end_time, events.SERVER_FINISHED)
-                        # print("Found server at:", item_idx, "with end time:", end_time, "and event:", events.SERVER_FINISHED, " at queue idx", event_idx)
-                        self.released_servers.remove_item(item_idx)
-                        self.tsched_eventq.remove_event(event_idx)
+                        #TODO: LNN: Update server's curr_service_time and remove/modify prev server finished event
+                        for sibling_task in self.sibling_tasks[s_dag_id]:
+                            if sibling_task.exec_server_id != None:
+                                sibling_server = self.servers[sibling_task.exec_server_id]
+                                item_idx, end_time = self.released_servers.find_item(sibling_server)
+                                # self.tsched_eventq.put(server.curr_job_end_time, events.SERVER_FINISHED)
+                                event_idx = self.tsched_eventq.find_event(end_time, events.SERVER_FINISHED)
+                                # print("Found server at:", item_idx, "with end time:", end_time, "and event:", events.SERVER_FINISHED, " at queue idx", event_idx)
+                                self.released_servers.remove_item(item_idx)
+                                self.tsched_eventq.remove_event(event_idx)
 
-                        prev_end_time = sibling_server.curr_job_end_time
-                        # print("TF:", sibling_task.task_fraction_completed)
-                        sibling_server.curr_job_end_time = self.env.now + sibling_server.estimate_task_time(tokens=sibling_task.curr_tokens, task_frac=1 - sibling_task.task_fraction_completed, max_tokens=MAX_TOKENS)
-                        print("Changing task: ", sibling_task.type, "end time from ", prev_end_time, "to ", sibling_server.curr_job_end_time)
-                        self.released_servers.put(sibling_server.curr_job_end_time, sibling_server)
-                        self.tsched_eventq.put(sibling_server.curr_job_end_time, events.SERVER_FINISHED)
-                        a,b = self.tsched_eventq.get()
-                        self.tsched_eventq.put(a,b)
+                                prev_end_time = sibling_server.curr_job_end_time
+                                # print("TF:", sibling_task.task_fraction_completed)
+                                sibling_server.curr_job_end_time = self.env.now + sibling_server.estimate_task_time(tokens=sibling_task.curr_tokens, task_frac=1 - sibling_task.task_fraction_completed, max_tokens=MAX_TOKENS)
+                                print(f"2 Changing task ({sibling_task.task_fraction_completed}/1): ", sibling_task.type, "end time from ", prev_end_time, "to ", sibling_server.curr_job_end_time)
+                                self.released_servers.put(sibling_server.curr_job_end_time, sibling_server)
+                                self.tsched_eventq.put(sibling_server.curr_job_end_time, events.SERVER_FINISHED)
+                                a,b = self.tsched_eventq.get()
+                                self.tsched_eventq.put(a,b)
 
                 self.release_server(next_serv_end)
 

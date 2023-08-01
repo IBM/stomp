@@ -31,6 +31,7 @@ from datetime import datetime, timedelta
 from tqdm import tqdm
 import time
 import networkx as nx
+from networkx.drawing.nx_agraph import write_dot
 from csv import reader
 
 from utils import message_decode_event, events, bcolors, handle_event
@@ -84,8 +85,8 @@ class TASK:
         self.logical_obs                = {}
         self.max_time                   = None
         self.min_time                   = None
-        self.sdr                        = 0
-        self.sr                         = 0
+        self.sdr                        = 1.1
+        self.sr                         = 1.1
         self.static_server_id           = None
         # self.key = key
 
@@ -129,7 +130,6 @@ class TASK:
         self.logical_obs["TaskAssigned"]                    = False
         self.logical_obs["ParentTasksCompleted"]            = True
         self.logical_obs["SiblingTasks"]                    = False
-        self.logical_obs["HW"]                              = False
         for tokens in numpy.arange(5, self.max_tokens, 5):
             self.logical_obs['Optfunc_{}'.format(tokens)]   = None
 
@@ -196,16 +196,16 @@ class DAG:
             task_node.min_time = min_time
         return graph
     
-    def gen_task_deadline_ratio(self, graph):
-        sink_nodes = [node for node, outdegree in graph.out_degree(graph.nodes()) if outdegree == 0]
-        source_nodes = [node for node, indegree in graph.in_degree(graph.nodes()) if indegree == 0]
+    def gen_task_deadline_ratio(self):
+        sink_nodes = [node for node, outdegree in self.graph.out_degree(self.graph.nodes()) if outdegree == 0]
+        source_nodes = [node for node, indegree in self.graph.in_degree(self.graph.nodes()) if indegree == 0]
         for source, sink in [(source, sink) for sink in sink_nodes for source in source_nodes]:
-            for path in nx.all_simple_paths(graph, source=source, target=sink):
+            for path in nx.all_simple_paths(self.graph, source=source, target=sink):
                 
                 # Slack ratio calculation for MS_DYN
                 path_nodes = []
                 for xnode in path:
-                    for gnode in graph.nodes():
+                    for gnode in self.graph.nodes():
                         if gnode == xnode:
                             path_nodes.append(gnode)
                 for nid, node in enumerate(path_nodes):
@@ -222,9 +222,7 @@ class DAG:
                 for node in path_nodes:
                     bcet = node.min_time
                     sdr = bcet/path_time
-                    node.sdr = min(sdr, node.sdr)
-        
-        return graph
+                    node.sdr = min(sdr, node.sdr)  
 
     def __init__(self, graph, comp, parent_dict, atime, deadline, dtime, priority, dag_type):
         self.graph              = graph
@@ -245,8 +243,10 @@ class DAG:
         self.noaffinity_time    = 0
         self.energy             = 0
         self.set_max_min_time(self.graph)
-        self.gen_task_deadline_ratio(self.graph)
+        self.gen_task_deadline_ratio()
 
+        for gnode in self.graph.nodes():
+            assert gnode.sdr <= 1
                 
 
 class BaseMetaPolicy:
@@ -598,6 +598,8 @@ class META:
 
                 graphml_file = "inputs/{0}/dag_input/dag{1}.graphml".format(application, dag_type)
                 graph = nx.read_graphml(graphml_file, TASK)
+                write_dot(graph, "graph{0}.dot".format(dag_type))
+                # nx.drawing.nx_pydot.write_dot(graph, "graph{0}.dot".format(dag_type))
 
                 # Read static assignment and update each task node
                 graph_prop = nx.read_graphml(graphml_file)

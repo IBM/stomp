@@ -5,7 +5,7 @@
   <graph edgedefault="directed">
     <node id="0">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">0</data>      
     </node>
     <node id="1">
       <data key="d0">1</data>
@@ -25,15 +25,15 @@
     </node>
     <node id="5">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">0</data>      
     </node>
     <node id="6">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">4</data>      
     </node>
     <node id="7">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">0</data>      
     </node>
     <node id="8">
       <data key="d0">1</data>
@@ -53,7 +53,7 @@
     </node>
     <node id="12">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">10</data>      
     </node>
     <node id="13">
       <data key="d0">1</data>
@@ -61,19 +61,19 @@
     </node>
     <node id="14">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">0</data>      
     </node>
     <node id="15">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">10</data>      
     </node>
     <node id="16">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">0</data>      
     </node>
     <node id="17">
       <data key="d0">1</data>
-      <data key="d1">1</data>      
+      <data key="d1">0</data>      
     </node>
 
 

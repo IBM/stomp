@@ -21,6 +21,9 @@
         "contention":          true,
         "drop":                false,
 
+        "lnn_eval":  true,
+        "pm_mode":   "HW", 
+
         "pwr_mgmt": false,
         "pwr_model": "simple",
         "total_ptoks": 1000,
