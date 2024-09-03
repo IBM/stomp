@@ -6,6 +6,9 @@ AVSched is implemented using the STOMP simulator. STOMP is a simple yet powerful
 
 STOMP is based on its predecesor C-based <a href="https://ieeexplore.ieee.org/document/5749737" target="_blank">QUTE framework</a>.
 
+## Citation
+If you use the meta branch please cite our paper:
+A. Amarnath et al., "Heterogeneity-Aware Scheduling on SoCs for Autonomous Vehicles," in IEEE Computer Architecture Letters, vol. 20, no. 2, pp. 82-85, 1 July-Dec. 2021
 
 ## Usage
 
@@ -65,10 +68,6 @@ STOMP-viz outputs different views of tasks' execution over time
 
 A screenshot of the output of STOMP-viz on an example trace execution is shown below.
 ![](stomp-viz-example.png)
-
-## Citation
-If you use the meta-wip branch please cite our paper:
-A. Amarnath et al., "Heterogeneity-Aware Scheduling on SoCs for Autonomous Vehicles," in IEEE Computer Architecture Letters, vol. 20, no. 2, pp. 82-85, 1 July-Dec. 2021
 
 ## Contributors and Current Maintainers
 
