@@ -74,6 +74,7 @@ A screenshot of the output of STOMP-viz on an example trace execution is shown b
  * Aporva Amarnath (IBM) -- aporva.amarnath@ibm.com
  * Augusto Vega (IBM) --  ajvega@us.ibm.com
  * John-David Wellman (IBM) -- wellman@us.ibm.com
+ * Subhankar Pal (IBM) -- subhankar.pal@ibm.com
 
 
 ## Do You Want to Contribute? Contact Us!
