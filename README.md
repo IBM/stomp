@@ -1,8 +1,8 @@
-# AVSched: Quality-of-Mission Aware Scheduling for Autonomous Vehicle SoCs
-AVSched is a multi-step scheduler that leverages dynamic runtime information about the underlying heterogeneous hardware platform, along with the applications’ real-time constraintsand the task traffic in the system to optimize overall mission performance. AVSched proposes two scheduling policies: 𝑀𝑆𝑠𝑡𝑎𝑡 and 𝑀𝑆𝑑𝑦𝑛 and scheduling optimizations like task pruning, hybrid heterogeneous ranking and rank update.
+# HetSched: Quality-of-Mission Aware Scheduling for Autonomous Vehicle SoCs
+HetSched is a multi-step scheduler that leverages dynamic runtime information about the underlying heterogeneous hardware platform, along with the applications’ real-time constraintsand the task traffic in the system to optimize overall mission performance. HetSched proposes two scheduling policies: 𝑀𝑆𝑠𝑡𝑎𝑡 and 𝑀𝑆𝑑𝑦𝑛 and scheduling optimizations like task pruning, hybrid heterogeneous ranking and rank update.
 
 ## STOMP: Scheduling Techniques Optimization in heterogeneous Multi-Processors
-AVSched is implemented using the STOMP simulator. STOMP is a simple yet powerful queue-based **discrete-event** simulator that enables fast implementation and evaluation of OS scheduling policies in multi-core/multi-processor systems. It implements a convenient interface to allow users and researchers to _plug in_ new scheduling policies in a simple manner and without the need to touch the STOMP code.
+HetSched is implemented using the STOMP simulator. STOMP is a simple yet powerful queue-based **discrete-event** simulator that enables fast implementation and evaluation of OS scheduling policies in multi-core/multi-processor systems. It implements a convenient interface to allow users and researchers to _plug in_ new scheduling policies in a simple manner and without the need to touch the STOMP code.
 
 STOMP is based on its predecesor C-based <a href="https://ieeexplore.ieee.org/document/5749737" target="_blank">QUTE framework</a>.
 
